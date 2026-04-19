@@ -1,0 +1,39 @@
+# Use official Drupal 11 PHP-FPM image
+FROM drupal:11-php8.3-fpm
+
+# Set working directory
+WORKDIR /opt/drupal/web
+
+# Install system dependencies and PHP extensions required for Drupal
+RUN apt-get update && apt-get install -y \
+    git \
+    unzip \
+    libjpeg-dev \
+    libpng-dev \
+    libwebp-dev \
+    libavif-dev \
+    libfreetype6-dev \
+    libicu-dev \
+    libxml2-dev \
+    zip \
+    curl \
+    && docker-php-ext-configure gd --with-jpeg --with-webp --with-avif --with-freetype \
+    && docker-php-ext-install -j$(nproc) gd intl pdo_mysql xml \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Install Xdebug for code coverage
+RUN pecl install xdebug \
+    && docker-php-ext-enable xdebug
+
+# Minimal Xdebug config for coverage (disable by default)
+RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.start_with_request=no" >> /usr/local/etc/php/conf.d/xdebug.ini
+
+# Add vendor/bin to PATH
+ENV PATH="/opt/drupal/vendor/bin:${PATH}"
+
+# Image-only ownership for paths before bind mounts; the host project is mounted at /opt/drupal at runtime.
+RUN chown -R www-data:www-data /opt/drupal/web /opt/drupal/vendor

@@ -34,3 +34,7 @@ Thumbs.db
 # Other common excludes
 node_modules/
 .sass-cache/
+
+# PHPUnit / Sonar coverage artifacts (directory tracked via coverage/.gitkeep)
+/coverage/*
+!/coverage/.gitkeep

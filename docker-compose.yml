@@ -1,0 +1,142 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    volumes:
+      - ./:/opt/drupal
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DRUPAL_DB_HOST=db
+      - DRUPAL_DB_USER=drupal
+      - DRUPAL_DB_PASSWORD=drupal
+      - DRUPAL_DB_NAME=drupal
+    mem_limit: 2g
+    cpu_shares: 512
+    networks:
+      - drupal_network
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: drupal_nginx_miskcityd11
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web:/opt/drupal/web
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - web
+    mem_limit: 1g
+    cpu_shares: 256
+    networks:
+      - drupal_network
+
+  db:
+    image: mysql:8.0
+    container_name: drupal_db_miskcityd11
+    command: '--default-authentication-plugin=mysql_native_password'
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: drupal
+      MYSQL_USER: drupal
+      MYSQL_PASSWORD: drupal
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -udrupal -pdrupal || exit 1"]
+      interval: 5s
+      timeout: 20s
+      retries: 10
+    mem_limit: 2g
+    networks:
+      - drupal_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: drupal_phpmyadmin_miskcityd11
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+      UPLOAD_LIMIT: 1G
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - drupal_network
+
+  sonarqube:
+    profiles:
+      - sonar
+    image: sonarqube:25.11.0.114957-community
+    container_name: drupal_sonarqube
+    depends_on:
+      - sonar_db
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar_db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    ports:
+      - "9100:9000"
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    mem_limit: 2g
+    cpu_shares: 512
+    networks:
+      - drupal_network
+
+  sonar_db:
+    profiles:
+      - sonar
+    image: postgres:15
+    container_name: drupal_sonar_db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonar
+    ports:
+      - "5434:5432"
+    volumes:
+      - sonar_db_data:/var/lib/postgresql/data
+    mem_limit: 1g
+    cpu_shares: 256
+    networks:
+      - drupal_network
+
+  sonar_scanner:
+    profiles:
+      - sonar
+    image: sonarsource/sonar-scanner-cli:latest
+    container_name: drupal_sonar_scanner_miskcityd11
+    depends_on:
+      - sonarqube
+    working_dir: /usr/src
+    volumes:
+      - ./:/usr/src
+      - ./coverage:/usr/src/coverage
+    environment:
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
+      SONAR_HOST_URL: ${SONAR_HOST_URL:-http://sonarqube:9000}
+    networks:
+      - drupal_network
+    entrypoint:
+      - sonar-scanner
+      - -Dproject.settings=sonar-project.properties
+
+volumes:
+  db_data:
+  sonar_data:
+  sonar_extensions:
+  sonar_logs:
+  sonar_db_data:
+
+networks:
+  drupal_network:
+    driver: bridge

@@ -1,0 +1,10 @@
+<div {{ attributes.addClass('mb-8 mx-auto max-w-screen-xl') }}>
+  {{ title_prefix }}
+  {% if label %}
+    <h2{{ title_attributes }} {{ attributes.addClass('font-nevis md:text-5xl text-2xl	text-center  md:mb-16 mb-4 md:mt-16 mt-4 xs:mt-0 s:mt-0 translateLabel') }}>{{ label }}</h2>
+  {% endif %}
+  {{ title_suffix }}
+  {% block content %}
+    {{ content }}
+  {% endblock %}
+</div>

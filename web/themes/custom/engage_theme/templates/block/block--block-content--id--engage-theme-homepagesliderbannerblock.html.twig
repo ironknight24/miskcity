@@ -1,0 +1,54 @@
+{# themes/custom/engage_theme/templates/blocks/block--block-content--id--engage-theme-homepagesliderbannerblock.html.twig #}
+
+{% set slider_items = [] %}
+
+{% if content.field_slider_banner is not empty %}
+  {#
+    Loop through the content, and use an 'if' statement *inside* the loop
+    to filter out keys starting with '#'.
+  #}
+  {% for key, item in content.field_slider_banner %}
+    {% if key|first != '#' %} {# This correctly filters out #type, #attributes, etc. #}
+      {#
+        Here, 'item' is the render array for a single 'slider_banner' paragraph.
+        We need to get the actual paragraph entity from this render array
+        to access its field values.
+      #}
+      {% set paragraph_entity = item['#paragraph'] is defined ? item['#paragraph'] : null %}
+
+      {# Fallback if '#paragraph' isn't available, try to get it from '#entity' or similar, though '#paragraph' is standard for paragraph render arrays #}
+      {% if not paragraph_entity and item['#entity'] is defined and item['#entity'].bundle == 'slider_banner' %}
+        {% set paragraph_entity = item['#entity'] %}
+      {% endif %}
+
+      {% if paragraph_entity %}
+        {# Access fields directly from the paragraph_entity #}
+        {% set image_field = paragraph_entity.field_slider_banner_image %}
+        {% set image_uri = image_field and image_field.entity ? image_field.entity.getFileUri() : '' %}
+        {% set image_alt = image_field ? image_field.alt : '' %}
+
+        {% set title_value = paragraph_entity.field_slider_banner_title.value %}
+        {% set body_value = paragraph_entity.field_slider_banner_body.value %}
+
+        {# Add the processed data to our slider_items array #}
+        {% set slider_items = slider_items|merge([{
+          'image_url': image_uri ? file_url(image_uri) : '',
+          'image_alt': image_alt,
+          'title': title_value,
+          'body': body_value
+        }]) %}
+      {% endif %} {# End if paragraph_entity #}
+    {% endif %} {# End if key|first != '#' #}
+  {% endfor %}
+{% endif %}
+
+<div{{ attributes }}>
+  {% block content %}
+    {% if slider_items is not empty %}
+      {# Pass the prepared data to your main slider SDC #}
+      {{ include('engage_theme:homepage_slider', { slides: slider_items }) }}
+    {% else %}
+      <p>No homepage slider banners available.</p>
+    {% endif %}
+  {% endblock %}
+</div>

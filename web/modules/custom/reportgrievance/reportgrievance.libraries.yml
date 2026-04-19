@@ -1,0 +1,17 @@
+report_grievance_form:
+  version: 1.x
+  css:
+    theme:
+      css/report-grievance.css: {}
+  js:
+    https://DEV_APPLICATION_DOMAIN/GISClientServices/v4.0.0/appconfig-security.js: {}
+    # http://192.168.1.165:8989/trinityAPI/v4.0.2/appconfig-security.js: {}
+    js/jquery.validate.min.js: {}
+    js/report-grievance.js: {}
+    js/map-populate.js: {}
+    js/grievance-validate.js: {}
+  dependencies:
+    - core/jquery
+    - core/once
+    - core/drupal
+    - core/drupalSettings

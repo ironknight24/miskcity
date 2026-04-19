@@ -1,0 +1,11 @@
+{% extends "block.html.twig" %}
+
+{% block content %}
+  <div class="flex items-center py-4">
+    {% if site_logo %}
+      <a href="{{ path('<front>') }}" rel="home" class="block">
+        <img src="{{ site_logo }}" alt="{{ 'Home'|t }}" fetchpriority="high" class="h-12 mx-auto" height="48" width="130"/>
+      </a>
+    {% endif %}
+  </div>
+{% endblock %}

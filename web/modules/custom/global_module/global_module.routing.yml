@@ -1,0 +1,32 @@
+global_module.fileupload:
+  path: "/fileupload"
+  defaults:
+    _controller: 'Drupal\global_module\Controller\GlobalController::fileUpload'
+    _title: ""
+  requirements:
+    _custom_access: 'Drupal\global_module\Controller\GlobalController::fileUploadAccess'
+  methods: [POST]
+
+global_module.postData:
+  path: "/postData"
+  defaults:
+    _controller: 'global_module.api_gateway:postData'
+    _title: ""
+  requirements:
+    _permission: "access content"
+
+global_module.detailsUpdate:
+  path: "/detailsUpdate"
+  defaults:
+    _controller: 'global_module.global_variables:detailsUpdate'
+    _title: ""
+  requirements:
+    _permission: "access content"
+
+global_module.status:
+  path: '/response-status'
+  defaults:
+    _controller: '\Drupal\global_module\Controller\StatusController::statusPage'
+    _title: 'Response Change Status'
+  requirements:
+    _permission: 'access content'

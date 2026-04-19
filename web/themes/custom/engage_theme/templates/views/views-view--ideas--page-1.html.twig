@@ -1,0 +1,84 @@
+{#
+/**
+ * @file
+ * Theme override for main view template.
+ */
+#}
+
+{%
+  set classes = [
+    dom_id ? 'js-view-dom-id-' ~ dom_id,
+  ]
+%}
+
+<div{{attributes.addClass(classes)}}>
+	<div class="faq-page mx-auto max-w-screen-xl bg-white mb-32 px-4 py-6">
+		{{ title_prefix }}
+		{{ title }}
+		{{ title_suffix }}
+
+		{% if header %}
+			<header>
+				{{ header }}
+			</header>
+		{% else %}
+			<div class="contenting container mx-auto relative xs:p-5 xs:mt-0 xs:mb-0 s:mt-0 s:mb-0">
+				<div class="flex justify-center">
+					<div class="container my-ideas-wrapper">
+						<div
+							class="flex justify-between items-center">
+							<!-- Back Arrow Button -->
+							<img
+							src="themes/custom/engage_theme/images/Profile/reverse-arrow.svg" alt="Back Arrow" class="w-5 sm:w-7 cursor-pointer object-contain" onclick="history.go(-1)"/>
+
+							<!-- Heading -->
+							<h1 class="text-4xl md:text-5xl font-nevis text-center mt-8 md:mt-12 mb-8 md:mb-20 translateLabel search_field" label-alias="la_my_profile">
+								Ideas
+							</h1>
+
+							<!-- Placeholder for symmetry -->
+							<div class="w-5 sm:w-7"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		{% endif %}
+		<div class="solid border-solid mb-[45px] pb-[45px] border-b-[2px] border-[#3333] bg-white">
+			{{ exposed }}
+			{{ attachment_before }}
+		</div>
+		<div class="xs:hidden s:hidden solid border-solid border-2 rounded-2xl p-5 bg-white">
+			{% if logged_in %}
+				<div class="text-right flex justify-end">
+						<button class="btn flex gap-2 p-[4px] md:p-[10px] text-white text-xl capitalize font-bold font-['Open_Sans'] mb-4 bg-[#ffcc00] rounded-[4px] md:rounded-[10px] cursor-pointer" onclick="window.location.href='add-ideas';" type="button">
+							<img class="object-contain cursor-pointer w-6" src="themes/custom/engage_theme/images/Ideas/plus_mark.svg" alt="arrow back">
+							Submit New Idea
+						</button>
+				</div>
+			{% endif %}
+			<div class="flex flex-col overflow-y-auto h-full md:max-h-[700px]" id="news_list">
+
+				{% if rows %}
+					{{ rows }}
+				{% elseif empty %}
+					{{ empty }}
+				{% endif %}
+
+
+			</div>
+		</div>
+		<div class="mt-4">
+			{{ pager }}
+			{{ attachment_after }}
+			{{ more }}
+		</div>
+
+		{% if footer %}
+			<footer>
+				{{ footer }}
+			</footer>
+		{% endif %}
+
+		{{ feed_icons }}
+	</div>
+</div>

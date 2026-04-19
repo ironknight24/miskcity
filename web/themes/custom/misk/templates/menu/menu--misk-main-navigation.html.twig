@@ -1,0 +1,123 @@
+{# ================= DESKTOP MENU ================= #}
+<ul class="hidden md:flex items-center gap-8 list-none m-0 p-0">
+
+  {% for item in items %}
+    <li class="relative group">
+
+      <a href="{{ item.url }}"
+         class="uppercase tracking-wide text-sm font-semibold pb-1 border-b-2 transition
+         {{ item.is_active ? 'text-misk-brand border-misk-brand' : 'text-misk-navy border-transparent hover:border-misk-orange' }}">
+         
+        {{ item.title }}
+
+      </a>
+
+      {% if item.below %}
+        <ul class="absolute left-0 mt-2 w-48 bg-white shadow-lg rounded-lg hidden group-hover:block p-2">
+          {% for child in item.below %}
+            <li>
+              <a href="{{ child.url }}"
+                 class="block px-3 py-2 text-sm hover:bg-gray-100 rounded">
+                {{ child.title }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+    </li>
+  {% endfor %}
+
+</ul>
+
+
+{# ================= MOBILE MENU ================= #}
+{% set half = (items|length / 2)|round(0, 'ceil') %}
+
+<ul class="flex md:hidden justify-between items-center w-full px-6 m-0 p-0 list-none">
+
+  {# LEFT SIDE (first half) #}
+  <div class="flex flex-1 justify-around">
+    {% for item in items|slice(0, half) %}
+      {% set title = item.title|lower %}
+
+      <li class="text-center">
+        <a href="{{ item.url }}"
+           class="flex flex-col items-center text-xs
+           {{ item.is_active ? 'text-misk-brand' : 'text-misk-brand' }}">
+
+          {{ _self.icon(title) }}
+
+          <span class="mt-1 uppercase text-[10px]">
+            {{ item.title }}
+          </span>
+        </a>
+      </li>
+    {% endfor %}
+  </div>
+
+  {# EMPTY SPACE FOR CENTER LOGO #}
+  <div class="w-16"></div>
+
+  {# RIGHT SIDE (remaining items) #}
+  <div class="flex flex-1 justify-around justify-between">
+    {% for item in items|slice(half) %}
+      {% set title = item.title|lower %}
+
+      <li class="text-center">
+        <a href="{{ item.url }}"
+           class="flex flex-col items-center text-xs
+           {{ item.is_active ? 'text-misk-brand' : 'text-misk-brand' }}">
+
+          {{ _self.icon(title) }}
+
+          <span class="mt-1 uppercase text-[10px]">
+            {{ item.title }}
+          </span>
+        </a>
+      </li>
+    {% endfor %}
+  </div>
+
+</ul>
+
+
+{# ================= ICON FUNCTION ================= #}
+{% macro icon(title, active) %}
+
+  {# HOME #}
+  {% if 'home' in title %}
+    <svg class="w-10 h-10" viewBox="0 0 24 24"
+         fill="{{ active ? 'currentColor' : 'none' }}"
+         stroke="currentColor" stroke-width="1.8">
+      <path d="M3 10.5L12 4l9 6.5v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>
+    </svg>
+
+  {# SERVICES (grid style like your image) #}
+  {% elseif 'service' in title %}
+    <svg class="w-10 h-10" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.8">
+      <rect x="3" y="3" width="7" height="7" rx="2"/>
+      <rect x="14" y="3" width="7" height="7" rx="2"/>
+      <rect x="3" y="14" width="7" height="7" rx="2"/>
+      <rect x="14" y="14" width="7" height="7" rx="2"/>
+    </svg>
+
+  {# BOOKINGS (calendar minimal) #}
+  {% elseif 'booking' in title %}
+    <svg class="w-10 h-10" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.8">
+      <rect x="3" y="5" width="18" height="16" rx="2"/>
+      <path d="M16 3v4M8 3v4M3 10h18"/>
+    </svg>      
+
+  {# EXPLORE (compass/search hybrid) #}
+  {% elseif 'explore' in title %}
+    <svg class="w-10 h-10" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="12" cy="12" r="8"/>
+      <path d="M15 9l-6 3 3-6 3 3z"/>
+    </svg>
+  {% endif %}
+
+{% endmacro %}

@@ -1,0 +1,14 @@
+ideas-library:
+  version: 9.x
+  css:
+    layout:
+      css/ideas.css: {}
+    theme:
+      css/ideas.css: {}
+  js:
+    https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.21.0/jquery.validate.min.js: { type: external, minified: true }
+    js/ideas.js: { attributes: { type: module } }
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/drupal.ajax

@@ -1,0 +1,85 @@
+custom_profile.my_account:
+  path: '/my-account'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\ProfileController::myAccount'
+    _title: 'My Account'
+  requirements:
+    _permission: 'access content'
+
+custom_profile.add_family_form:
+  path: "/add-family-member"
+  defaults:
+    _form: '\Drupal\custom_profile\Form\AddFamilyMemberForm'
+    _title: "Add Family Member"
+  requirements:
+    _permission: "access content"
+
+custom_profile.change_password_form:
+  path: "/validate-password"
+  defaults:
+    _form: '\Drupal\custom_profile\Form\ChangePasswordForm'
+    _title: "Change Password"
+  requirements:
+    _permission: "access content"
+
+custom_profile.add_address_form:
+  path: "/add-address"
+  defaults:
+    _form: '\Drupal\custom_profile\Form\AddAddressForm'
+    _title: 'Add Address'
+  requirements:
+    _permission: "access content"
+
+custom_profile.edit_address_form:
+  path: "/edit-address/{node}"
+  defaults:
+    _form: '\Drupal\custom_profile\Form\AddAddressForm'
+    _title: 'Edit Address'
+  requirements:
+    _custom_access: '\Drupal\custom_profile\Form\AddAddressForm::access'
+  options:
+    parameters:
+      node:
+        type: entity:node
+
+custom_profile.delete_address:
+  path: '/delete-address/{nid}'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\DeleteAddressController::delete'
+  requirements:
+    _custom_access: '\Drupal\custom_profile\Controller\DeleteAddressController::access'
+    nid: \d+
+  methods: [DELETE]
+
+custom_profile.my_services_page:
+  path: '/service-request'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\MyServicesController::view'
+    _title: 'My Services'
+  requirements:
+    _permission: 'access content'
+
+custom_profile.request_details:
+  path: '/request/{grievance_id}'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\RequestDetailsController::view'
+    _title: 'Request Details'
+  requirements:
+    grievance_id: '.+'
+    _permission: 'access content'
+
+custom_profile.family_success:
+  path: '/success-family'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\FamilySuccessController::content'
+    _title: 'Family Added Successful'
+  requirements:
+    _permission: 'access content'
+
+custom_profile.family_failure:
+  path: '/failure-family'
+  defaults:
+    _controller: '\Drupal\custom_profile\Controller\FamilyFailureController::content'
+    _title: 'Family Added Failed'
+  requirements:
+    _permission: 'access content'

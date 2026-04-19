@@ -1,0 +1,161 @@
+services:
+  login_logout.user_redirect_subscriber:
+    class: Drupal\login_logout\EventSubscriber\UserRedirectSubscriber
+    arguments:
+      - "@current_user"
+      - "@path.current"
+    tags:
+      - { name: event_subscriber }
+
+  login_logout.oauth_login_service:
+    class: Drupal\login_logout\Service\OAuthLoginService
+    arguments:
+      - '@http_client'
+      - '@logger.channel.login_logout'
+      - '@request_stack'
+      - '@global_module.global_variables'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+      - '@login_logout.oauth_helper_service'
+
+  login_logout.oauth_jwt_service:
+    class: Drupal\login_logout\Service\OAuthJwtService
+
+  login_logout.oauth_session_formatter_service:
+    class: Drupal\login_logout\Service\OAuthSessionFormatterService
+
+  login_logout.oauth_helper_service:
+    class: Drupal\login_logout\Service\OAuthHelperService
+    arguments:
+      - '@http_client'
+      - '@logger.channel.login_logout'
+      - '@global_module.vault_config_service'
+      - '@login_logout.oauth_jwt_service'
+      - '@login_logout.oauth_session_formatter_service'
+
+  login_logout.no_cache_subscriber:
+    class: Drupal\login_logout\EventSubscriber\NoCacheSubscriber
+    arguments: ['@current_user']
+    tags:
+      - { name: event_subscriber }
+
+  login_logout.userinfo_validator:
+    class: Drupal\login_logout\Service\UserInfoValidator
+    arguments: 
+      - "@http_client" 
+      - "@logger.channel.login_logout" 
+      - "@session"
+      - "@global_module.global_variables"
+      - "@global_module.vault_config_service"
+
+  login_logout.userinfo_check_subscriber:
+    class: Drupal\login_logout\EventSubscriber\UserInfoCheckSubscriber
+    arguments:
+      - '@current_user'
+      - '@session_manager'
+      - '@login_logout.userinfo_validator'
+      - '@logger.channel.login_logout'
+      - '@path.current'
+      - '@global_module.global_variables'
+      - '@global_module.vault_config_service'
+    tags:
+      - { name: event_subscriber }
+
+  login_logout.userinfo_cron_healthcheck:
+    class: Drupal\login_logout\Service\UserInfoCronHealthCheck
+    arguments:
+      - "@login_logout.userinfo_validator"
+      - "@logger.channel.login_logout"
+
+  logger.channel.login_logout:
+    parent: logger.channel_base
+    arguments: ["login_logout"]
+
+  login_logout.origin_subscriber:
+    class: Drupal\login_logout\EventSubscriber\OriginGuardSubscriber
+    arguments: ['%cors.config%']
+    tags:
+      - { name: event_subscriber }
+  
+  # login_logout.session_debug_subscriber:
+  #   class: Drupal\login_logout\EventSubscriber\SessionDebugSubscriber
+  #   arguments:
+  #     - '@logger.channel.login_logout'
+  #   tags:
+  #     - { name: event_subscriber }
+
+  login_logout.force_https_subscriber:
+    class: Drupal\login_logout\EventSubscriber\ForceHttpsSubscriber
+    tags:
+      - { name: event_subscriber }
+
+  login_logout.password_recovery_service:
+    class: Drupal\login_logout\Service\PasswordRecoveryService
+    arguments: 
+      - '@http_client'
+      - '@global_module.vault_config_service'
+      - '@logger.channel.login_logout'
+
+  login_logout.login_submit_handler:
+    class: Drupal\login_logout\Service\LoginSubmitHandler
+    arguments:
+      - '@login_logout.oauth_login_service'
+      - '@active_sessions.session_service'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+      - '@session'
+      - '@entity_type.manager'
+      - '@messenger'
+      - '@logger.factory'
+      - '@datetime.time'
+      - '@tempstore.private'
+
+  login_logout.user_registration_external_service:
+    class: Drupal\login_logout\Service\UserRegistrationExternalService
+    arguments:
+      - '@http_client'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+      - '@logger.factory'
+      - '@messenger'
+
+  login_logout.otp_service:
+    class: Drupal\login_logout\Service\OtpService
+    arguments:
+      - '@http_client'
+      - '@global_module.vault_config_service'
+      - '@messenger'
+      - '@session'
+      - '@flood'
+      - '@lock'
+      - '@database'
+      - '@logger.factory'
+      - '@datetime.time'
+
+  login_logout.registration_audit_service:
+    class: Drupal\login_logout\Service\RegistrationAuditService
+    arguments:
+      - '@logger.factory'
+      - '@current_user'
+      - '@request_stack'
+
+  login_logout.user_registration_submit_handler:
+    class: Drupal\login_logout\Service\UserRegistrationSubmitHandler
+    arguments:
+      - '@messenger'
+      - '@entity_type.manager'
+      - '@login_logout.user_registration_account_manager'
+      - '@login_logout.user_registration_external_service'
+      - '@login_logout.otp_service'
+      - '@login_logout.registration_audit_service'
+
+  login_logout.user_registration_account_manager:
+    class: Drupal\login_logout\Service\UserRegistrationAccountManager
+    arguments:
+      - '@login_logout.oauth_login_service'
+      - '@active_sessions.session_service'
+      - '@session'
+      - '@datetime.time'
+      - '@messenger'
+      - '@module_handler'
+      - '@entity_type.manager'

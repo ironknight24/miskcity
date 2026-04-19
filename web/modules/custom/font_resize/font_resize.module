@@ -1,0 +1,15 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function font_resize_theme($existing, $type, $theme, $path) {
+  return [
+    'resize_block' => [
+      'variables' => [
+        'labels' => [],
+      ],
+      'template' => 'resize-block',
+    ],
+  ];
+}

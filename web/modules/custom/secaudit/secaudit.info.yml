@@ -1,0 +1,5 @@
+name: Security Audit
+type: module
+description: 'Detects and logs security-relevant events and forwards structured audit records to logger/syslog.'
+core_version_requirement: ^11
+package: Security

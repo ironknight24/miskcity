@@ -1,0 +1,227 @@
+{# <div class="max-w-3xl mx-auto py-10">
+	<h2 class="text-3xl font-bold mb-6">{{ node.label }}</h2>
+
+	<div class="bg-gray-100 p-6 rounded-lg space-y-4">
+		<h3 class="text-xl font-semibold">Job Details</h3>
+		<p>
+			<strong>Qualification:</strong>
+			{{ node.field_qualification.value }}</p>
+		<p>
+			<strong>Experience:</strong>
+			{{ node.field_experience.value }}</p>
+		<p>
+			<strong>Location:</strong>
+			{{ node.field_job_location.value }}</p>
+		<p>
+			<strong>Description:</strong>
+		</p>
+		<div class="prose">{{ node.field_job_description.value|raw }}</div>
+		<p>
+			<strong>Responsibilities:</strong>
+		</p>
+		<div class="prose">{{ node.field_responsibilities.value|raw }}</div>
+	</div>
+
+	<hr class="my-6">
+
+	<div class="bg-gray-50 p-6 rounded-lg space-y-2">
+		<h3 class="text-xl font-semibold">Application Details</h3>
+		<p>
+			<strong>First Name:</strong>
+			{{ application.first_name }}</p>
+		<p>
+			<strong>Last Name:</strong>
+			{{ application.last_name }}</p>
+		<p>
+			<strong>Email:</strong>
+			{{ application.email }}</p>
+		<p>
+			<strong>Mobile:</strong>
+			{{ application.mobile }}</p>
+		<p>
+			<strong>Gender:</strong>
+			{{ application.gender }}</p>
+		<p>
+			<strong>Applied On:</strong>
+			{{ application.applied|date('d M Y') }}</p>
+
+		{% if resume_url %}
+			<p>
+				<strong>Uploaded CV:</strong>
+				<a class="text-blue-600 underline" href="{{ resume_url }}" target="_blank">Download Resume</a>
+			</p>
+		{% endif %}
+	</div>
+</div> #}
+{# <div
+	class="mx-auto max-w-screen-xl bg-white py-6 px-4 sm:px-6 lg:px-8">
+
+	<!-- Header -->
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-10">
+		<a href="/careers" class="text-gray-600 hover:text-black">
+			<svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 sm:w-8 sm:h-8" fill="currentColor" viewbox="0 0 16 16">
+				<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+			</svg>
+		</a>
+
+		<h1 class="text-3xl sm:text-4xl lg:text-5xl font-nevis text-center sm:text-left">
+			{{ 'Job Deatils'|t }}
+		</h1>
+
+		<div class="hidden sm:block w-6"></div>
+	</div>
+
+	<!-- Job Details -->
+	<div class="mt-10 space-y-6">
+		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+			<p class="sm:col-span-3 font-nevis text-gray-800">{{ 'Qualification'|t }}</p>
+			<span class="sm:col-span-1 text-gray-600">:</span>
+			<p class="sm:col-span-8 text-gray-700 font-sans">{{ node.field_qualification.value }}</p>
+		</div>
+
+		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+			<p class="sm:col-span-3 font-nevis text-gray-800">{{ 'Experience'|t }}</p>
+			<span class="sm:col-span-1 text-gray-600">:</span>
+			<p class="sm:col-span-8 text-gray-700 font-sans">{{ node.field_experience.value }}</p>
+		</div>
+
+		<div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+			<p class="sm:col-span-3 font-nevis text-gray-800">{{ 'Job Location'|t }}</p>
+			<span class="sm:col-span-1 text-gray-600">:</span>
+			<p class="sm:col-span-8 text-gray-700 font-sans">{{ node.field_job_location.value }}</p>
+		</div>
+	</div>
+
+	<hr
+	class="my-8 border-gray-300">
+
+	<!-- Job Description -->
+	<div class="mb-8">
+		<h2 class="text-2xl text-gray-800 font-nevis mb-2">{{ 'Job Description'|t }}</h2>
+		<div class="prose max-w-none text-gray-700">
+			{{ node.field_job_description.value|raw }}
+		</div>
+	</div>
+
+	<!-- Responsibilities -->
+	<div class="mb-10">
+		<h2 class="text-2xl text-gray-800 font-nevis mb-2">{{ 'Responsibilites'|t }}</h2>
+		<div class="prose max-w-none text-gray-700">
+			{{ node.field_responsibilities.value|raw }}
+		</div>
+	</div>
+
+	<!-- Application Details -->
+	<div class="mb-10">
+		<div class="solid border-solid border-2 rounded-2xl p-10 space-y-2">
+			<h3 class="text-2xl pb-8 text-black font-nevis">Application Details</h3>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>First Name:</strong></span>
+				{{ application.first_name }}</p>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>Last Name:</strong></span>
+				{{ application.last_name }}</p>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>Email:</strong></span>
+				{{ application.email }}</p>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>Mobile:</strong></span>
+				{{ application.mobile }}</p>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>Gender:</strong></span>
+				{{ application.gender }}</p>
+			<p>
+				<span class="text-lg pb-2 gray-83 font-nevis s:text-base xs:text-base w-60 s:basis-[50%] xs:basis-[50%]"><strong>Applied On:</strong></span>
+				{{ application.applied|date('d M Y') }}</p>
+
+			{% if resume_url %}
+				<p>
+					<strong>Uploaded CV:</strong>
+					<a class="text-blue-600 underline" href="{{ resume_url }}" target="_blank">Download Resume</a>
+				</p>
+			{% endif %}
+		</div>
+	</div>
+
+</div> #}
+<div class="mx-auto max-w-screen-xl bg-white py-6 px-4 sm:px-6 lg:px-8">
+
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-10">
+    <a href="/my-job-applications" class="text-gray-600 hover:text-black">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 sm:w-8 sm:h-8" fill="currentColor" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+      </svg>
+    </a>
+
+    <h1 class="text-3xl sm:text-4xl lg:text-5xl font-nevis text-center sm:text-left">
+      {{ 'Job Details'|t }}
+    </h1>
+
+    <div class="hidden sm:block w-6"></div>
+  </div>
+
+  <!-- Job Details -->
+  <div class="mt-10 space-y-6">
+    {% for label, field in {
+      'Qualification': node.field_qualification.value,
+      'Experience': node.field_experience.value,
+      'Job Location': node.field_job_location.value
+    } %}
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+        <p class="sm:col-span-3 font-nevis text-gray-800">{{ label|t }}</p>
+        <span class="sm:col-span-1 text-gray-600">:</span>
+        <p class="sm:col-span-8 text-gray-700 font-sans">{{ field }}</p>
+      </div>
+    {% endfor %}
+  </div>
+
+  <hr class="my-8 border-gray-300">
+
+  <!-- Job Description -->
+  <div class="mb-8">
+    <h2 class="text-2xl text-gray-800 font-nevis mb-2">{{ 'Job Description'|t }}</h2>
+    <div class="prose max-w-none text-gray-700">
+      {{ node.field_job_description.value|raw }}
+    </div>
+  </div>
+
+  <!-- Responsibilities -->
+  <div class="mb-10">
+    <h2 class="text-2xl text-gray-800 font-nevis mb-2">{{ 'Responsibilities'|t }}</h2>
+    <div class="prose max-w-none text-gray-700">
+      {{ node.field_responsibilities.value|raw }}
+    </div>
+  </div>
+
+  <!-- Application Details -->
+  <div class="mb-10">
+    <div class="border-2 border-solid rounded-2xl p-6 sm:p-10 space-y-4 bg-gray-50">
+      <h3 class="text-2xl text-black font-nevis pb-4">{{ 'Application Details'|t }}</h3>
+
+      {% set details = {
+        'First Name': application.first_name,
+        'Last Name': application.last_name,
+        'Email': application.email,
+        'Mobile': application.mobile,
+        'Gender': application.gender,
+        'Applied On': application.applied|date('d M Y')
+      } %}
+
+      {% for label, value in details %}
+        <p class="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+          <span class="text-base font-nevis font-semibold text-gray-700">{{ label }}:</span>
+          <span class="text-base font-sans text-gray-800">{{ value }}</span>
+        </p>
+      {% endfor %}
+
+      {% if resume_url %}
+        <p class="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+          <span class="text-base font-nevis font-semibold text-gray-700">{{ 'Uploaded CV'|t }}:</span>
+          <a class="text-blue-600 underline break-words" href="{{ resume_url }}" target="_blank">{{ 'Download Resume'|t }}</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>

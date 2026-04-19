@@ -1,0 +1,10 @@
+{# {{ dump(items) }} #}
+{% for item in items %}
+    <div class="text-center">
+  <a href="{{ item.url }}" target="_blank" class="block border-2 rounded-xl p-3 hover:shadow-lg hover:bg-[#f8cd46] transition">
+    <img class="mx-auto rounded-full h-12 w-12 object-cover mb-2" src="{{ file_url(item.content.field_candy_menu_icon['#items'].0.entity.uri.value) }}" alt="My Profile">
+    <p class="text-[12px] font-semibold text-gray-700 overflow-hidden text-ellipsis whitespace-nowrap hover:overflow-visible hover:[text-wrap:auto]" title="Events">{{ item.title }}</p>
+  </a>
+</div>
+
+{% endfor %}

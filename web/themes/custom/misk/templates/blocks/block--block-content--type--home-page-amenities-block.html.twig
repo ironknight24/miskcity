@@ -1,0 +1,33 @@
+<article{{attributes}}>
+	<section class="container max-w-7xl sm:px-6 lg:px-8 overflow-hidden mx-auto px-6 py-10">
+		<div
+			class="container mx-auto px-4">
+
+			<!-- Header -->
+			<div
+				class=" max-w-7xl flex items-center justify-between w-full mb-8 sm:mb-10">
+
+				<!-- Title -->
+				<h2 class="text-xl sm:text-2xl font-bold uppercase text-misk-brand">
+					{{ label }}
+				</h2>
+
+			</div>
+
+			<!-- Services Grid -->
+			{% if content.field_misk_amenities %}
+				<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+
+					{% for item in content.field_misk_amenities %}
+						{% if item['#paragraph'] is defined %}
+							<div class="service-item">
+								{{ item }}
+							</div>
+						{% endif %}
+					{% endfor %}
+
+				</div>
+			{% endif %}
+		</div>
+	</section>
+</article>

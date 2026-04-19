@@ -1,0 +1,62 @@
+.add-ideas-user .form-item-files-upload-file{
+    display: flex;
+    flex-direction: column;
+}
+#edit-idea-content{
+    width:100%;
+}
+#ideas-form{
+    background-color: #f8f8f8;
+}
+.fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+#edit-comment-body-wrapper .js-text-format-wrapper .js-filter-wrapper{
+  display: none;
+}
+#edit-comment-body-wrapper .js-text-format-wrapper div div textarea{
+  width:100%;
+  border:solid 2px #3c3c3c3c;
+  border-radius: 5px;
+}
+
+
+.contenting [role="navigation"] {
+  position: absolute;
+  left: 0;
+  bottom: -60px;
+}
+
+#pagination-heading {
+  position: absolute !important;
+  overflow: hidden;
+  clip: rect(1px, 1px, 1px, 1px);
+  width: 1px;
+  height: 1px;
+  word-wrap: normal;
+}
+
+.pager ul{
+  display: flex;
+  gap: 10px;
+}
+
+.pager ul li.is-active {
+  color: #FFF !important;
+  border-color: inherit !important;
+  --tw-border-opacity: 1 !important;
+  border-color: #e5e7eb !important;
+  --tw-bg-opacity: 1 !important;
+  background-color:#f8cd46 !important;
+  --tw-text-opacity: 1 !important;
+  width: 35px;
+  height: 35px;
+}
+
+.pager ul li {
+  padding: 5px 13px;
+  color: #3e3a3a !important;
+  border: 1px solid #cecece !important;
+  background-color: #FFF !important;
+}

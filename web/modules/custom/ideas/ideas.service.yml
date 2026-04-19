@@ -1,0 +1,5 @@
+services:
+  ideas.queue_worker.ideas_create:
+    class: Drupal\ideas\Plugin\QueueWorker\IdeasCreateWorker
+    tags:
+      - { name: queue_worker, title: 'Ideas Create Queue', cron: 1800 }

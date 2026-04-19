@@ -1,0 +1,14 @@
+city_map.city_map_form:
+  path: '/city-map'
+  defaults:
+    _controller: '\Drupal\city_map\Controller\CityMapController::cityMap'
+    _title: ''
+  requirements:
+    _permission: 'access content'
+
+city_map.get_content_by_term:
+  path: '/api/get-content-by-term/{tid}'
+  defaults:
+    _controller: '\Drupal\city_map\Controller\CityMapController::getContentByTerm'
+  requirements:
+    _permission: 'access content'

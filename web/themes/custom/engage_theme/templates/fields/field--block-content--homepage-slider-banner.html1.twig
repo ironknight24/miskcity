@@ -1,0 +1,10 @@
+{# {{ attach_library('engage_theme/flexslider') }} #}
+<div class="flexslider border-0 m-0" {{ attributes }}>
+  <ul class="slides">
+    {% for item in items %}
+      <li>
+        {{ item.content }}
+      </li>
+    {% endfor %}
+  </ul>
+</div>

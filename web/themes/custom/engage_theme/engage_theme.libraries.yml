@@ -1,0 +1,32 @@
+global-styling:
+  css:
+    theme:
+      assets/dist/css/styles.css: {}
+  js:
+    assets/src/js/engage.js: {}
+    assets/src/js/mobile-menu.js: {}
+    assets/src/js/candy-menu.js: {}
+    assets/src/js/faq.js: {}
+
+flexslider:
+  css:
+    theme:
+      assets/src/css/flexslider.min.css: {}
+  js:
+    assets/src/js/jquery.flexslider-min.js: {}
+    assets/src/js/flexslider-init.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+
+swiper:
+  css:
+    theme:
+      assets/src/css/swiper-bundle.min.css: {}
+  js:
+    assets/src/js/swiper-bundle.min.js: {}
+    assets/src/js/swiper-init.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/once

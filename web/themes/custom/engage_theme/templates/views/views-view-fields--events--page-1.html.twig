@@ -1,0 +1,55 @@
+{# {{ (row._entity.title.0.value) }}
+{{ (row._entity.field_event_start_date.0.value) }}
+{{ (row._entity.field_event_location.0.value) }}
+{{ (row._entity.field_event_image.0.entity.uri.value) }}
+{{ (row._entity.nid.0.value) }} #}
+{# {{ dump(row._entity) }} #}
+<a href="/node/{{ row._entity.nid.0.value }}" class="block bg-white border rounded-xl p-3 shadow-sm hover:shadow-md transition w-full max-w-md mx-auto">
+  <div class="flex gap-4">
+    
+    <!-- Image -->
+    <div class="flex-shrink-0">
+      <img 
+        src="{{ file_url(row._entity.field_event_image.0.entity.uri.value) }}" 
+        alt="{{ row._entity.title.0.value }}" 
+        class="w-32 h-44 object-cover rounded-lg" />
+    </div>
+    
+    <!-- Event details -->
+    {# <div class="flex flex-col w-full">
+      <h2 class="text-lg font-nevis leading-tight text-gray-800">
+        {{ row._entity.title.0.value }}
+      </h2>
+        <div class="space-y-1 mt-2">
+            <p class="text-sm text-gray-500 truncate">{{ row._entity.field_body.0.value|striptags|slice(0, 30) ~ '...' }}</p>
+            <p class="text-sm text-gray-700 mt-1">{{ row._entity.field_event_start_date.0.value|date("D, m/d/Y - H:i") }}</p>
+            <p class="text-sm text-gray-500 truncate">{{ row._entity.field_event_location.0.value }}</p>
+        </div>
+    </div> #}
+
+    <!-- Event details -->
+    <div class="flex flex-col w-full">
+        <h2 class="text-xl font-nevis leading-tight text-gray-800">
+            {{ row._entity.title.0.value }}
+        </h2>
+
+        <div class="space-y-2 mt-2">
+            <!-- Body (truncated) -->
+            <p class="text-sm text-gray-500 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                {{ row._entity.field_body.0.value|striptags|slice(0, 30) ~ '...' }}
+            </p>
+
+            <!-- Date -->
+            <p class="text-sm text-gray-700">
+                {{ row._entity.field_event_start_date.0.value|date("D, m/d/Y - H:i") }}
+            </p>
+
+            <!-- Location (truncated) -->
+            <p class="text-sm text-gray-500 w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                {{ row._entity.field_event_location.0.value }}
+            </p>
+        </div>
+    </div>
+
+  </div>
+</a>

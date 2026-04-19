@@ -1,0 +1,35 @@
+{# themes/engage_theme/templates/blocks/block--block-content--id--engage-theme-homepageadvertisementsliderblock.html.twig #}
+
+{% set slider_items = [] %}
+
+{% if content.field_advertisement_slider is not empty %}
+  {#
+    Correct way to loop and filter out properties starting with '#' in modern Twig.
+    We apply the 'filter' filter to 'content.field_advertisement_slider'.
+    The arrow function (item => item.0 != '#') checks if the key (item.0) does not start with '#'.
+    This assumes 'item' in the filter context refers to the key/value pair.
+    However, the filter typically works on the *values* for a simple filter, not keys directly in this way.
+
+    The most reliable approach is to loop over the render array directly and perform the check *inside* the loop for non-numeric keys OR loop over a *filtered* version of the array.
+  #}
+
+  {# Let's use the 'filter' filter correctly. We need to filter based on keys. #}
+  {% for key, item in content.field_advertisement_slider %}
+    {# Check if the key does NOT start with '#' (to exclude meta properties like #type, #attributes etc.) #}
+    {% if key|first != '#' %}
+      {% if item|render is not empty %}
+        {% set slider_items = slider_items|merge([{'content': item|render}]) %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+<div{{ attributes }}>
+  {% block content %}
+    {% if slider_items is not empty %}
+      {{ include('engage_theme:advertisement_slider', { items: slider_items }) }}
+    {% else %}
+      <p>No advertisement slides available.</p>
+    {% endif %}
+  {% endblock %}
+</div>

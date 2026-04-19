@@ -1,0 +1,54 @@
+<div class="mx-auto max-w-screen-xl bg-white px-4 py-4">
+  <!-- Header -->
+		<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-10">
+			<div>
+				<a href="/event-list" class="text-gray-700 hover:text-yellow-600">
+					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+					</svg>
+				</a>
+			</div>
+			<div class="text-center flex-1">
+				<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{ 'Events Details'|t }}</h1>
+			</div>
+		</div>
+
+  <div class="event-details grid grid-cols-12 mt-5 solid border-solid border-2 rounded-2xl px-8 pt-8 pb-8 bg-white divide-x xs:p-5 s:divide-x-0 s:divide-y xs:divide-x-0 xs:divide-y s:p-5 xs:p-5">
+    {# Left Section: Event Content #}
+    <div class="col-span-12 md:col-span-8 pr-8">
+      <div class="grid grid-cols-12 gap-4">
+        <div class="relative col-span-12 md:col-span-4">
+          {% set uri = content.field_event_image['#items'][0].entity.uri.value %}
+          <img src="{{ file_url(uri) }}" alt="{{ node.title.value }}" class="w-full object-cover rounded-xl">
+        </div>
+
+        <div class="col-span-12 md:col-span-8 space-y-3">
+          <h2 class="text-2xl text-dark font-nevis sm:text-xl">{{ node.title.value }}</h2>
+          <p class="text-base text-[#333] font-light font-sans sm:text-sm">
+            {{ content.field_event_location[0]['#context'].value }}
+          </p>
+
+          <div class="divide-y divide-dashed border-t border-b border-[#cecece] py-3">
+            <p class="text-sm text-[#333] font-light font-sans sm:text-xs">
+              <span class="font-normal">{{ node.field_event_start_date.value|date('M d | g a') }}</span> -
+              <span class="font-normal">{{ node.field_event_end_.value|date('M d | g a') }}</span>
+            </p>
+          </div>
+
+          <div class="card-desc details_desc mt-2">{{ content.field_body }}</div>
+        </div>
+      </div>
+    </div>
+
+    {# Right Section: Similar Events #}
+    <div class="col-span-12 md:col-span-4 space-y-4 pl-8">
+      <h2 class="text-2xl text-dark font-nevis sm:text-xl">{{ 'Similar Events'|t }}</h2>
+
+      <div class="overflow-y-auto bg-gray-50 rounded-xl shadow-inner">
+        <div class="similar-list space-y-3">
+          {{ drupal_view('events', 'block_2') }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

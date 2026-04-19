@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <clipPath id="clip-Artboard_2">
+      <rect width="32" height="32"/>
+    </clipPath>
+  </defs>
+  <g id="Artboard_2" data-name="Artboard – 2" clip-path="url(#clip-Artboard_2)">
+    <rect width="32" height="32" fill="rgba(255,255,255,0)"/>
+    <path id="positive-sign" d="M15.5,31a1.728,1.728,0,0,1-1.726-1.726V17.222H1.722a1.726,1.726,0,0,1,0-3.452H13.771V1.722a1.726,1.726,0,0,1,3.452,0V13.771H29.27a1.726,1.726,0,1,1,0,3.452H17.222V29.271A1.728,1.728,0,0,1,15.5,31Z" transform="translate(0.504 1.004)" fill="#fff"/>
+  </g>
+</svg>

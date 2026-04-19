@@ -1,0 +1,7 @@
+name: 'Custom Profile Page'
+type: module
+description: 'Provides functionality relates to my account page.'
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - user

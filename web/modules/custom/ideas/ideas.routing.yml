@@ -1,0 +1,17 @@
+ideas.ideas_form:
+  path: "/add-ideas"
+  defaults:
+    _form: '\Drupal\ideas\Form\IdeasForm'
+    _title: ""
+  requirements:
+    _permission: "access content"
+    _role: 'authenticated'
+
+ideas.upload_file:
+  path: '/ideas/upload-file'
+  defaults:
+    _controller: '\Drupal\ideas\Controller\IdeasFileUploadController::upload'
+    _title: 'Upload Idea File'
+  requirements:
+    _permission: 'upload ideas file'
+  methods: [POST]

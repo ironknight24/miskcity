@@ -1,0 +1,5 @@
+name: Font Resize
+type: module
+description: Module used for resizing fonts. Required - the theme uses relative font sizing.
+core_version_requirement: ^8 || ^9 || ^10 || ^11
+package: Custom

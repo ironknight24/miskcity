@@ -1,0 +1,34 @@
+<div class="
+  grid gap-6 
+  grid-cols-1 
+  sm:grid-cols-{{ rows|length == 1 ? '1 justify-center' : '2' }} 
+  lg:grid-cols-{{ rows|length == 1 ? '1 justify-center' : '3' }} 
+  justify-center
+">
+  {% for row in rows %}
+    <div class="bg-white rounded-xl flex flex-col max-w-md w-full mx-auto">
+      <div class="w-full">
+        <img 
+          class="rounded-xl object-cover w-full h-48 sm:h-56 md:h-64"
+          src="{{ file_url(row.content['#row']._entity.field_event_image.0.entity.uri.value) }}" 
+          alt="{{ row.content['#row']._entity.title.0.value|e }}">
+      </div>
+
+      <div class="pt-4 flex-1 flex flex-col justify-between">
+        <h2 class="text-xl md:text-2xl my-2 capitalize minlines font-nevis">
+          {{ row.content['#row']._entity.title.0.value }}
+        </h2>
+
+        <div class="text-sm md:text-base text-gray-700 font-sans opacity-80 mb-1">
+          {{ row.content['#row']._entity.field_event_start_date.0.value|date('D d M Y') }}
+          -
+          {{ row.content['#row']._entity.field_event_end_date.0.value|date('D d M Y') }}
+        </div>
+
+        <div class="text-sm md:text-base text-gray-700 font-sans opacity-80 mb-4">
+          {{ row.content['#row']._entity.field_event_location.0.value }}
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>

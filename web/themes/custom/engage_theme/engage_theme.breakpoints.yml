@@ -1,0 +1,22 @@
+engage_theme.small:
+  label: hero small
+  mediaQuery: '(max-width: 640px)'
+  weight: 0
+  multipliers:
+    - 1x
+
+engage_theme.medium:
+  label: hero medium
+  mediaQuery: '(min-width: 641px) and (max-width: 1024px)'
+  weight: 1
+  multipliers:
+    - 1x
+    - 2x
+
+engage_theme.large:
+  label: hero large
+  mediaQuery: '(min-width: 1025px)'
+  weight: 2
+  multipliers:
+    - 1x
+    - 2x

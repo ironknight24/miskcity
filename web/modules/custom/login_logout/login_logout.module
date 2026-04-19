@@ -1,0 +1,44 @@
+<?php
+
+// To render template
+function login_logout_theme($existing, $type, $theme, $path)
+{
+
+  return [
+    'user_login' => [ // Matches 'user-login.html.twig'
+      'render element' => 'form',
+      'template' => 'user-login',
+    ],
+    'user_register' => [ // Matches 'user-register.html.twig'
+      'render element' => 'form',
+      'template' => 'user-register',
+    ],
+    'login_logout_forgot_password' => [
+      'render element' => 'form',
+      'template' => 'forgot-password-form', // This is your Twig file name
+    ],
+    'password_recovery_status' => [
+      'variables' => [
+        'email' => NULL,
+      ],
+      'template' => 'password-recovery-status',
+    ],
+    'logged_in_details_block' => [
+      'variables' => [
+        'display_name' => NULL,
+        'email' => NULL,
+        'avatar_url' => NULL,
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ */
+function login_logout_cron()
+{
+  // Run our userinfo health check every cron run.
+  \Drupal::logger('login_logout')->info('Executing login_logout cron health check.');
+  \Drupal::service('login_logout.userinfo_cron_healthcheck')->run();
+}

@@ -1,0 +1,49 @@
+{#
+/**
+ * @file
+ * Theme override for the AI Search Block response area.
+ * 
+ * This template displays the streaming AI-generated answer.
+ * 
+ * Available variables:
+ * - response: The AI-generated response text (streams in real-time)
+ * - show_feedback: Boolean to show thumbs up/down buttons
+ * - show_copy: Boolean to show copy button
+ */
+#}
+
+{% if response is not empty %}
+  <div class="ai-response-wrapper">
+    <div class="ai-response-header">
+      <div class="ai-icon-wrapper">
+        <span class="ai-icon">✨</span>
+      </div>
+      <div class="ai-header-text">
+        <span class="ai-label">AI Answer</span>
+        <span class="ai-badge">Powered by AI</span>
+      </div>
+    </div>
+    
+    <div class="ai-response-content">
+      {{ response|raw }}
+    </div>
+    
+    {% if show_feedback or show_copy %}
+      <div class="ai-response-actions">
+        {% if show_feedback %}
+          <button class="action-btn feedback-btn helpful" data-feedback="helpful">
+            👍 Helpful
+          </button>
+          <button class="action-btn feedback-btn unhelpful" data-feedback="unhelpful">
+            👎 Not helpful
+          </button>
+        {% endif %}
+        {% if show_copy %}
+          <button class="action-btn copy-btn">
+            📋 Copy response
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+{% endif %}

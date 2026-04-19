@@ -1,0 +1,31 @@
+{#
+/**
+ * @file
+ * Theme override to display a view of unformatted rows.
+ *
+ * Available variables:
+ * - title: The title of this group of rows. May be empty.
+ * - rows: A list of the view's row items.
+ *   - attributes: The row's HTML attributes.
+ *   - content: The row's content.
+ * - view: The view object.
+ * - default_row_class: A flag indicating whether default classes should be
+ *   used on rows.
+ *
+ * @see template_preprocess_views_view_unformatted()
+ */
+#}
+{% if title %}
+  <h3>{{ title }}</h3>
+{% endif %}
+{% for row in rows %}
+  {%
+    set row_classes = [
+      default_row_class ? 'views-row collapse-arrow faq-section border-2 border-[#797979]  rounded-lg mt-8 s:mt-0 s:rounded-none s:border-s-0 s:border-t-0 s:border-b-2 s:border-e-0 s:border-[#CECECE]
+    xs:mt-0 xs:rounded-none xs:border-s-0 xs:border-t-0 xs:border-b-2 xs:border-e-0 xs:border-[#CECECE] p-4',
+    ]
+  %}
+  <div{{ row.attributes.addClass(row_classes) }}>
+    {{- row.content -}}
+  </div>
+{% endfor %}

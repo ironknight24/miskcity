@@ -1,0 +1,109 @@
+
+<div class="container ideas_page mx-auto sm:p-5 md:px-20 md:pb-20 relative xs:p-5 xs:mt-0 xs:mb-0 p-5 s:mt-0 s:mb-0 s:hidden xs:hidden">
+	<div class="main-heading flex justify-between items-center">
+		<img class="object-contain cursor-pointer sm:w-7 s:w-5 xs:w-5" src="{{ file_url('themes/custom/engage_theme/images/Profile/reverse-arrow.svg') }}" alt="arrow back" onclick="history.go(-1)">
+		<h1 class="md:text-5xl text-4xl text-center md:mt-12 md:mb-20 mt-8 mb-8 font-bold s:my-3 xs:my-3">Idea</h1>
+		<div></div>
+	</div>
+
+	<div class="blogs">
+
+		<div class="card blog-page">
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+				<div class="relative">
+					<div>
+						{% set uri = node.field_idea_image.value %}
+						<img src="{{ file_url(uri) }}" alt="{{ node.title.value }}" class="w-full h-full object-cover rounded-lg ideas-page-img">
+					</div>
+				</div>
+				<div>
+					<h1 class="card-title text-3xl text-dark font-semibold font-['Open_Sans'] text-[#414141] opacity-90">{{  node.title.value }}</h1>
+					<ul>
+
+						{% for item in node.field_ideas_categories %}
+							<li>
+								<h2 class="card-title text-xl font-normal font-['Open_Sans'] text-[#676767] opacity-80">{{ item.entity.label }}</h2>
+							</li>
+						{% endfor %}
+					</ul>
+					<div class="flex justify-between items-center">
+						<p class="text-base text-all_font_color font-xs font-['Open_Sans'] minlines s:text-base xs:text-sm my-3 text-[#676767] opacity-80">By
+							{{ node.field_idea_author.value }}</p>
+					</div>
+					<div class="soc_share min-h-[122px]">
+						<span class="sh_icon inline-block relative md:-top-[30px]">
+							<svg xmlns="http://www.w3.org/2000/svg" width="25.9" height="28.164" viewbox="0 0 25.9 28.164">
+								<g id="share" transform="translate(0.5 0.5)">
+										<path id="Path_2658" data-name="Path 2658" d="M313.576,8.489a4.244,4.244,0,1,1,4.244-4.244A4.25,4.25,0,0,1,313.576,8.489Zm0-6.791a2.547,2.547,0,1,0,2.547,2.547A2.55,2.55,0,0,0,313.576,1.7Zm0,0" transform="translate(-292.92)" fill="#333" stroke="#333" stroke-width="1"/>
+									<path id="Path_2659" data-name="Path 2659" d="M313.576,360.489a4.244,4.244,0,1,1,4.244-4.244A4.25,4.25,0,0,1,313.576,360.489Zm0-6.791a2.547,2.547,0,1,0,2.547,2.547A2.55,2.55,0,0,0,313.576,353.7Zm0,0" transform="translate(-292.92 -333.325)" fill="#333" stroke="#333" stroke-width="1"/>
+									<path id="Path_2660" data-name="Path 2660" d="M4.244,184.489a4.244,4.244,0,1,1,4.244-4.244A4.25,4.25,0,0,1,4.244,184.489Zm0-6.791a2.547,2.547,0,1,0,2.547,2.547A2.55,2.55,0,0,0,4.244,177.7Zm0,0" transform="translate(0 -166.662)" fill="#333" stroke="#333" stroke-width="1"/>
+									<path id="Path_2661" data-name="Path 2661" d="M120.539,103.244a.848.848,0,0,1-.421-1.586l10.5-5.987a.849.849,0,0,1,.84,1.475l-10.5,5.987A.85.85,0,0,1,120.539,103.244Zm0,0" transform="translate(-113.339 -90.489)" fill="#333" stroke="#333" stroke-width="1"/>
+									<path id="Path_2662" data-name="Path 2662" d="M131.06,279.234a.842.842,0,0,1-.419-.112l-10.5-5.988a.849.849,0,0,1,.84-1.475l10.5,5.987a.849.849,0,0,1-.421,1.587Zm0,0" transform="translate(-113.359 -257.141)" fill="#333" stroke="#333" stroke-width="1"/>
+								</g>
+							</svg>
+						</span>
+						<div class="share_icons inline-block relative ml-[5px] bg-white border border-[#ddd] p-5 mb-[30px]">
+							<a class="inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" target="_blank" href="https://www.facebook.com/sharer/sharer.php?u={{ webportalUrl }}node/{{ node.id }}" target="_blank"><img class="w-[35px] mx-auto inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" src="{{ file_url('themes/custom/engage_theme/images/Ideas/facebook.png')}}"><span class="block">Facebook</span>
+							</a>
+							<a class="inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" target="_blank" rel="nooopener noreffer" href="http://twitter.com/share?text={{ node.title.value }}?url={{ webportalUrl }}node/{{ node.id }} "><img class="w-[35px] mx-auto inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" src="{{ file_url('themes/custom/engage_theme/images/Ideas/twitter.png')}}"><span class="block">Twitter</span>
+							</a>
+							<a class="inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" target="_blank" rel="nooopener noreffer" href="https://www.linkedin.com/sharing/share-offsite/?url={{ webportalUrl }}node/{{ node.id }}"><img class="w-[35px] mx-auto inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" src="{{ file_url('themes/custom/engage_theme/images/Ideas/linkedin.png')}}"><span class="block">Linkedin</span>
+							</a>
+							<a class="inline-block text-[10px] font-normal text-[#918c8c] mr-5 cursor-pointer" target="_blank" rel="noopener noreferrer" onclick="window.navigator.clipboard.writeText('{{ webportalUrl }}node/{{ node.id }}'); copied();">
+								<span class="copy_link bg-[#333] block p-[10px] rounded-full w-[35px] mx-auto">
+									<img class="w-[35px] mx-auto" src="{{ file_url('themes/custom/engage_theme/images/Ideas/copy.png') }}" alt="Copy Link">
+								</span>
+								<span class="copied_link">Copy Link</span>
+							</a>
+
+
+						</div>
+					</div>
+					<div class="grid grid-cols-2 gap-10">
+						<div>
+							Posted on :
+							{{ node.created.value|date("d/m/Y") }}
+						</div>
+						<div class="rates float-right rating_vote">
+
+							{% if (logged_in == true) %}
+								{{ content.field_rating }}
+							{% else %}
+								<a href="user-login" style="color:#59b1fc;text-decoration:underline;" onclick="document.querySelector('.login-btn').click(); return false;">Login into rate this Idea</a>
+							{% endif %}
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="card-desc details_desc text-lg font-normal font-['Open_Sans'] text-[#676767] mt-4 min-h-[73px] line-clamp-3 !leading-8">{{ node.field_idea_content.value | raw}}</div>
+
+			<div class="ideas_comment">
+				{{ content.field_ideas_comments }}</div>
+		</div>
+
+	</div>
+
+</div></div><div class="container blog_mobile scrolling mx-auto s:p-0 xs:p-5 hidden s:block xs:block">
+<div class="main-heading flex justify-between items-center">
+	<img class="object-contain cursor-pointer sm:w-7 s:w-5 xs:w-5" src="{{ file_url('themes/engage/images/main/reverse-arrow.svg') }}" alt="arrow back" onclick="history.go(-1)">
+	<h1 class="md:text-5xl sm:text-xl s:text-xl xs:text-xl text-center md:mt-12 md:mb-20 mt-8 mb-8 font-bold">Ideas</h1>
+	<div></div>
+</div>
+<div class="blogs">
+	<div class="blogs-content">
+		<div class="card blog-page ">
+			<div class="relative">
+				{% set uri = content.field_idea_image['#items'][0].entity.uri.value %}
+				<img src="{{ file_url(uri) }}" alt="{{ node.title.value }}" class="blog-page-img">
+			</div>
+			<div class="card-body px-0 py-3">
+				<h2 class="card-title text-3xl text-dark font-bold font-['nevis'] s:text-xl xs:text-base">{{  node.title.value }}
+				</h2>
+				<div class="card-desc details_desc my-3 s:text-base xs:text-sm">{{ node.field_idea_content.value | raw}}</div>
+			</div>
+			<div class="rates">
+				{{ content.field_rating }}</div>
+		</div>
+	</div>
+
+</div></div></div>

@@ -1,0 +1,73 @@
+<article{{ attributes }}>
+  <div class="mx-auto max-w-screen-xl bg-white py-6 px-4">
+    <!-- Header -->
+    <div class="flex justify-between items-baseline gap-4 pt-20">
+      <div>
+        <a href="../blogs">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+          </svg>
+        </a>
+      </div>
+      <div class="text-center">
+        <h1 class="text-5xl font-nevis font-bold sm:pb-4 md:pb-12">{{ 'Blog'|t }}</h1>
+      </div>
+      <div></div>
+    </div>
+
+    <!-- Blog layout -->
+    <div class="blogs grid grid-cols-1 lg:grid-cols-12 gap-10 mt-10">
+      <!-- Left Column: Blog Content -->
+      <div class="blogs-content lg:col-span-8">
+        <div class="card blog-page">
+          <div class="relative">
+            {% set uri = content.field_blog_image[0]['#item'].entity.uri.value %}
+            <img src="{{ file_url(uri) }}" alt="{{ node.title.value }}" class="blog-page-img rounded-lg">
+            <div class="absolute bottom-0 left-0 text-2xl text-[#3e3a3a] bg-[#efefef] font-semibold px-10 py-2 font-sans rounded-tr-lg rounded-bl-lg">
+              {{ node.field_topic.value }}
+            </div>
+          </div>
+          <div class="card-body px-0 pt-6">
+            <h2 class="card-title text-3xl text-dark font-bold font-nevis">{{ node.title.value }}</h2>
+            <div class="text-lg font-sans font-light text-[#333333] mt-3">
+              <time datetime="00Z">{{ content.field_blog_date[0]['#text'] }}</time>
+              by
+              <span class="font-bold">{{ content.field_blog_author[0]['#context'].value }}</span>
+            </div>
+            <div class="card-desc details_desc my-3 text-lg">{{ content.field_blog_body }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Sidebar -->
+      <div class="blogs-sideview lg:col-span-4 space-y-10">
+        <!-- About Author -->
+        <div class="pt-10 pb-6 px-6 bg-[#f1f5f9] rounded-2xl">
+          <h2 class="pb-5 text-2xl font-nevis">{{ 'About Author'|t }}</h2>
+          <div class="card">
+            <div class="avatar flex justify-center mb-4">
+              {% set uri1 = content.field_author_image_pic[0]['#item'].entity.uri.value %}
+              <img src="{{ file_url(uri1) }}" alt="{{ node.title.value }}" class="w-24 rounded-full aspect-square block overflow-hidden">
+            </div>
+            <div class="card-body p-0 text-center">
+              <div class="font-sans font-normal text-[#333333] my-3">{{ content.field_about_author_description[0]['#context'].value }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Latest Posts -->
+        <div class="pt-6 pb-6 px-6 bg-[#f1f5f9] rounded-2xl">
+          <h2 class="pb-5 text-2xl font-nevis">{{ 'Latest Posts'|t }}</h2>
+          {{ drupal_view('blogs', 'latest_posts') }}
+        </div>
+      </div>
+    </div>
+
+	<div class="border-t border-[#dedede] border-solid dottedBorder my-6"></div>
+
+	<div class="blogs-belowview pt-8 pb-5">
+		<h1 class="pb-8 text-4xl font-nevis text-[#000000] font-bold">{{ 'Trending Posts'|t }}</h1>
+		{{ drupal_view('blogs', 'trending_posts') }}
+	</div>
+  </div>
+</article>

@@ -1,0 +1,53 @@
+<div class="career-form-wrapper bg-white p-6 md:p-10 rounded-2xl border border-2">
+  {{ form.nid }}
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- First Name -->
+    <div>
+      {{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.first_name
+          }) }}
+    </div>
+
+    <!-- Last Name -->
+    <div>
+    {{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.last_name
+          }) }}
+    </div>
+
+    <!-- Email -->
+    <div>
+    {{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.email
+          }) }}
+    </div>
+
+    <!-- Mobile -->
+    <div>
+    {{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.mobile
+          }) }}
+    </div>
+
+    <!-- Gender - full width -->
+    <div class="md:col-span-2">
+      {{ form.gender }}
+    </div>
+
+    <!-- Resume - full width -->
+    <div class="md:col-span-2">
+      {{ form.resume }}
+    </div>
+  </div>
+
+  <!-- Submit Button -->
+  <div class="form-actions pt-6">
+    {{ form.submit }}
+  </div>
+
+  {# Hidden fields like form tokens #}
+  {{ form|without(
+    'first_name', 'last_name', 'email', 'mobile', 'gender', 'resume', 'submit', 'nid'
+  ) }}
+</div>

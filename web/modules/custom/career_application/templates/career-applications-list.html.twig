@@ -1,0 +1,18 @@
+<div class="max-w-screen-xl mx-auto py-10">
+  <h2 class="text-3xl font-bold text-center mb-10 font-nevis">Jobs applied</h2>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+    {% for app in applications %}
+      <div class="border border-gray-300 rounded-xl p-6 shadow-sm bg-white">
+        <h3 class="text-xl font-bold mb-2">{{ app.title }}</h3>
+        <p><strong>Experience:</strong> {{ app.experience }}</p>
+        <p><strong>Location:</strong> {{ app.location }}</p>
+        <div class="mt-4">
+          <a href="/job-application/{{ app.nid }}" class="bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded inline-block">View</a>
+        </div>
+      </div>
+    {% else %}
+      <p class="col-span-3 text-center text-gray-600">You have not applied to any jobs yet.</p>
+    {% endfor %}
+  </div>
+</div>

@@ -1,0 +1,14 @@
+.file-upload-wrapper .form-item-files-upload-file{
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+}
+#engage_form_input .form-type-checkbox{
+    display: contents !important;
+}
+[data-drupal-messages] {
+  display: none !important;
+}
+label[for='edit-terms']{
+  margin-left:10px;
+}

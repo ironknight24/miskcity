@@ -1,0 +1,81 @@
+<div class="overflow-x-auto">
+	<div class="inline-block min-w-full align-middle">
+		{%
+            set classes = [
+                'min-w-full',
+                'divide-y',
+                'divide-gray-200',
+                'border',
+                'border-gray-200',
+                'rounded-lg',
+                'overflow-hidden',
+                'shadow-sm',
+            ]
+        %}
+		<table{{attributes.addClass(classes)}}>
+			{% if header %}
+				<thead>
+					<tr class="border-b-[3px] border-b-[#cecece]">
+						<th class="px-4 py-3 text-left text-sm font-nevis text-gray-700 tracking-wider">#</th>
+						{% for key, column in header %}
+							{% if column.default_classes %}
+								{%
+                            set column_classes = [
+                                'px-4',
+                                'py-3',
+                                'text-left',
+                                'text-sm',
+                                'font-nevis',
+                                'text-gray-700',
+                                'tracking-wider',
+                            ]
+                        %}
+							{% endif %}
+							<th{{column.attributes.addClass(column_classes).setAttribute('scope','col')}}>
+								{%- if column.url -%}
+									<a href="{{ column.url }}" title="{{ column.title }}" rel="nofollow" class="hover:underline">
+										{{ column.content }}{{ column.sort_indicator }}
+									</a>
+								{%- else -%}
+									{{- column.content }}{{ column.sort_indicator }}
+								{%- endif -%}
+							</th>
+						{% endfor %}
+					</tr>
+				</thead>
+			{% endif %}
+			<tbody class="bg-white divide-y divide-gray-100">
+				{% for row in rows %}
+					<tr {{ row.attributes.addClass('hover:bg-gray-50') }}>
+
+						<td class="px-4 py-3 text-sm text-gray-800 text-center whitespace-nowrap">
+							{{ loop.index }}
+						</td>
+
+						{# Other columns #}
+						{% for key, column in row.columns %}
+							{% if column.default_classes %}
+								{%
+				                            set column_classes = [
+				                            'px-4',
+				                            'py-3',
+				                            'text-sm',
+				                            'text-gray-800',
+				                            'whitespace-nowrap'
+				                            ]
+				                        %}
+							{% endif %}
+							<td {{ column.attributes.addClass(column_classes) }}>
+								{% for content in column.content %}
+									{{- content.separator }}{{ content.field_output -}}
+								{% endfor %}
+							</td>
+						{% endfor %}
+
+					</tr>
+				{% endfor %}
+			</tbody>
+
+		</table>
+	</div>
+</div>

@@ -1,0 +1,38 @@
+<div class="relative inline-block text-left group">
+	<button class="flex items-center gap-2 bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 px-4 rounded-full focus:outline-none">
+		<span class="truncate max-w-[8rem]">{{ display_name }}</span>
+		<img src="{{ avatar_url }}" alt="User Avatar" class="w-6 h-6 rounded-full object-cover">
+	</button>
+
+	<div
+		class="absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none group-hover:pointer-events-auto">
+		<!-- Profile Info -->
+		<div class="absolute -top-2 left-3/4 -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent border-b-white"></div>
+		<div class="p-4 border-b">
+			<div class="flex items-center gap-3">
+				<img src="{{ avatar_url }}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">
+				<div class="min-w-0">
+					<p class="font-semibold text-gray-800 truncate">{{ display_name }}</p>
+					<p class="text-sm text-gray-500 break-words whitespace-normal">{{ email }}</p>
+				</div>
+			</div>
+		</div>
+
+		<!-- Links -->
+		<div class="px-4 py-2 space-y-1">
+			<a href="/my-account" class="block py-1 text-gray-800 hover:text-yellow-500">My Profile</a>
+			<a href="/service-request" class="block py-1 text-gray-800 hover:text-yellow-500">My Requests</a>
+			<a href="/survey" class="block py-1 text-gray-800 hover:text-yellow-500">Survey</a>
+		</div>
+
+		<!-- Logout -->
+		<div class="border-t px-4 py-2">
+			<a href="/logout" class="flex items-center gap-2 text-gray-800 hover:text-red-600">
+				<svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/>
+				</svg>
+				<span>Log Out</span>
+			</a>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,13 @@
+<?php
+function global_module_theme($existing, $type, $theme, $path) {
+  return [
+    'status' => [
+      'variables' => [
+        'status' => NULL,
+        'message' => NULL,
+        'form_data' => NULL,
+      ],
+      'template' => 'status',
+    ],
+  ];
+}

@@ -1,0 +1,19 @@
+# themes/custom/engage_theme/components/homepage_slide_item/homepage_slide_item.component.yml
+name: Homepage Slide Item
+status: stable
+description: An individual slide item for the homepage slider.
+props:
+  type: object
+  properties:
+    image_url:
+      type: string
+      description: The URL of the slide background image.
+    image_alt:
+      type: string
+      description: The alt text for the slide image.
+    title:
+      type: string
+      description: The main title for the slide.
+    body:
+      type: string
+      description: The body text for the slide.

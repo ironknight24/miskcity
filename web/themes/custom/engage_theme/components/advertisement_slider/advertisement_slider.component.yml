@@ -1,0 +1,18 @@
+# engage_theme/components/advertisement_slider/advertisement_slider.component.yml
+name: Advertisement Slider
+status: stable
+description: A Swiper-based advertisement slider component.
+props:
+  type: object
+  properties:
+    items:
+      type: array
+      description: An array of slider item content, usually paragraphs.
+      items:
+        type: object
+        properties:
+          content:
+            type: string
+            description: The rendered content of an individual slider item (e.g., an image from a paragraph).
+library:
+  - engage_theme/swiper

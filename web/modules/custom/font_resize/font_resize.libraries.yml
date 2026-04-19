@@ -1,0 +1,7 @@
+font_resize:
+  js:
+    js/font_resize.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/once

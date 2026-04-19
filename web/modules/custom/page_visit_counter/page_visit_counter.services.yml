@@ -1,0 +1,6 @@
+# services:
+#   page_visit_counter.route_subscriber:
+#     class: Drupal\page_visit_counter\EventSubscriber\RouteChangeSubscriber
+#     arguments: ['@session', '@state']
+#     tags:
+#       - { name: event_subscriber }

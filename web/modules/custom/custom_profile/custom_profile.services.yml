@@ -1,0 +1,37 @@
+services:
+  custom_profile.profile_service:
+    class: Drupal\custom_profile\Service\ProfileService
+    arguments:
+      - '@http_client'
+      - '@global_module.global_variables'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+    tags:
+      - { name: 'controller.service_arguments' }
+
+  custom_profile.service_request_api:
+    class: Drupal\custom_profile\Service\ServiceRequestApiService
+    arguments:
+      - '@http_client'
+      - '@logger.factory'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+
+
+  custom_profile.my_services_controller:
+    class: Drupal\custom_profile\Controller\MyServicesController
+    arguments:
+      - "@custom_profile.service_request_api"
+      - "@request_stack"
+    tags:
+      - { name: controller.service_arguments }
+
+  custom_profile.password_change:
+    class: Drupal\custom_profile\Service\PasswordChangeService
+    arguments:
+      - '@global_module.global_variables'
+      - '@global_module.vault_config_service'
+      - '@global_module.api_http_client'
+      - '@logger.factory'
+      - '@current_user'
+      - '@session'

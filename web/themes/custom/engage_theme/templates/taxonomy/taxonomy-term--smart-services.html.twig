@@ -1,0 +1,8 @@
+<a href="/services/{{ elements['#taxonomy_term'].tid.0.value }}" class="border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4">
+  <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+       src="{{ file_url(content.field_smart_service_image.0['#item'].entity.uri.value|image_style('smart_service')) }}"
+       alt="{{ name.0['#context'].value }}" height="64" width="64">
+  <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+    {{ name.0['#context'].value }}
+  </h2>
+</a>

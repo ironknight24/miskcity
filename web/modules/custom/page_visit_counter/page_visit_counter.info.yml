@@ -1,0 +1,7 @@
+name: 'Page Visit Counter'
+type: module
+description: 'Increments a counter on internal page navigation and displays it in a block.'
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - drupal:block

@@ -1,0 +1,50 @@
+<div{{attributes.addClass(classes)}}>
+	<div class="news-page mx-auto max-w-screen-xl bg-white px-4 py-6">
+		{{ title_prefix }}
+		{{ title }}
+		{{ title_suffix }}
+
+		{% if header %}
+			<header class="mb-6">{{ header }}</header>
+		{% endif %}
+		<!-- Header -->
+		<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-10">
+			<div>
+				<a href="/event-categories" class="text-gray-700 hover:text-yellow-600">
+					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+					</svg>
+				</a>
+			</div>
+			<div class="text-center flex-1">
+				<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{ 'Events List'|t }}</h1>
+			</div>
+		</div>
+
+
+		<div class="px-10 py-10 border-2 border-inherit rounded-xl">
+			{{ exposed }}
+			{{ attachment_before }}
+
+
+			{% if rows %}
+				{# <div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> #}
+				{% for row in rows %}
+					<div class="views-row grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">{{ row }}</div>
+				{% endfor %}
+				{# </div> #}
+			{% elseif empty %}
+				<div class="text-center text-gray-500 py-8">{{ empty }}</div>
+			{% endif %}
+
+
+			{{ pager }}
+
+			{% if footer %}
+				<footer class="mt-8">{{ footer }}</footer>
+			{% endif %}
+
+			{{ feed_icons }}
+		</div>
+	</div>
+</div>

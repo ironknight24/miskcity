@@ -1,0 +1,146 @@
+<!-- Container for the city map engage template -->
+<section id="city-map-id" class="mx-auto max-w-screen-xl bg-white px-4 py-6">
+	<!-- Container for the city map engage template -->
+
+			<div
+			class="grid grid-cols-[auto,1fr,auto] items-center pt-6 pb-10">
+
+			<!-- Arrow -->
+			<div class="flex justify-start">
+				<a href="/" class="text-gray-700 ">
+					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"></path>
+					</svg>
+				</a>
+			</div>
+
+			<!-- Title -->
+			<div class="text-center">
+				<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">City Map</h1>
+			</div>
+
+			<!-- Spacer to balance grid -->
+			<div></div>
+
+		</div>
+	<div>
+		<!-- Container for the city map engage template -->
+		<div
+			class="form-sec border-inherit	border-2 rounded-xl p-4 lg:pt-4 lg:p-4 bg-white mb-16 s:mt-6 xs:mt-6 text-center lg:text-start xs:p-0 s:p-0 xs:border-0 s:border-0 xs:mb-0 s:mb-0 relative">
+			<!-- Container for the city map engage template -->
+			<div
+				class="grievance gap-4">
+				<!-- Container for the city map engage template -->
+				<div
+					id="mapDiv" class="map">
+					<!-- Container for the city map engage template -->
+					{# <div
+						class="mapSeaIcon">
+						<!-- Container for the city map engage template -->
+						<img src="themes\engage\images\map_search.png" class="map_search xs:block s:block" alt="map_earch">
+					</div> #}
+					<div
+						class="map-types absolute z-[999] left-0 bottom-[85px] md:bottom-0 flex flex-col m-0 mx-[10px] text-center">
+						<!-- Container for the city map engage template -->
+						<div
+							class="googleMapDiv hidden"	>
+							<!-- Container for the city map engage template -->
+							<button type="button" id="myButton"><img src="themes\custom\engage_theme\images\CityMap\map-1.jpg" class="layer-img googleMap w-[38px] h-[38px] shadow-[0_5px_15px_rgba(139,139,139,0.35)]" alt="Switch GBasemap Street"></button>
+						</div>
+						<div
+							class="googleSatliteDiv">
+							<!-- Container for the city map engage template -->
+							<button type="button" id="myButton"><img src="themes\custom\engage_theme\images\CityMap\satellite.jpg" class="layer-img googleSatlite w-[38px] h-[38px] shadow-[0_5px_15px_rgba(139,139,139,0.35)]" alt="Switch GBasemap Satlite"></button>
+
+						</div>
+					</div>
+					<div
+						class="pois-layers overflow-x-auto">
+						<!-- Container for the city map engage template -->
+						<div class="layer-more">
+							<div id="layers" class="absolute flex gap-8 bottom-[15px] left-[5px] md:left-[60px] z-[999] m-0 me-[31px] p-[10px] rounded-[10px] border border-[#cecece] bg-white box-border">
+								{# {{ drupal_view('map_pois_category',"map_pois") }} #}
+								{# {{ dump(taxonomy_terms)}} #}
+									{% if taxonomy_terms %}
+										 {% for term in taxonomy_terms %}
+											<div class="layer-blocks">
+												<a href="#" class="flex flex-col items-center term-link gap-2" data-tid="{{ term.id() }}">
+
+													{% if term.get('field_image').entity %}
+														<img src="{{ file_url(term.get('field_image').entity.fileuri) }}" class="w-[30px] h-[30px] md:w-[45px] md:h-[45px] rounded-full" alt="{{ term.getName }}">
+													{% endif %}
+
+													<span class="linktoDet text-[12px] bg-transparent box-border font-['Open_Sans_Semibold','Open_Sans',sans-serif] font-semibold text-[#404040] text-center leading-[12px] no-underline">{{ term.getName }}</span>
+												</a>
+											</div>
+										{% endfor %}
+									
+								{% endif %}
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="pois-list z-[999] hidden absolute top-0 md:top-[60px] left-0 md:left-[45px] max-w-[ -webkit-fill-available ] md:w-[435px] max-h-[475px] rounded-[20px] border border-[#cecece] bg-[#fdfcfa]">
+					<!-- Container for the fire station engage template -->
+					<div class="poi_top">
+						<!-- Container for the fire station engage template -->	
+						<p class="poi_text">Click here to Open POI's
+						</p>
+						<p class="poi_close">
+
+							<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewbox="0 0 16 16">
+								<path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"></path>
+							</svg>
+						</p>
+					</div>
+					<div
+						id="search_field">
+						<!-- Container for the fire station engage template -->
+						<div
+							class="flex items-center">
+							<!-- Container for the fire station engage template -->
+							<div
+								class="relative w-full" style="border-bottom: 2px solid #b6acac;margin: 15px 0px;">
+								<!-- Container for the fire station engage template -->
+								<div
+									class="absolute inset-y-0 left-0 flex items-center pointer-events-none" style="bottom: 14px !important;">
+									<!-- Container for the fire station engage template -->
+									<svg style="width:45px;" aria-hidden="true" class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="currentColor" viewbox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+										<path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path>
+									</svg>
+								</div>
+								<input type="text" id="searchkey" class="mb-5 sm:w-full md:w-full h-12 bg-white border-2 border-[#797979] rounded-lg font-['Open_Sans'] appearance-none dark:text-black dark:bg-white dark:border-gray-600 dark:focus:border-black-500 focus:outline-none focus:ring-0 peer text-[#747474] text-sm rounded-lg block w-full pl-10 p-2.5 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white s:border-[#E9E9E9] s:text-sm s:font-bold xs:border-[#E9E9E9]  xs:text-sm xs:font-bold" placeholder="Search Fire Stations">
+							</div>
+						</div>
+						<div
+						class="text-center hidden" id="notFoundMessage">
+							<!-- Container for the fire station engage template -->
+							No Search result found</div>
+					</div>
+					<div
+						class="first-list">
+						<!-- Container for the fire station engage template -->
+						<div
+							class="poi-cards">
+							<!-- Container for the fire station engage template -->
+
+							<div class="lists poiDetl" poiid="693">
+								
+							
+							</div>
+						</div>
+					</div>
+					{# <div class="second-list" style="display: none;">
+						<!-- Container for the fire station engage template -->
+							<img class="object-contain back-button mb-4 cursor-pointer lg:w-auto sm:w-7 s:w-5 xs:w-5" src="https://tiotqaidam.trinityiot.in/CitizenPortal/themes/engage/images/main/reverse-arrow.svg" alt="arrow back">
+							<div class="poi-card-details"></div>
+						</div> #}
+				</div>
+			</div>
+		</div>
+
+
+	</div>
+
+</section>

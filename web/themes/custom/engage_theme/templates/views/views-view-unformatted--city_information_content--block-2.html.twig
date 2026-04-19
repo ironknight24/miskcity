@@ -1,0 +1,49 @@
+{# {% set total = rows|length %}
+{% set first_row_count = 4 %} #}
+{# First Row #}
+{# <div class="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-10">
+	{% for i in 0..(first_row_count - 1) %}
+		{% if i < total %}
+			{% set row = rows[i] %}
+			<a href= '#{{ row.content['#row']._entity.nid.0.value }}' onclick="document.getElementById('{{ row.content['#row']._entity.nid.0.value }}').scrollIntoView({ behavior: 'smooth' }); return false;" class="flex flex-col items-center justify-center border-custom bg-white bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-302 w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-[270px] md:h-52 2xl:w-[310px] rounded-2xl md:rounded-3xl p-4 gap-5 md:gap-10 text-xl">
+				<img class="object-contain h-16 w-16 md:h-24 md:w-24" src="{{ file_url(row.content['#row']._entity.field_city_information_image.0.entity.uri.value|image_style('city_information')) }}" alt="{{ row.content['#row']._entity.field_city_information_image.0.alt }}" height="64" width="64">
+				<h2 class="text-sm md:text-xl text-center text-light_dark capitalize font-nevis">
+					{{ row.content['#row']._entity.field_description_title.0.value }}
+				</h2>
+			</a>
+		{% endif %}
+	{% endfor %}
+</div> #}
+
+{# Second Row if remaining items exist #}
+{# {% if total > first_row_count %}
+	<div class="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-10 mt-6">
+		{% for i in first_row_count..(total - 1) %}
+			{% set row = rows[i] %}
+			<a href= '#{{ row.content['#row']._entity.nid.0.value }}' onclick="document.getElementById('{{ row.content['#row']._entity.nid.0.value }}').scrollIntoView({ behavior: 'smooth' }); return false;" class="flex flex-col items-center justify-center border-custom bg-white bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-302 w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-[270px] md:h-52 2xl:w-[310px] rounded-2xl md:rounded-3xl p-4 gap-5 md:gap-10 text-xl">
+				<img class="object-contain h-16 w-16 md:h-24 md:w-24" src="{{ file_url(row.content['#row']._entity.field_city_information_image.0.entity.uri.value|image_style('city_information')) }}" alt="{{ row.content['#row']._entity.field_city_information_image.0.alt }}" height="64" width="64">
+				<h2 class="text-sm md:text-xl text-center text-light_dark capitalize font-nevis">
+					{{ row.content['#row']._entity.field_description_title.0.value }}
+				</h2>
+			</a>
+		{% endfor %}
+	</div>
+{% endif %} #}
+
+<div class="flex gap-6 overflow-x-auto sm:overflow-x-visible sm:flex-wrap sm:justify-center sm:gap-8 md:gap-20 snap-x snap-mandatory no-scrollbar mx-2 sm:mx-0">
+  {% for row in rows %}
+    <a href="#{{ row.content['#row']._entity.nid.0.value }}"
+       onclick="document.getElementById('{{ row.content['#row']._entity.nid.0.value }}').scrollIntoView({ behavior: 'smooth' }); return false;"
+       class="flex-shrink-0 border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4 snap-start">
+
+      <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+           src="{{ file_url(row.content['#row']._entity.field_city_information_image.0.entity.uri.value|image_style('city_information')) }}"
+           alt="{{ row.content['#row']._entity.field_city_information_image.0.alt }}"
+           height="64" width="64">
+
+      <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+        {{ row.content['#row']._entity.field_description_title.0.value }}
+      </h2>
+    </a>
+  {% endfor %}
+</div>

@@ -1,0 +1,73 @@
+profile_assets:
+  css:
+    theme:
+      css/profile.css: {}
+  js:
+    js/jquery.validate.min.js: {}
+    js/profile-upload.js: {}
+    js/profile-ui.js: {}
+    js/profile-drupal-behaviors.js: {}
+    https://unpkg.com/flowbite@1.8.1/dist/flowbite.min.js: { type: external }
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+
+add-family-member-library:
+  version: 1.x
+  css:
+    theme:
+      css/add-family-member.css: {}
+  js:
+    js/jquery.validate.min.js: {}
+    js/add-family-member.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/drupal.ajax
+
+change-password-library:
+  version: 1.x
+  css:
+    theme:
+      css/change-password.css: {}
+  js:
+    js/change-password.js: {}
+    js/plugin/popper.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/drupal.ajax
+
+profile_form_popup:
+  version: 1.x
+  js: {}
+  dependencies:
+    - core/drupalSettings
+    - core/drupal.ajax
+    - core/once
+
+add_address_form:
+  version: 1.x
+  js:
+    https://DEV_APPLICATION_DOMAIN/GISClientServices/v4.0.0/appconfig-security.js: {}
+  # http://192.168.1.165:8989/trinityAPI/v4.0.2/appconfig-security.js: {}
+    js/jquery.validate.min.js: {}
+    js/add-address.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+
+ai_modal_fix:
+  css:
+    theme:
+      css/aickeditor.css: {}
+
+ai_media_modal_fix:
+  js:
+    js/ginadmincustom.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/once

@@ -1,0 +1,107 @@
+
+.paddingBox {
+    padding: 4px;
+}
+
+/* .my-account-wrapper{
+    max-height: 585px;
+    overflow-y: hidden;
+} */
+.my-account-wrapper.scroller {
+    height: 645px;
+    overflow-y: hidden;
+}
+
+
+.my-account-wrapper.scroller:hover {
+    overflow-y: auto;
+}
+
+
+/* Optional scrollbar styling */
+.my-account-wrapper.scroller::-webkit-scrollbar {
+    width: 6px;
+}
+
+.my-account-wrapper.scroller::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 4px;
+}
+
+/* Pop Up CSS */
+
+.feedback_div_1 {
+    background-color: #fff;
+    border-radius: 10px;
+}
+
+.feedback_div_2 {
+    padding: 20px;
+    z-index: 99;
+    position: relative;
+}
+
+.client {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.thanks_title,
+.thanks_para {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.modal-action {
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+    display: flex;
+}
+
+.feedback_div_2 .emoji_happy {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.thanks_title p {
+    font-size: 28px;
+}
+
+.okay {
+    background-color: #ffcc00;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: larger;
+    font-weight: 700;
+    border-radius: 10px;
+}
+
+.ajax-progress.ajax-progress-throbber {
+    display: none !important;
+    /* Hides the spinner */
+}
+
+#profile-form-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+
+}
+
+#engage_form_input .form-submit#edit-submit {
+    background-color: #ffcc00;
+    border-radius: 10px;
+    width: 180px;
+    height: 50px;
+    padding: 2px 2px 4px 2px;
+    font-size: 20px !important;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 600;
+}

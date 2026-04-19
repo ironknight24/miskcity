@@ -1,0 +1,39 @@
+login_logout.user_register_form:
+  path: '/user-register'
+  defaults:
+    _form: '\Drupal\login_logout\Form\UserRegisterForm'
+    _title: 'Register User'
+  requirements:
+    _custom_access: '\Drupal\login_logout\Access\UserRegisterAccessCheck::access'
+
+login_logout.user_login_form:
+  path: '/user-login'
+  defaults:
+    _form: '\Drupal\login_logout\Form\UserLoginForm'
+    _title: 'Login User'
+  requirements:
+    _custom_access: '\Drupal\login_logout\Access\UserLoginAccessCheck::access'
+
+login_logout.forgot_password_form:
+  path: '/forgot-password'
+  defaults:
+    _form: '\Drupal\login_logout\Form\UserForgotPasswordForm'
+    _title: 'Forgot Password'
+  requirements:
+    _custom_access: '\Drupal\login_logout\Access\ForgotPasswordAccessCheck::access'
+
+login_logout.logout:
+  path: '/logout'
+  defaults:
+    _controller: '\Drupal\login_logout\Controller\LogoutController::logout'
+    _title: 'Logging out'
+  requirements:
+    _permission: 'access content'
+
+login_logout.password_recovery_status:
+  path: '/password-recovery-status'
+  defaults:
+    _controller: '\Drupal\login_logout\Controller\PasswordRecoveryStatusController::statusPage'
+    _title: 'Password Recovery Status'
+  requirements:
+    _permission: 'access content'

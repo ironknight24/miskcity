@@ -1,0 +1,17 @@
+city-map-library:
+  version: 9.x
+  css:
+    layout:
+      css/city-map.css: {}
+    theme:
+      css/city-map.css: {}
+  js:
+    # http://192.168.1.165:8989/trinityAPI/v4.0.2/appconfig-security.js: {}
+    https://DEV_APPLICATION_DOMAIN/GISClientServices/v4.0.0/appconfig-security.js: {}
+    js/city-map.js: {}
+    js/common.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupalSettings
+    - core/once

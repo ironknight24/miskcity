@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html{{ html_attributes }}>
+  <head>
+    <head-placeholder token="{{ placeholder_token }}">
+
+    {# ✅ Performance: Preconnect to CDN domains #}
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+
+    {# ✅ SEO + Accessibility #}
+    <title>{{ head_title|safe_join(' | ') }}</title>
+
+    {# ✅ CSS & JS placeholders for Drupal to inject core/libraries #}
+    <css-placeholder token="{{ placeholder_token }}">
+    <js-placeholder token="{{ placeholder_token }}">
+  </head>
+  <body{{ attributes.addClass('overflow-x-hidden font-sans') }}>
+    
+    {# ✅ Accessibility: Skip link for screen readers #}
+    <a href="#main-content" class="visually-hidden focusable skip-link">
+      {{ 'Skip to main content'|t }}
+    </a>
+
+    {# ✅ Drupal content regions #}
+    {{ page_top }}
+    {{ page }}
+    {{ page_bottom }}
+    <div id="global-spinner" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex justify-center items-center">
+  <div class="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
+</div>
+    {# ✅ JS scripts to be loaded at the end of body #}
+    <js-bottom-placeholder token="{{ placeholder_token }}">
+  </body>
+</html>

@@ -1,0 +1,175 @@
+#city-map-id #layers .view-map-pois-category .view-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+#city-map-id #layers .view-map-pois-category .view-content .layer-blocks a img {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+}
+
+#city-map-id #layers .view-map-pois-category .view-content .layer-blocks a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    gap: 0.6rem;
+}
+
+#city-map-id #mapDiv {
+    border: inherit;
+    width: 100%;
+    height: 650px;
+}
+
+@media (max-width: 768px) {
+    #city-map-id #mapDiv {
+        height: 360px;
+        width: 100%;
+        border: 0;
+    }
+}
+
+#city-map-id .pois-list {
+    position: absolute;
+    top: 50px;
+    left: 32px;
+}
+
+/* .pois-list {
+    position: absolute;
+    top: 420px;
+    left: 73px;
+    width: 435px;
+    max-height: 475px;
+    border-radius: 20px;
+    border: 1px solid #cecece;
+    background-color: #fdfcfa;
+} */
+#city-map-id .poi_top {
+    display: flex;
+    justify-content: end;
+    cursor: pointer;
+    align-items: center;
+}
+
+#city-map-id .poi_text {
+    display: none;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+#city-map-id .poi_close {
+    display: flex;
+    justify-content: end;
+    cursor: pointer;
+    padding: 4px 10px;
+}
+
+#city-map-id .poi_close .bi-x {
+    position: absolute;
+    right: -16px;
+    top: -10px;
+    border-radius: 50%;
+    background: #fff;
+    color: #000;
+    border: 1px solid #d7d5d5;
+    width: 30px;
+    height: 30px;
+    opacity: 0.7;
+}
+
+#city-map-id #search_field {
+    padding: 0px 25px;
+}
+
+#city-map-id .first-list {
+    max-height: 305px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 0px 25px;
+    margin-bottom: 15px;
+}
+
+ #city-map-id #mapDiv .ol-control {
+    left: -10px;
+    position: relative;
+    top: -100px;
+    float: right;
+}
+
+#city-map-id #mapDiv .ol-control button {
+    border-radius: 5px 5px;
+    cursor: pointer;
+    display: block;
+    margin: 2px !important;
+    padding: 0;
+    color: #cecece !important;
+    font-size: 28px;
+    font-weight: 700 !important;
+    text-decoration: none;
+    text-align: center;
+    height: 35px !important;
+    width: 35px !important;
+    line-height: 0.4em;
+    background-color: white !important;
+    border: 1px solid #cecece !important;
+}
+
+#city-map-id #mapDiv .ol-control.ol-logo-only {
+    display: none;
+}
+
+#city-map-id .search-wrapper {
+    top: 50px !important;
+    right: auto !important;
+    left: 40px !important;
+    background-color: transparent !important;
+    
+}
+
+#city-map-id .search-wrapper .close-icon {
+    top: 13px !important;
+}
+
+#city-map-id .search-wrapper .controls1 {
+    padding: 10px;
+    height: 50px;
+    /* margin-left: 30px; */
+    /* margin-top: 15px; */
+    border-radius: 10px
+}
+
+@media screen and (max-width:768px) {
+    #city-map-id .search-wrapper .controls1 {
+        height: 35px;
+    }
+
+    #city-map-id .controls1 {
+        width: 230px !important;
+    }
+
+    #city-map-id .search-wrapper {
+        top: 10px !important;
+        right: auto !important;
+        left: 12px !important;
+    }
+    #city-map-id .layers{
+        width:max-content;
+    }
+    #city-map-id #mapDiv .ol-control button{
+        width: 25px !important;
+        height: 25px !important;
+        font-size: 16px;
+    }
+    #city-map-id #mapDiv .ol-control{
+        left:0px;
+        top:-80px;
+        background-color: transparent;
+    }
+    #city-map-id .first-list{
+        max-height: 240px;
+    }
+}

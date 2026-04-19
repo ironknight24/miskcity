@@ -1,0 +1,39 @@
+{#
+ * @file
+ * Template for Page Visit Counter block.
+#}
+{# {{ dump(count) }}
+<div class="p-4 bg-gray-100 border text-center">
+	Page Transitions:
+	<strong>{{ count }}</strong>
+</div> #}
+{# <div class="visitors_count text-base font-light font-sans text-[#fdfcfa] flex items-center gap-2">
+    <!-- Eye icon -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 1080 1080" class="inline-block">
+        <path style="fill: #ffffff;" d="M 320 256 C 320 291.35 291.35 320 256 320 C 220.65 320 192 291.35 192 256 C 192 220.65 220.65 192 256 192 C 291.33 192.04 319.96 220.67 320 256 Z M 509.81 265.42 C 460.86 364.89 363.6 426.67 256 426.67 C 148.4 426.67 51.14 364.89 2.19 265.42 C -0.73 259.48 -0.73 252.53 2.19 246.59 C 51.14 147.11 148.4 85.33 256 85.33 C 363.6 85.33 460.86 147.11 509.81 246.58 C 512.73 252.52 512.73 259.48 509.81 265.42 Z M 362.67 256 C 362.67 197.09 314.91 149.33 256 149.33 C 197.09 149.33 149.33 197.09 149.33 256 C 149.33 314.91 197.09 362.67 256 362.67 C 314.88 362.6 362.6 314.88 362.67 256 Z"/>
+    </svg>
+    <!-- Text and counter -->
+	<span class="ml-2">Total Website Visitors:</span>
+	<div class="visCounts flex space-x-1 ml-2">
+		{% for digit in count|split('') %}
+			<span class="inline-block bg-black border border-yellow-500 text-yellow-400 px-1.5 py-0.5 text-lg font-semibold">{{ digit }}</span>
+		{% endfor %}
+	</div>
+</div> #}
+<div class="visitors_count flex items-center space-x-2 text-[#fdfcfa] text-base font-sans">
+  <!-- Eye icon -->
+  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 1080 1080" class="inline-block align-middle relative top-[10px] left-[10px]">
+    <path style="fill: #ffffff;" d="M 320 256 C 320 291.35 291.35 320 256 320 C 220.65 320 192 291.35 192 256 C 192 220.65 220.65 192 256 192 C 291.33 192.04 319.96 220.67 320 256 Z M 509.81 265.42 C 460.86 364.89 363.6 426.67 256 426.67 C 148.4 426.67 51.14 364.89 2.19 265.42 C -0.73 259.48 -0.73 252.53 2.19 246.59 C 51.14 147.11 148.4 85.33 256 85.33 C 363.6 85.33 460.86 147.11 509.81 246.58 C 512.73 252.52 512.73 259.48 509.81 265.42 Z M 362.67 256 C 362.67 197.09 314.91 149.33 256 149.33 C 197.09 149.33 149.33 197.09 149.33 256 C 149.33 314.91 197.09 362.67 256 362.67 C 314.88 362.6 362.6 314.88 362.67 256 Z"/>
+  </svg>
+
+  <!-- Label -->
+  <span class="text-[12px] font-medium">Total Website Visitors:</span>
+
+  <!-- Counter -->
+  <div class="visCounts flex ml-2">
+    {% for digit in count|split('') %}
+      <span class="border border-2 border-[#383737] text-[#f8cd46] px-[2px] py-[1px] mx-[2px] text-[12px]">{{ digit }}</span>
+    {% endfor %}
+  </div>
+</div>
+

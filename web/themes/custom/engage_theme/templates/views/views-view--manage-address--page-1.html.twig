@@ -1,0 +1,178 @@
+{#
+/**
+ * @file
+ * Theme override for main view template.
+ *
+ * Available variables:
+ * - attributes: Remaining HTML attributes for the element.
+ * - css_name: A CSS-safe version of the view name.
+ * - css_class: The user-specified classes names, if any.
+ * - header: The optional header.
+ * - footer: The optional footer.
+ * - rows: The results of the view query, if any.
+ * - empty: The content to display if there are no rows.
+ * - pager: The optional pager next/prev links to display.
+ * - exposed: Exposed widget form/info to display.
+ * - feed_icons: Optional feed icons to display.
+ * - more: An optional link to the next page of results.
+ * - title: Title of the view, only used when displaying in the admin preview.
+ * - title_prefix: Additional output populated by modules, intended to be
+ *   displayed in front of the view title.
+ * - title_suffix: Additional output populated by modules, intended to be
+ *   displayed after the view title.
+ * - attachment_before: An optional attachment view to be displayed before the
+ *   view content.
+ * - attachment_after: An optional attachment view to be displayed after the
+ *   view content.
+ * - dom_id: Unique id for every view being printed to give unique class for
+ *   Javascript.
+ *
+ * @see template_preprocess_views_view()
+ */
+#}
+{%
+  set classes = [
+    dom_id ? 'js-view-dom-id-' ~ dom_id,
+  ]
+%}
+ <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let selectedNid = null;
+
+    const deleteModal = document.getElementById('delete-modal');
+    const globalSpinner = document.getElementById('global-spinner');
+
+    // Show modal when delete button is clicked
+    document.querySelectorAll('.delete-address-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedNid = btn.dataset.nid;
+        deleteModal.classList.remove('hidden');
+      });
+    });
+
+    // Cancel deletion
+    document.getElementById('cancel-delete').addEventListener('click', () => {
+      deleteModal.classList.add('hidden');
+      selectedNid = null;
+    });
+
+    // Confirm deletion
+    document.getElementById('confirm-delete').addEventListener('click', () => {
+      if (!selectedNid) return;
+
+      // Hide modal and show spinner
+      deleteModal.classList.add('hidden');
+      globalSpinner.classList.remove('hidden');
+
+      fetch(`/delete-address/${selectedNid}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json'
+        },
+      })
+      .then(response => {
+        globalSpinner.classList.add('hidden');
+
+        if (response.ok) {
+          // Remove the deleted DOM node
+          document.getElementById(`manage-address-${selectedNid}`)?.remove();
+          location.reload(); // Optional page reload after deletion
+        } else {
+          alert("Error deleting address.");
+        }
+      });
+    });
+  });
+</script>
+
+
+<div{{attributes.addClass(classes)}}>
+	{{ title_prefix }}
+	{{ title }}
+	{{ title_suffix }}
+
+	{% if header %}
+		<header>
+			{{ header }}
+		</header>
+	{% endif %}
+
+	{{ exposed }}
+	{{ attachment_before }}
+
+	<div
+		class="mx-auto max-w-screen-xl px-4">
+
+		<!-- Header Section -->
+		<div
+			class="grid grid-cols-[auto,1fr,auto] items-center pt-6 pb-10">
+
+			<!-- Arrow -->
+			<div class="flex justify-start">
+				<a href="/my-account" class="text-gray-700">
+					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"></path>
+					</svg>
+				</a>
+			</div>
+
+			<!-- Title -->
+			<div class="text-center">
+				<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{'Manage Address'|t}}</h1>
+			</div>
+
+			<!-- Spacer to balance grid -->
+			<div></div>
+
+		</div>
+
+		<!-- Address Cards Grid -->
+		<div
+			class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+
+			<!-- Add New Address -->
+			<div class="border-dashed border-2 border-yellow-400 rounded-xl bg-white flex flex-col items-center justify-center p-8 hover:shadow-md transition cursor-pointer" onclick="window.location.href='/add-address'">
+				<img src="/themes/custom/engage_theme/images/Profile/location_pin.svg" alt="location" class="h-10 w-8 mb-2">
+				<h1 class="font-bold font-nevis text-xl sm:text-2xl text-yellow-500">Add New Address</h1>
+			</div>
+
+			{% if rows -%}
+				{{ rows }}
+			{% elseif empty -%}
+				{{ empty }}
+			{% endif %}
+			{{ pager }}
+		</div>
+	</div>
+
+	{{ attachment_after }}
+	{{ more }}
+
+	{% if footer %}
+		<footer>
+			{{ footer }}
+		</footer>
+	{% endif %}
+
+	{{ feed_icons }}
+</div>
+
+
+<!-- Global Loading Spinner -->
+<div id="global-spinner" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex justify-center items-center">
+	<div class="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
+</div>
+
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex justify-center items-center">
+	<div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl text-center">
+		<h2 class="text-xl font-bold mb-4 text-red-600">Are you sure?</h2>
+		<p class="mb-6 text-gray-700">Do you really want to delete this address? This action cannot be undone.</p>
+		<div class="flex justify-center gap-4">
+			<button id="cancel-delete" class="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-black">Cancel</button>
+			<button id="confirm-delete" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Delete</button>
+		</div>
+	</div>
+</div>

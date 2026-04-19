@@ -1,0 +1,27 @@
+user-login-library:
+  version: 9.x
+  css:
+    layout:
+      css/user-login.css: {}
+    theme:
+      css/user-login.css: {}
+  js:
+    js/user-login.js: { attributes: { type: module } }
+
+
+user-register-library:
+  version: 9.x
+  css:
+    layout:
+      css/user-register.css: {}
+    theme:
+      css/user-register.css: {}
+  js:
+    js/user-register.js: { attributes: { type: module } }
+
+auto_dismiss_messages:
+  version: 1.x
+  js:
+    js/auto-dismiss.js: {}
+  dependencies:
+    - core/jquery

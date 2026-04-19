@@ -1,0 +1,25 @@
+career_application.user_applied:
+  path: '/my-job-applications'
+  defaults:
+    _controller: '\Drupal\career_application\Controller\CareerApplyController::userApplications'
+    _title: 'Jobs You Have Applied For'
+  requirements:
+    _permission: 'access content'
+
+
+career_application.success_page:
+  path: '/career-apply/success'
+  defaults:
+    _controller: '\Drupal\career_application\Controller\CareerApplyController::success'
+    _title: 'Application Successful'
+  requirements:
+    _permission: 'access content'
+
+career_application.job_application_view:
+  path: '/job-application/{nid}'
+  defaults:
+    _controller: '\Drupal\career_application\Controller\CareerApplyController::applicationDetails'
+    _title: 'Application Details'
+  requirements:
+    _permission: 'access content'
+    nid: \d+

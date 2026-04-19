@@ -1,0 +1,21 @@
+<div{{ attributes }}>
+  {{ title_prefix }}
+  {% if label %}
+    <h2{{ title_attributes }}  {{ attributes.addClass('text-2xl text-white mb-2 font-nevis') }}>{{ label }}</h2>
+  {% endif %}
+  {{ title_suffix }}
+  {% block content %}
+    <div class="contact-address items-center flex flex-row gap-5 contact-us-part mb-5">
+        <img class="ContactUsAddressImage s:w-6 s:h-6 xs:w-4 xs:h-4" src="{{ file_url(content.field_contact_address_icon['#items'].0.entity.uri.value) }}" alt="Contact Address Icon" height="32" width="32" />
+        <p class="leading-6 text-sm opacity-70 font-light ContactUsAddress text-[#fdfcfa]">{{ (content.field_contact_address.0['#context'].value) }}</p>
+    </div>
+    <div class="contact-email items-center flex flex-row gap-5 contact-us-part mb-5">
+        <img class="ContactUsEmailImage s:w-6 s:h-6 xs:w-4 xs:h-4" src="{{ file_url(content.field_contact_email_address_icon['#items'].0.entity.uri.value) }}" alt="Contact Email Icon" height="32" width="32" />
+        <p class="leading-6 text-sm opacity-70 font-light ContactUsEmail text-[#fdfcfa]">{{ (content.field_contact_email_address.0['#context'].value) }}</p>
+    </div>
+    <div class="contact-phone items-center flex flex-row gap-5 contact-us-part mb-5">
+        <img class="ContactUsTelephoneImage s:w-6 s:h-6 xs:w-4 xs:h-4" src="{{ file_url(content.field_contact_telephone_icon['#items'].0.entity.uri.value) }}" alt="Contact Telephone Icon" height="32" width="32" />
+        <p class="leading-6 text-sm opacity-70 font-light ContactUsTelephone text-[#fdfcfa]">{{ (content.field_contact_telephone.0['#context'].value) }}</p>
+    </div>
+  {% endblock %}
+</div>

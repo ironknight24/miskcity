@@ -1,0 +1,159 @@
+{# {% import _self as menus %}
+
+{{ menus.menu_links(items, attributes, 0) }}
+
+{% macro menu_links(items, attributes, menu_level) %}
+  {% import _self as menus %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul{{ attributes.addClass('space-y-4 md:space-y-0 md:flex md:space-x-6') }}>
+    {% else %}
+      <ul class="ml-4 space-y-2">
+    {% endif %}
+    {% for item in items %}
+      <li{{ item.attributes.addClass('group relative') }}>
+        <a href="{{ item.url }}"
+           class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+          {{ item.title|t }}
+        </a>
+        {% if item.below %}
+          {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %} #}
+{# {% import _self as menus %}
+
+{{ menus.menu_links(items, attributes, 0) }}
+
+{% macro menu_links(items, attributes, menu_level) %}
+  {% import _self as menus %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul class="space-y-3 md:flex md:space-y-0 md:space-x-6 md:items-center">
+    {% else %}
+      <ul class="ml-4 space-y-2">
+    {% endif %}
+
+    {% for item in items %}
+      <li class="group">
+        <a href="{{ item.url }}"
+          class="
+            block px-4 py-2 rounded
+            text-black md:text-white font-medium
+            bg-white md:bg-transparent
+            border border-gray-200 md:border-0
+            shadow-sm md:shadow-none
+            hover:bg-gray-100 md:hover:text-yellow-400
+            {% if item.in_active_trail %} font-bold md:border-b-2 md:border-yellow-500 {% endif %}
+          ">
+          {{ item.title }}
+        </a>
+        {% if item.below %}
+          {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+  {% endif %}
+{% endmacro %} #}
+{# {% import _self as menus %}
+
+{{ menus.menu_links(items, attributes, 0) }}
+
+{% macro menu_links(items, attributes, menu_level) %}
+  {% import _self as menus %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul{{ attributes.addClass('space-y-4 md:space-y-0 md:flex md:space-x-6') }}>
+    {% else %}
+      <ul class="ml-4 space-y-2">
+    {% endif %}
+      
+      {% for item in items %}
+        <li{{ item.attributes.addClass('group relative') }}>
+          <a href="{{ item.url }}" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ item.title|t }}
+          </a>
+          {% if item.below %}
+            {{ menus.menu_links(item.below, attributes, menu_level + 1) }}
+          {% endif %}
+        </li>
+      {% endfor %}
+      
+      {% if logged_in and is_admin %}
+        <li class="group relative block lg:hidden">
+          <a href="/user/logout" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ 'Logout'|t }}
+          </a>
+        </li>
+      {% elseif logged_in and not is_admin %}
+        <li class="group relative block lg:hidden">
+          <a href="/logout" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ 'Logout'|t }}
+          </a>
+        </li>
+      {% else %}
+        <li class="group relative block lg:hidden">
+          <a href="/user-login" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ 'Login/Sign up'|t }}
+          </a>
+        </li>
+      {% endif %}
+    </ul>
+  {% endif %}
+{% endmacro %} #}
+
+{% import _self as menus %}
+{% set isadmin = is_admin %}
+{% set loggedin = logged_in %}
+
+{{ menus.menu_links(items, attributes, 0, loggedin, isadmin) }}
+
+{% macro menu_links(items, attributes, menu_level, loggedin, isadmin) %}
+  {% if items %}
+    {% if menu_level == 0 %}
+      <ul{{ attributes.addClass('space-y-4 md:space-y-0 md:flex md:space-x-6') }}>
+    {% else %}
+      <ul class="ml-4 space-y-2">
+    {% endif %}
+
+    {% for item in items %}
+      <li{{ item.attributes.addClass('group relative') }}>
+        <a href="{{ item.url }}" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200 {{ item.in_active_trail ? 'text-yellow-400 font-bold' : 'sm:text-white' }}">
+          {{ item.title|t }}
+        </a>
+ 
+        {% if item.below %}
+          {{ menus.menu_links(item.below, attributes, menu_level + 1, loggedin, isadmin) }}
+        {% endif %}
+      </li>
+    {% endfor %}
+
+    {# Login/Logout logic #}
+    {% if loggedin %}
+      {% if isadmin %}
+        <li class="group relative block lg:hidden">
+          <a href="/user/logout" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ 'Logout'|t }}
+          </a>
+        </li>
+      {% else %}
+        <li class="group relative block lg:hidden">
+          <a href="/logout" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+            {{ 'Logout'|t }}
+          </a>
+        </li>
+      {% endif %}
+    {% else %}
+      <li class="group relative block lg:hidden">
+        <a href="/user-login" class="block text-black border-2 border-stone-300 rounded-md px-3 py-2 sm:text-lg sm:font-semibold sm:text-white sm:hover:text-yellow-400 sm:border-none sm:p-0 sm:transition sm:duration-200">
+          {{ 'Login/Sign up'|t }}
+        </a>
+      </li>
+    {% endif %}
+    </ul>
+  {% endif %}
+{% endmacro %}

@@ -1,0 +1,59 @@
+services:
+  secaudit.force_browsing_audit_service:
+    class: Drupal\secaudit\Service\ForceBrowsingAuditService
+    arguments:
+      - '@request_stack'
+      - '@logger.factory'
+
+  secaudit.http_method_audit_service:
+    class: Drupal\secaudit\Service\HttpMethodAuditService
+    arguments:
+      - '@request_stack'
+      - '@logger.factory'
+
+  secaudit.cookie_audit_service:
+    class: Drupal\secaudit\Service\CookieAuditService
+    arguments:
+      - '@request_stack'
+      - '@logger.factory'
+
+  secaudit.encoding_detector_service:
+    class: Drupal\secaudit\Service\EncodingDetectorService
+
+  secaudit.input_encoding_audit_service:
+    class: Drupal\secaudit\Service\InputEncodingAuditService
+    arguments:
+      - '@request_stack'
+      - '@logger.factory'
+      - '@secaudit.encoding_detector_service'
+
+  secaudit.input_xss_audit_service:
+    class: Drupal\secaudit\Service\InputXssAuditService
+    arguments:
+      - '@request_stack'
+      - '@logger.factory'
+      - '@secaudit.input_xss_scan_service'
+
+  secaudit.input_xss_scan_service:
+    class: Drupal\secaudit\Service\InputXssScanService
+    arguments:
+      - '@secaudit.input_xss_matcher_service'
+
+  secaudit.input_xss_matcher_service:
+    class: Drupal\secaudit\Service\InputXssMatcherService
+
+  secaudit.audit_service:
+    class: Drupal\secaudit\Service\AuditService
+    arguments:
+      - '@secaudit.force_browsing_audit_service'
+      - '@secaudit.http_method_audit_service'
+      - '@secaudit.cookie_audit_service'
+      - '@secaudit.input_encoding_audit_service'
+      - '@secaudit.input_xss_audit_service'
+
+  secaudit.request_subscriber:
+    class: Drupal\secaudit\EventSubscriber\RequestEventSubscriber
+    arguments:
+      - '@secaudit.audit_service'
+    tags:
+      - { name: event_subscriber }

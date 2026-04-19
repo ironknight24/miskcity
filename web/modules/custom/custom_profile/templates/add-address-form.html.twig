@@ -1,0 +1,101 @@
+<form {{ form.attributes }}>
+	<!-- Header -->
+	<div class="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8">
+		<div class="grid grid-cols-[auto,1fr,auto] items-center pt-6 pb-10">
+			<!-- Arrow -->
+			<div class="flex justify-start">
+				<a href="/manage-address" class="text-gray-700">
+					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+					</svg>
+				</a>
+			</div>
+
+			<!-- Title -->
+			<div class="text-center">
+				<h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-nevis">
+					{{ form['#is_edit'] ? 'Edit Address'|t : 'Add Address'|t }}
+				</h1>
+			</div>
+
+			<!-- Spacer -->
+			<div></div>
+		</div>
+	</div>
+
+	<!-- Form Container -->
+	<div class="mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 mb-10">
+		<div class="p-6 bg-white rounded-xl space-y-6 border-2 border-[#3c3c3c1c]">
+			<!-- Map Section -->
+			<div class="relative">
+				<div id="mapDiv" class="w-full h-[300px] md:h-[360px] border-0">
+					<img src="/themes/custom/engage_theme/images/location_pin.png"
+						class="get_lat_lang absolute top-3 left-1/2 -translate-x-1/2 bg-white h-6 w-6 p-0.5 z-20 border md:h-7"
+						alt="location">
+				</div>
+				<p class="mt-2 text-sm text-gray-600 font-nevis text-center md:text-left">
+					Note :- Place the pointer at your required address
+				</p>
+			</div>
+
+			<!-- Input Fields -->
+			<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.postal_code
+          }) }}
+					{% if form.postal_code['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.postal_code['#errors'] }}</p>
+					{% endif %}
+				</div>
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.flat
+          }) }}
+					{% if form.flat['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.flat['#errors'] }}</p>
+					{% endif %}
+				</div>
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.area
+          }) }}
+					{% if form.area['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.area['#errors'] }}</p>
+					{% endif %}
+				</div>
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.landmark
+          }) }}
+					{% if form.landmark['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.landmark['#errors'] }}</p>
+					{% endif %}
+				</div>
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.country
+          }) }}
+					{% if form.country['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.country['#errors'] }}</p>
+					{% endif %}
+				</div>
+				<div>
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                  field: form.address_type
+          }) }}
+					{% if form.address_type['#errors'] %}
+						<p class="text-red-600 text-sm mt-1">{{ form.address_type['#errors'] }}</p>
+					{% endif %}
+				</div>
+			</div>
+
+			<!-- Submit Buttons -->
+			<div class="flex flex-col sm:flex-row gap-4 sm:gap-8 mt-5">
+				{{ form.actions }}
+			</div>
+
+			{{ form|without('postal_code','flat','area','landmark','country','address_type','actions') }}
+		</div>
+	</div>
+</form>

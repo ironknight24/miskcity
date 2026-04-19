@@ -1,0 +1,69 @@
+<div class="mx-auto max-w-screen-xl bg-white py-2 px-4">
+	<div class="flex justify-center">
+		<div class="container px-14 my-account-wrapper">
+
+			<div
+				class="flex justify-between items-center">
+				{# Back Arrow Button (img wrapped inside a button for accessibility) #}
+				<button type="button" class="w-5 sm:w-7 cursor-pointer object-contain" onclick="history.back()" aria-label="Go Back">
+					<img src="themes/custom/engage_theme/images/Profile/reverse-arrow.svg" alt="Back" class="w-5 sm:w-7 object-contain"/>
+				</button>
+
+				{# Heading #}
+				<h1 class="text-xl sm:text-2xl md:text-5xl font-nevis text-center mt-8 md:mt-12 mb-8 md:mb-20 translateLabel search_field" label-alias="la_my_profile">
+					{{"Add Family Member"|t}}
+				</h1>
+
+				{# Placeholder for symmetry #}
+				<div class="w-5 sm:w-7"></div>
+			</div>
+
+						<div class="form-sec border-inherit border-2 rounded-xl p-4 lg:px-10 lg:py-12 bg-white text-center lg:text-start s:mb-24 xs:mb-20">
+				<div id="engage_form_input" clas="p-4 items-center inline-block mt-[65px] mb-[65px]">
+					<div class="gridding grid grid-cols-2 gap-y-[20px] gap-x-[100px] justify-center items-center w-full max-w-full box-border">
+						<div class="contents">
+					
+								{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                    				field: form.first_name
+                				}) }}
+								{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                    				field: form.calendar
+                				}) }}
+
+						</div>
+						<div class="contents">
+						{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                    				field: form.gender
+                				}) }}
+								{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                    				field: form.relations
+                				}) }}
+						</div>
+						<div class="contents">
+						{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+                    			field: form.phone_number
+                		}) }}
+						{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+							field: form.email
+						}) }}
+						</div>
+					</div>
+					<div class="nonGridding mt-4">
+						{{ form.upload_file }}
+						<div id="upload-file-error-wrapper"></div>
+						<div class="mt-4">
+							{{ form.terms }}
+						</div>
+						<div class="flex mt-10 gap-4">
+							{{ form.actions.submit }}
+							{{ form.actions.cancel }}
+						</div>
+					</div>
+					{{ form.form_build_id }}
+					{{ form.form_token }}
+					{{ form.form_id }}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>

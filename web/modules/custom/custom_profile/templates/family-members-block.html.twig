@@ -1,0 +1,53 @@
+{% if members %}
+  <ul class="space-y-4">
+    {% for member in members %}
+      <li class="block family_list justify-center items-center py-4 first:pt-0 last:pb-0"
+          disable-nid="{{ member.contactId }}">
+
+        <div class="flex items-center justify-center">
+
+          <!-- Image -->
+          <div class="h-24 w-32">
+            {% if member.imageUrl is not null and member.imageUrl matches '/\\.(jpe?g|png)$/i' %}
+              <img class="w-full h-full rounded-full"
+                   src="{{ member.imageUrl }}"
+                   alt="Family member">
+            {% else %}
+              <img class="w-full h-full rounded-full"
+                   src="themes/custom/engage_theme/images/Profile/profile_member.png"
+                   alt="Default family member">
+            {% endif %}
+          </div>
+
+          <!-- Member Info -->
+          <div class="ml-3 overflow-hidden border-2 p-2 rounded-md w-full">
+            <p class="text-sm font-semibold text-slate-900 font-sans py-1">
+              {{ member.name }} | {{ member.relationship }}
+            </p>
+            <p class="text-sm font-normal truncate font-sans py-1">{{ member.email }}</p>
+            <p class="text-sm font-normal truncate font-sans py-1">{{ member.contact }}</p>
+          </div>
+
+          <!-- Delete Button -->
+          <button
+            type="button"
+            aria-label="Delete family member"
+            data-modal-target="popup-modal"
+            engage-button="engage-button-modal"
+            data-modal-toggle="popup-modal"
+            data-nid="{{ member.contactId }}"
+            class="border-2 p-2 h-24 rounded-md flex items-center mx-1 border-rose-400 bg-[#de001b0d] delFamilmem deleteRedIcon hidden">
+
+            <img class="h-6 w-6 cursor-pointer"
+                 src="themes/custom/engage_theme/images/Profile/delete_icon.svg"
+                 alt="Delete icon">
+          </button>
+
+        </div>
+
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No family members found.</p>
+{% endif %}

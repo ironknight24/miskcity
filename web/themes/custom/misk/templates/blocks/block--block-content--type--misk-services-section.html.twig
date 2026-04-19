@@ -1,0 +1,42 @@
+<article{{attributes}}>
+	<section class="py-10">
+		<div
+			class="max-w-7xl mx-auto px-6 lg:px-8">
+
+			<!-- Header -->
+			<div class="flex items-center justify-between mb-8">
+
+				<h2 class="text-xl sm:text-2xl font-bold uppercase text-misk-brand">
+					{{ label }}
+				</h2>
+
+				{# {% if content.field_view_all_services %} #}
+					<a href="{{ content.field_view_all_services[0]['#url'] }}" class="group inline-flex items-center gap-2 text-misk-brand text-sm font-medium">
+
+						{{ content.field_view_all_services[0]['#title'] }}
+
+						<svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" viewbox="0 0 24 24" stroke="currentColor">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+						</svg>
+					</a>
+				{# {% endif %} #}
+			</div>
+
+			<!-- Services -->
+			{# {% if content.field_misk_services %} #}
+				<div class="flex items-center justify-between gap-10 overflow-x-auto no-scrollbar">
+
+					{% for item in content.field_misk_services %}
+						{% if item['#paragraph'] is defined %}
+							<div class="flex-shrink-0 w-[120px] text-center">
+								{{ item }}
+							</div>
+						{% endif %}
+					{% endfor %}
+
+				</div>
+			{# {% endif %} #}
+
+		</div>
+	</section>
+</article>

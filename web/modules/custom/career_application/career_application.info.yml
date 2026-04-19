@@ -1,0 +1,7 @@
+name: 'Career Application'
+type: module
+description: 'Allows users to apply to career nodes and view their applications.'
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - node

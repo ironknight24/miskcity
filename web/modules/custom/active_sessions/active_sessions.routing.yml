@@ -1,0 +1,23 @@
+active_sessions.activesession:
+  path: '/active-sessions'
+  defaults:
+    _controller: '\Drupal\active_sessions\Controller\ActiveSessionController::activeSession'
+    _title: 'Active Sessions'
+  requirements:
+    _permission: 'access content'
+
+active_sessions.end_session:
+  path: '/end-session/{session_id}'
+  defaults:
+    _controller: '\Drupal\active_sessions\Controller\ActiveSessionController::endSession'
+    _title: 'End Session'
+  requirements:
+    _permission: 'access content'
+
+active_sessions.end_all_sessions:
+  path: '/end-all-sessions'
+  defaults:
+    _controller: '\Drupal\active_sessions\Controller\ActiveSessionController::endAllSessions'
+    _title: 'End All Sessions'
+  requirements:
+    _permission: 'access content'

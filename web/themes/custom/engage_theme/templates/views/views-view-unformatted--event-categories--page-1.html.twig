@@ -1,0 +1,35 @@
+<div
+	class="mx-auto max-w-screen-xl bg-white px-4 py-6">
+	<!-- Header -->
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-10">
+		<div>
+			<a href="/" class="text-gray-700 hover:text-yellow-600">
+				<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+					<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+				</svg>
+			</a>
+		</div>
+		<div class="text-center flex-1">
+			<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{ 'Events List'|t }}</h1>
+		</div>
+	</div>
+
+	<!-- Grid Layout -->
+	<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-10">
+		{% for row in rows %}
+			{% if row.content['#row']._entity.field_event_taxonomy_image.0.entity.uri.value %}
+				<a href="event-list?title=&field_event_categories_target_id={{ row.content['#row']._entity.tid.0.value }}">
+					<div class="bg-white border border-gray-200 rounded-lg shadow hover:shadow-md transition duration-200 p-5 text-center">
+						<img src="{{ file_url(row.content['#row']._entity.field_event_taxonomy_image.0.entity.uri.value|image_style('smart_service')) }}" class="mx-auto w-14 h-14" alt="Event image">
+						<h2 class="text-xl capitalize font-bold font-sans mt-5 mb-3 sm:text-base xs:text-xs">
+							{{ row.content['#row']._entity.name.0.value }}
+						</h2>
+						<p class="text-sm text-gray-600 font-normal">
+							{{ row.content['#row']._entity.field_event_taxonomy_descrption.0.value }}
+						</p>
+					</div>
+				</a>
+			{% endif %}
+		{% endfor %}
+	</div>
+</div>

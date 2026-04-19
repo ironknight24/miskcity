@@ -1,0 +1,40 @@
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+  {% for key, row in rows %}
+    <div class="col-span-1">
+      <div class="card blog-page h-full flex flex-col">
+        <!-- Blog Image -->
+        <img 
+          src="{{ file_url(row.content['#row']._entity.field_news_poster.0.entity.uri.value|image_style('latest_blog_image')) }}" 
+          alt="{{ row.content['#row']._entity.title.0.value }}" 
+          class="blog-page-img rounded-lg"
+          width={{ row.content['#row']._entity.field_news_poster.0.width }} 
+          height={{ row.content['#row']._entity.field_news_poster.0.height }}
+        >
+
+        <!-- Card Body -->
+        <div class="card-body p-0 flex flex-col flex-grow">
+          <!-- Title -->
+          <h2 class="card-title text-2xl text-dark font-bold font-sans minlines mt-5 s:text-xl xs:text-xl">
+            {{ row.content['#row']._entity.title.value }}
+          </h2>
+
+          <!-- Description -->
+          <div class="text-medium font-sans text-gray83 font-normal my-3 minlines s:text-base xs:text-base">
+            {{ row.content['#row']._entity.field_news_body.0.value|striptags|slice(0, 240) ~ (row.content['#row']._entity.field_blog_body.0.value|striptags|length > 240 ? '...' : '') | raw }}
+          </div>
+
+          <!-- Read More Button -->
+          <div class="card-actions justify-start mt-auto pt-4">
+            <a 
+              class="btn bg-yellow-500 hover:bg-yellow-600 text-white text-xl capitalize font-bold font-sans px-6 py-2 rounded-xl transition duration-200 w-fit" 
+              href="/node/{{ row.content['#row']._entity.nid.0.value }}" 
+              target="_self"
+            >
+              {{ 'Read More'|t }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endfor %}
+</div>

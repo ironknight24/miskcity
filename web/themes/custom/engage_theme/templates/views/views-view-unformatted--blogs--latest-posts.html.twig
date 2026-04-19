@@ -1,0 +1,17 @@
+{% for row in rows %}
+	<div class="blog">
+		<div class="card pb-8 mb-8">
+			<img src="{{ file_url(row.content['#row']._entity.field_blog_image.0.entity.uri.value|image_style('latest_blog_image')) }}" alt="{{ row.content['#row']._entity.title.value }}" class="blog-img rounded-lg" width={{ row.content['#row']._entity.field_blog_image.0.width }} height={{ row.content['#row']._entity.field_blog_image.0.height }}>
+			<div class="card-body p-0">
+				<div class="card-desc text-base font-sans text-[#333333] font-normal my-3 minlines s:text-base xs:text-sm">
+					{{ row.content['#row']._entity.field_blog_body.0.value|striptags|slice(0, 140) ~ (row.content['#row']._entity.field_blog_body.0.value|striptags|length > 140 ? '...' : '') | raw }}
+				</div>
+				<div class="card-actions justify-start mt-8">
+					<a class="btn bg-yellow-500 hover:bg-yellow-600 text-white text-xl capitalize font-bold font-sans px-6 py-2 rounded-xl transition duration-200 s:basis-full xs:basis-full s:h-9 s:min-h-full xs:h-9 xs:min-h-full" href="/node/{{ row.content['#row']._entity.nid.0.value }}" target="_self">
+						{{ 'Read More'|t }}
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+{% endfor %}

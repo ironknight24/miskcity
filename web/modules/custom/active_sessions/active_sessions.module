@@ -1,0 +1,11 @@
+<?php
+
+function active_sessions_theme($existing, $type, $theme, $path)
+{
+    return [
+        'active_sessions_page' => [
+            'variables' => ['currentUserSessions' => NULL, 'otherUserSessions' => []],
+            'template' => 'active-sessions-page',
+        ],
+    ];
+}

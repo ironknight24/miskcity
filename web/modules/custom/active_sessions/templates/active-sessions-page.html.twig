@@ -1,0 +1,94 @@
+<div
+	class="mx-auto max-w-screen-xl bg-white py-6 px-4">
+	<!-- Header -->
+	<div class="flex justify-between items-baseline gap-4 py-10">
+		<div>
+			<a href="/my-account" class="text-gray-600 hover:text-gray-800">
+				<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+					<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+				</svg>
+			</a>
+		</div>
+		<div class="text-center">
+			<h1 class="text-3xl md:text-5xl font-nevis">{{ 'Active Sessions'|t }}</h1>
+		</div>
+		<div></div>
+	</div>
+
+	<!-- Current Session -->
+	{% if currentUserSessions[0] %}
+		{# {{dump(currentUserSessions)}} #}
+
+		<div class="mb-8">
+			<h2 class="text-xl font-semibold mb-4">{{ 'Current Session'|t }}</h2>
+			<div class="border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between bg-gray-50 gap-4">
+				<div class="flex items-center gap-4">
+					{% set ua = currentUserSessions[0].userAgentFormatted|lower %}
+					{% if 'mobile' in ua %}
+						<img src="/themes/custom/engage_theme/images/mobile.svg" alt="Mobile" class="w-24 h-24"/>
+					{% elseif 'tablet' in ua %}
+						<img src="/themes/custom/engage_theme/images/mobile.svg" alt="Tablet" class="w-24 h-24"/>
+					{% else %}
+						<img src="/themes/custom/engage_theme/images/pc.svg" alt="Desktop" class="w-24 h-24"/>
+					{% endif %}
+					<div>
+						<p class="font-semibold text-lg">{{ currentUserSessions[0].userAgentFormatted }}</p>
+						<p class="text-sm text-gray-600">{{ 'Log in:'|t }}
+							{{ currentUserSessions[0].formattedLoginTime }}</p>
+						<p class="text-sm text-gray-600">{{ 'IP Address:'|t }}
+							{{ currentUserSessions[0].ip }}</p>
+						{% if currentUserSessions[0].location %}
+							<p class="text-sm text-gray-600">{{ 'Location:'|t }}
+								{{ currentUserSessions[0].location }}</p>
+						{% endif %}
+					</div>
+				</div>
+				<a href="/end-session/{{ currentUserSessions[0].id }}--{{ currentUserSessions[0].accessToken }}" class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 w-full md:w-auto text-center block">
+					{{ 'Log out'|t }}
+				</a>
+			</div>
+		</div>
+	{% endif %}
+
+	<!-- Other Sessions -->
+	{% if otherUserSessions %}
+		{# {{dump(otherUserSessions)}} #}
+
+		<div>
+			<div class="flex justify-between items-center mb-4">
+				<h2 class="text-xl font-semibold">{{ 'Other Sessions'|t }}</h2>
+				<a href="/end-all-sessions" class="text-red-600 hover:underline">{{ 'All Log out'|t }}</a>
+			</div>
+			<div class="space-y-4">
+				{% for session in otherUserSessions %}
+					<div class="border rounded-2xl p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between bg-gray-50 gap-4">
+						<div class="flex items-center gap-4">
+							{% set ua = session.userAgentFormatted|lower %}
+							{% if 'mobile' in ua %}
+								<img src="/themes/custom/engage_theme/images/mobile.svg" alt="Mobile" class="w-24 h-24"/>
+							{% elseif 'tablet' in ua %}
+								<img src="/themes/custom/engage_theme/images/mobile.svg" alt="Tablet" class="w-24 h-24"/>
+							{% else %}
+								<img src="/themes/custom/engage_theme/images/pc.svg" alt="Desktop" class="w-24 h-24"/>
+							{% endif %}
+							<div>
+								<p class="font-semibold text-lg">{{ session.userAgentFormatted }}</p>
+								<p class="text-sm text-gray-600">{{ 'Log in:'|t }}
+									{{ session.formattedLoginTime }}</p>
+								<p class="text-sm text-gray-600">{{ 'IP Address:'|t }}
+									{{ session.ip }}</p>
+								{% if session.location %}
+									<p class="text-sm text-gray-600">{{ 'Location:'|t }}
+										{{ session.location }}</p>
+								{% endif %}
+							</div>
+						</div>
+						<a href="/end-session/{{ session.id }}--{{ session.accessToken }}" class="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 w-full md:w-auto text-center block">
+							{{ 'Log out'|t }}
+						</a>
+					</div>
+				{% endfor %}
+			</div>
+		</div>
+	{% endif %}
+</div>

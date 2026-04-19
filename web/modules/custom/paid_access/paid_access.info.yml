@@ -1,0 +1,13 @@
+name: 'Paid Access Content'
+type: module
+description: 'Controls content access based on membership subscriptions. No BAT dependency.'
+core_version_requirement: ^11
+package: 'Paid Access Platform'
+dependencies:
+  - drupal:node
+  - drupal:block
+  - drupal:user
+  - drupal:commerce
+  - drupal:commerce_recurring
+  - drupal:commerce_license
+  - drupal:eca

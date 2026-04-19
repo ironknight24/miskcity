@@ -1,0 +1,94 @@
+{#
+/**
+ * @file
+ * Theme override for database/vector search results.
+ * 
+ * This template displays the source content items found by semantic search.
+ * 
+ * Available variables:
+ * - results: Array of search result items
+ * - pager: Pagination markup (AJAX-enabled)
+ * - search_term: The original search query
+ */
+#}
+
+{% if results is not empty %}
+  <div class="ai-search-database-results">
+    <div class="results-header">
+      <h3 class="results-title">AI SEARCH RESULTS</h3>
+      <div class="results-count">{{ results|length }} results found</div>
+    </div>
+
+    <div class="results-list">
+      {% for item in results %}
+        <article class="search-result-item">
+          <div class="result-content">
+            {# Title - Always show, always linked #}
+            <h4 class="result-title">
+              <a href="{{ item.url }}" class="result-link">
+                {{ item.title }}
+              </a>
+            </h4>
+
+            {# Location - Show if available (matches your reference) #}
+            {% if item.location %}
+              <div class="result-location">
+                <span class="location-icon">📍</span>
+                <span class="location-text">{{ item.location }}</span>
+              </div>
+            {% endif %}
+
+            {# Date and Time - Show if available (matches your reference) #}
+            {% if item.date or item.time %}
+              <div class="result-datetime">
+                {% if item.date %}
+                  <div class="date-badge">
+                    <span class="badge-label">Date:</span>
+                    <span class="badge-value">{{ item.date }}</span>
+                  </div>
+                {% endif %}
+                {% if item.time %}
+                  <div class="time-badge">
+                    <span class="badge-label">Time:</span>
+                    <span class="badge-value">{{ item.time }}</span>
+                  </div>
+                {% endif %}
+              </div>
+            {% endif %}
+
+            {# Description - Trimmed to 200 chars (matches your reference) #}
+            {% if item.description %}
+              <div class="result-description">
+                <p>{{ item.description|slice(0, 200) }}
+                  {% if item.description|length > 200 %}...{% endif %}
+                </p>
+              </div>
+            {% endif %}
+
+            {# Content Type Badge - Optional #}
+            {% if item.content_type %}
+              <div class="result-meta">
+                <span class="content-type-badge">{{ item.content_type }}</span>
+              </div>
+            {% endif %}
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+    
+    {# AJAX-enabled pagination #}
+    {% if pager %}
+      <div class="results-pagination">
+        {{ pager }}
+      </div>
+    {% endif %}
+  </div>
+{% else %}
+  {# Empty state when no results found #}
+  <div class="ai-search-database-results empty">
+    <div class="empty-state-icon">🔍</div>
+    <h4>No results found</h4>
+    <p>No matching events or content found for "{{ search_term }}".</p>
+    <p class="suggestion">Try adjusting your search terms or browse our upcoming events.</p>
+  </div>
+{% endif %}

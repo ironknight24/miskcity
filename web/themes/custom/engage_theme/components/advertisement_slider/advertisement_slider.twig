@@ -1,0 +1,22 @@
+{# engage_theme/components/advertisement_slider/advertisement_slider.twig #}
+{#
+  Expects the following props:
+  - items: An array of rendered content for each slide.
+#}
+
+{% if items %}
+  <div class="swiper mySwiper w-full overflow-hidden mt-6">
+    <div class="swiper-wrapper">
+      {% for item in items %}
+        <div class="swiper-slide">
+          {{ item.content }}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="swiper-pagination"></div>
+  </div>
+{% endif %}
+
+{# You might add specific CSS or JS here, or link them in the .component.yml file #}
+{# Example of linking CSS/JS directly (less common with SDC, but possible) #}
+{{ attach_library('engage_theme/swiper') }}

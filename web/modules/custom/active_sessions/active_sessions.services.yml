@@ -1,0 +1,14 @@
+services:
+  active_sessions.session_service:
+    class: Drupal\active_sessions\Service\ActiveSessionService
+    arguments:
+      - '@http_client'
+      - '@request_stack'
+      - '@logger.channel.default'
+      - '@global_module.global_variables'
+      - '@global_module.vault_config_service'
+
+  active_sessions.presenter_service:
+    class: Drupal\active_sessions\Service\ActiveSessionPresenterService
+    arguments:
+      - '@date.formatter'

@@ -1,0 +1,16 @@
+<?php
+
+use Drupal\Core\Routing\RouteMatchInterface;
+
+/**
+ * Implements hook_theme().
+ */
+function page_visit_counter_theme($existing, $type, $theme, $path)
+{
+    return [
+        'page_visit_counter_block' => [
+            'variables' => ['count' => 0],
+            'template' => 'page-visit-counter-block',
+        ],
+    ];
+}

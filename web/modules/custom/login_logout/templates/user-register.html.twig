@@ -1,0 +1,99 @@
+{# {{ dump(form) }} #}
+{# <div class="max-w-md mx-auto mt-10 p-6 bg-white shadow-lg rounded-lg"> #}
+	<div class="min-h-screen bg-cover bg-center flex items-center justify-center" style="background-image: url('/modules/custom/custom_profile/images/registeration-bg.png');"> <div class="p-12 bg-white shadow-md rounded-lg max-w-md w-full mx-4 my-10">
+		<h2 class="text-2xl font-bold mb-6 text-center">
+			{% if form.otp is defined %}
+				Verify OTP
+			{% elseif form.password is defined %}
+				Set Password
+			{% else %}
+				Register
+			{% endif %}
+		</h2>
+
+		<div class="space-y-4">
+			{% if form.first_name is defined %}
+				<div>
+					{# {{ form.first_name }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.first_name,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.last_name is defined %}
+				<div>
+					{# {{ form.last_name }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.last_name,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.mail is defined %}
+				<div>
+					{# {{ form.mail }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.mail,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.country_code is defined %}
+				<div>
+					{# {{ form.country_code }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.country_code,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.mobile is defined %}
+				<div>
+					{# {{ form.mobile }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.mobile,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.otp is defined %}
+				<div>
+					{# {{ form.otp }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.otp,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.password is defined %}
+				<div>
+					{# {{ form.password }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.password,
+					}) }}
+				</div>
+			{% endif %}
+
+			{% if form.confirm_password is defined %}
+				<div>
+					{# {{ form.confirm_password }} #}
+					{{ include('@engage_theme/components/form/field--floating-text.html.twig', {
+  						field: form.confirm_password,
+					}) }}
+				</div>
+			{% endif %}
+
+			<div>
+				{{ form.submit }}
+			</div>
+		</div>
+
+		{# Hidden form fields and tokens #}
+		{{ form|without(
+    'first_name', 'last_name', 'mail', 'country_code', 'mobile',
+    'otp', 'password', 'confirm_password', 'submit'
+  ) }}
+		{# </div> #}
+	</div>
+</div>

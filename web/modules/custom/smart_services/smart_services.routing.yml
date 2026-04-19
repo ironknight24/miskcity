@@ -1,0 +1,16 @@
+smart_services.landing:
+  path: '/services'
+  defaults:
+    _controller: '\Drupal\smart_services\Controller\SmartServicesController::landing'
+    _title: 'Smart Services'
+  requirements:
+    _permission: 'access content'
+
+smart_services.term_view:
+  path: '/services/{tid}'
+  defaults:
+    _controller: '\Drupal\smart_services\Controller\SmartServicesController::termView'
+    _title_callback: '\Drupal\smart_services\Controller\SmartServicesController::getTermTitle'
+  requirements:
+    _permission: 'access content'
+    tid: \d+

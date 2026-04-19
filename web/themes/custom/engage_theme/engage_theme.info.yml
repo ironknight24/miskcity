@@ -1,0 +1,22 @@
+name: Engage Theme - Tailwind CSS
+description: A starter kit theme for Drupal 8/9 and Tailwind CSS.
+core_version_requirement: ^8 || ^9 || ^10 ||^11
+type: theme
+base theme: stable9
+libraries:
+  - engage_theme/global-styling
+
+regions:
+  header: 'Header'
+  primary_menu: 'Primary menu'
+  highlighted: 'Highlighted'
+  help: 'Help'
+  content: 'Content'
+  sidebar: 'Sidebar'
+  footer: 'Footer'
+  footer_first: 'Footer first'
+  footer_second: 'Footer second'
+  footer_third: 'Footer third'
+  footer_fourth: 'Footer fourth'
+
+

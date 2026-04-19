@@ -1,0 +1,151 @@
+{% set details = data.serviceRequestDetails %}
+
+<div
+	class="mx-auto max-w-screen-xl bg-white py-6 px-4">
+	<!-- Header -->
+	<div class="flex justify-between items-baseline gap-4 pt-20 flex-wrap md:flex-nowrap">
+		<div>
+			<a href="../service-request">
+				<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+					<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+				</svg>
+			</a>
+		</div>
+		<div class="text-center w-full md:w-auto">
+			<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis font-bold sm:pb-4 md:pb-12">{{ 'Service Request/Complaint Summary'|t }}</h1>
+		</div>
+		<div></div>
+	</div>
+
+	<!-- Details Section -->
+	<div class="complaint-wrapper form-sec border-2 rounded-xl p-4 lg:p-16 bg-white mb-44 text-center lg:text-start xs:mb-20">
+		<div class="done text-lg pb-6 font-sans text-align-right">
+			<span class="text-white px-3 py-1 rounded-full" style="background-color: {{ details.statusColour }}">{{ details.status }}</span>
+		</div>
+		<div class="grid grid-cols-1 gap-6">
+			<div class="text-xl font-nevis text-black values">{{'Track Complaint'|t}}</div>
+			<div>
+				<span class="font-nevis">Request ID:</span>
+				{{ details.grievanceId }}
+			</div>
+			<div>
+				<span class="font-nevis">Request Type:</span>
+				Grievance Request
+			</div>
+			<div>
+				<span class="font-nevis">Request Category:</span>
+				{{ details.incidentType }}
+			</div>
+			<div>
+				<span class="font-nevis">Request Sub Category:</span>
+				{{ details.incidentSubType }}
+			</div>
+		</div>
+
+		<!-- Attachments -->
+		{% if data.files|length > 0 %}
+			<div>
+				<h3 class="text-lg font-nevis my-2">Attachments:</h3>
+				<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+					{% for file in data.files %}
+						{% set icon = '' %}
+
+						{% if file.fileTypeId == 2 %}
+							{# Image files (jpg, jpeg, png) #}
+							{% set icon = file.fileUrl %}
+
+						{% elseif file.fileTypeId == 1 %}
+							{# Video files (mp4) #}
+							{% set icon = '/themes/custom/engage_theme/images/video.svg' %}
+
+						{% elseif file.fileTypeId == 4 %}
+							{# Document files (pdf, doc, docx, mp3, xlsx) #}
+							{% set icon = '/themes/custom/engage_theme/images/pdf.svg' %}
+
+						{% else %}
+							{# Default icon #}
+							{% set icon = '/themes/custom/engage_theme/images/file.svg' %}
+						{% endif %}
+
+						<a href="{{ file.fileUrl }}" target="_blank" class="block">
+							<div class="border rounded shadow overflow-hidden p-2 w-16 h-16 flex items-center justify-center bg-gray-50">
+								<img src="{{ icon }}" alt="Attachment preview" class="w-12 h-12 object-contain">
+							</div>
+						</a>
+					{% endfor %}
+				</div>
+			</div>
+		{% endif %}
+
+		<div class="divider w-1/2 xs:w-auto"></div>
+
+		<!-- Timeline Section -->
+		<div class="my-4">
+			<div class="relative">
+				{% for step in data.requestTimelineAction %}
+					{% set index = loop.index0 %}
+					{% set is_completed = step.actionStatus in ['Requested', 'Pending', 'Approved'] %}
+					{% set is_last_completed = index == last_completed_index %}
+
+					<div class="timelineSteps flex gap-5 {% if not loop.last %}pb-28 xs:pb-5{% endif %}">
+						<div class="time_date">
+							{% if step.completed == true %}
+								<p class="formatfamily text-base font-nevis uppercase" id="dynamic-text">
+									{{ step.createdDate ? step.createdDate|date_modify('+5 hours 30 minutes')|date('j M', 'Asia/Kolkata') : 'NA' }}
+								</p>
+								<p class="formatfamilydate text-base" id="dynamic-text">
+									{{ step.createdDate ? step.createdDate|date_modify('+5 hours 30 minutes')|date('h:i:s a', 'Asia/Kolkata') : 'NA' }}
+								</p>
+							{% else %}
+								<p class="formatfamily text-base font-nevis uppercase" id="notavailable-text" style="padding: 0 2.1rem;">
+									N/A
+								</p>
+							{% endif %}
+						</div>
+						{% if step.completed == true %}
+							<div class="relative">
+								<div class="stepNo is-complete">
+									<h6 class="bg-[#00c2a5] w-7 h-7 leading-6 border border-solid border-[#00c2a5] text-xs rounded-full text-center">
+										<div class="check inline-block rotate-45 h-[18px] w-[10px] border-b-[4px] border-r-[4px] border-white mt-[3px]"></div>
+									</h6>
+									{% if not loop.last %}
+										<div class="absolute left-1/2 right-0 border-l-[3px] border-solid border-[#00c2a5] mt-[5px] mb-[5px]" style="min-height: 125px; height: 100%; content: '';"></div>
+									{% endif %}
+								</div>
+							</div>
+							<div class="time_details_1">
+								<h1 class="status text-base s:text-base s:text-left xs:text-base xs:text-left font-normal formatfamilydate">Status:
+									<span class="text-[#00c2a5]">{{ step.actionStatus }}</span>
+								</h1>
+								<p class="text-base font-normal formatfamilydate text-black">Remarks:
+									<span class="text-base font-normal formatfamilydate text-black">
+										{{ step.remarks }}</span>
+								</p>
+							</div>
+						{% else %}
+							<div class="relative">
+								<div class="stepNo">
+									<h6 class="bg-[#808080] w-7 h-7 leading-6 border border-solid border-[#808080] text-xs rounded-full text-center">
+										<div class=""></div>
+									</h6>
+									{% if not loop.last %}
+										<div class="absolute left-1/2 right-0 border-l-[3px] border-solid border-[#808080] mt-[5px] mb-[5px]" style="min-height: 125px; height: 100%; content: '';"></div>
+									{% endif %}
+								</div>
+							</div>
+							<div class="time_details_1">
+								<h1 class="status text-base s:text-base s:text-left xs:text-base xs:text-left font-normal formatfamilydate">Status:
+									<span class="text-[#808080]">{{ step.actionStatus }}</span>
+								</h1>
+								<p class="text-base font-normal formatfamilydate text-black">Remarks:
+									<span class="text-base font-normal formatfamilydate text-black">
+										{{ step.remarks }}</span>
+								</p>
+							</div>
+						{% endif %}
+					</div>
+				{% endfor %}
+			</div>
+		</div>
+	</div>
+</div>

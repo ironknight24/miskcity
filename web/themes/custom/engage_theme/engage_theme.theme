@@ -1,0 +1,33 @@
+<?php
+
+use Drupal\Core\Render\Element;
+
+/**
+ * Implements hook_preprocess_page().
+ */
+function engage_theme_preprocess_page(array &$variables)
+{
+  $variables['#attached']['library'][] = 'engage_theme/flexslider';
+  // Ensure user-specific data varies by user
+  $variables['#cache']['contexts'][] = 'user';
+
+  if (!empty($variables['user'])) {
+    $variables['user_display_name'] = $variables['user']->getDisplayName();
+  }
+  $global_service = \Drupal::service('global_module.vault_config_service');
+
+  $globalVariables = $global_service->getGlobalVariables();
+  
+  $variables['userLogged'] = \Drupal::currentUser()->isAuthenticated();
+  
+  //globalVariables
+  $variables['#attached']['drupalSettings']['globalVariables']['webportalUrl'] = $globalVariables['applicationConfig']['config']['siteUrl'];
+  $variables['#attached']['drupalSettings']['globalVariables']['siteUrl'] = $globalVariables['applicationConfig']['config']['siteUrl'];
+  $variables['#attached']['drupalSettings']['globalVariables']['baseName'] = $globalVariables['applicationConfig']['config']['baseName'];
+  $variables['#attached']['drupalSettings']['globalVariables']['ceptenantId'] = $globalVariables['applicationConfig']['config']['ceptenantId'];
+  $variables['#attached']['drupalSettings']['globalVariables']['cadtenantId'] = $globalVariables['applicationConfig']['config']['cadtenantId'];
+  $variables['#attached']['drupalSettings']['globalVariables']['ceptenantCode'] = $globalVariables['applicationConfig']['config']['ceptenantCode'];
+  $variables['#attached']['drupalSettings']['globalVariables']['tenantCode'] = $globalVariables['applicationConfig']['config']['tenantCode'];
+  $variables['#attached']['drupalSettings']['globalVariables']['userLogged'] = \Drupal::currentUser()->isAuthenticated();
+  $variables['#attached']['drupalSettings']['globalVariables']['mapConfig'][] = $globalVariables['mapConfig']['config'];
+}

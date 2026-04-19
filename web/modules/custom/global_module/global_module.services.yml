@@ -1,0 +1,55 @@
+services:
+  global_module.global_variables:
+    class: Drupal\global_module\Service\GlobalVariablesService
+    arguments: 
+      - '@http_client'
+      - '@logger.factory'
+      - '@cache.default'
+      - '@global_module.apiman_token_service'
+      - '@global_module.vault_config_service'
+      - '@global_module.api_http_client'
+
+  global_module.api_redirect_subscriber:
+    class: Drupal\global_module\EventSubscriber\ApiRedirectSubscriber
+    arguments: []
+    tags:
+      - { name: event_subscriber }
+
+  global_module.file_upload_service:
+    class: Drupal\global_module\Service\FileUploadService
+    arguments:
+      - '@uuid'
+      - '@global_module.vault_config_service'
+
+  logger.channel.global_module:
+    parent: logger.channel_base
+    arguments: ['global_module']
+
+  global_module.vault_config_service:
+    class: Drupal\global_module\Service\VaultConfigService
+    arguments:
+      - '@http_client'
+      - '@cache.default'
+      - '@lock'
+      - '@logger.channel.global_module'
+
+  global_module.apiman_token_service:
+    class: Drupal\global_module\Service\ApimanTokenService
+    arguments:
+      - '@http_client'
+      - '@cache.default'
+      - '@global_module.vault_config_service'
+      - '@logger.channel.global_module'
+
+  global_module.api_http_client:
+    class: Drupal\global_module\Service\ApiHttpClientService
+    arguments:
+      - '@http_client'
+      - '@logger.channel.global_module'
+      - '@global_module.apiman_token_service'
+
+  global_module.api_gateway:
+    class: Drupal\global_module\Service\ApiGatewayService
+    arguments:
+      - '@global_module.vault_config_service'
+      - '@global_module.api_http_client'

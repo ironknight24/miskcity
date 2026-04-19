@@ -1,0 +1,16 @@
+<div {{ attributes }}>
+  <div class="news-and-page-exposed flex flex-col sm:flex-row justify-between gap-4 w-full mb-4">
+    
+    {# Left aligned field #}
+    <div class="w-full sm:w-1/2">
+      {{ form.title }}
+    </div>
+    
+    {# Right aligned field #}
+    <div class="w-full sm:w-1/2 sm:flex sm:justify-end">
+      {{ form.field_news_categories_target_id }}
+    </div>
+
+  </div>
+  {{ form.actions }}
+</div>

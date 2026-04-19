@@ -1,0 +1,27 @@
+# themes/custom/engage_theme/components/homepage_slider/homepage_slider.component.yml
+name: Homepage Slider
+status: stable
+description: A FlexSlider-based homepage banner slider.
+props:
+  type: object
+  properties:
+    slides:
+      type: array
+      description: An array of slide item data, each for homepage_slide_item.
+      items:
+        type: object
+        properties:
+          image_url:
+            type: string
+            description: The URL of the slide image.
+          image_alt:
+            type: string
+            description: The alt text for the slide image.
+          title:
+            type: string
+            description: The title of the slide.
+          body:
+            type: string
+            description: The body text of the slide.
+library:
+  - engage_theme/flexslider

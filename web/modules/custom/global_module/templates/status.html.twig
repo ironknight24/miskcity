@@ -1,0 +1,36 @@
+<div class="text-center py-10">
+  {% if status == 1 and form_data == 'change-password' %}
+    {# Success Case #}
+    <section class="result-handler mx-auto max-w-3xl">
+      <div class="border-solid bg-white border-2 p-16 rounded-[12px] my-40 s:py-10 s:px-5 s:mx-5 s:my-20 xs:py-10 xs:px-5 xs:mx-5 xs:my-20">
+        <div class="success text-center">
+          <img src="/themes/custom/engage_theme/images/Profile/success.png" alt="success-img" class="w-32 h-32 s:w-20 s:h-20 xs:w-16 xs:h-16 mx-auto">
+          <h1 class="font-bold text-4xl mt-11 text-[#404040] s:text-xl s:my-5 xs:text-base xs:my-5">Password Changed Successfully</h1>
+          <p class="text-xl m-12 font-['Open_Sans'] s:m-0 s:text-base xs:m-0 xs:text-sm">{{ message ?: 'You can now use your new password to log in.' }}</p>
+          <div id="buttons" class="mt-9">
+            <a class="bg-yellow-500 text-white rounded-xl px-6 py-4 hover:bg-yellow-600 transition font-sans" href="/" target="_self">
+              OK
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  {% elseif status == 0 and form_data == 'change-password' %}
+    {# Failure Case #}
+    <section class="result-handler mx-auto max-w-3xl">
+      <div class="border-solid bg-white border-2 p-16 rounded-[12px] my-40 s:py-10 s:px-5 s:mx-5 s:my-20 xs:py-10 xs:px-5 xs:mx-5 xs:my-20">
+        <div class="success text-center">
+          <img src="/themes/custom/engage_theme/images/Profile/failure.svg" alt="failure-img" class="w-32 h-32 s:w-20 s:h-20 xs:w-16 xs:h-16 mx-auto">
+          <h1 class="font-bold text-4xl mt-11 text-[#404040] s:text-xl s:my-5 xs:text-base xs:my-5">Password Change Failed</h1>
+          <p class="text-xl m-12 font-['Open_Sans'] s:m-0 s:text-base xs:m-0 xs:text-sm">{{ message ?: 'There was a problem changing your password. Please try again.' }}</p>
+          <div id="buttons" class="mt-9">
+            <a class="bg-yellow-500 text-white rounded-xl px-6 py-4 hover:bg-yellow-600 transition font-sans" href="my-account" target="_self">
+              OK
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+</div>

@@ -1,0 +1,9 @@
+smart_services_ajax:
+  version: 1.x
+  js:
+    js/smart_services_ajax.js: {}
+  dependencies:
+    - core/jquery
+    - core/drupal
+    - core/drupal.ajax
+    - core/once

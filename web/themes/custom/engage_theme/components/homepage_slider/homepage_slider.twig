@@ -1,0 +1,23 @@
+{# themes/custom/engage_theme/components/homepage_slider/homepage_slider.twig #}
+{#
+  Expects the following props:
+  - slides: An array of slide data objects.
+#}
+
+{% if slides is not empty %}
+  <div class="flexslider border-0 m-0 relative -top-[4px]">
+    <ul class="slides">
+      {% for slide in slides %}
+        <li>
+          {# Include your nested homepage_slide_item SDC for each slide #}
+          {{ include('engage_theme:homepage_slide_item', {
+            image_url: slide.image_url,
+            image_alt: slide.image_alt,
+            title: slide.title,
+            body: slide.body
+          }) }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endif %}

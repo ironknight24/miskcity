@@ -1,0 +1,223 @@
+{# <div class="mx-auto max-w-screen-xl">
+
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-10">
+		<div>
+			<a href="/my-profile" class="text-gray-700 hover:text-yellow-600">
+				<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+					<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+				</svg>
+			</a>
+		</div>
+		<div class="text-center flex-1">
+			<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">
+				{{ 'Manage Address'|t }}
+			</h1>
+		</div>
+	</div>
+	<div class="grid grid-cols-3 p-6 gap-12">
+		<div
+			class="add-address border-dashed border-2 border-[#ffcc00] rounded-xl bg-white flex items-center justify-center gap-2 cursor-pointer">
+			<!-- Container for the blog details enage template -->
+			<img src="/themes/custom/engage_theme/images/Profile/location_pin.svg" alt="location" class="h-8 w-6">
+			<h1 class="font-bold font-nevis text-2xl text-[#ffcc00]" onclick="window.location.href='add-address'">Add new address</h1>
+		</div>
+		{% for row in rows %}
+			<div id="manage-address-{{ row.content['#row']._entity.nid.0.value }}" class="edit-address border-inherit border-2 rounded-xl bg-white p-4" style="min-height:210px">
+				<div class="flex justify-between items-center">
+					<h1 class="text-2xl font-bold font-nevis capitalize">{{ row.content['#row']._entity.field_address_type.0.value }}</h1>
+					<div class="inline-flex gap-8">
+						<img src="/themes/custom/engage_theme/images/Profile/editing.svg" alt="edit" class="h-6 w-6 cursor-pointer" onclick="window.location.href='update-address/220361'">
+						<label for="delete-pop-0" class="cursor-pointer delete-address">
+							<img src="/themes/custom/engage_theme/images/Profile/delete_all.png" alt="location" class="h-6 w-6">
+						</label>
+					</div>
+				</div>
+				<div class="footer-address mt-8">
+					<address class="text-lg font-normal font-sans not-italic">
+						{{ row.content['#row']._entity.field_street_and_house_no.0.value }},<br>
+						{{ row.content['#row']._entity.field_landmark.0.value }},<br>
+						{{ row.content['#row']._entity.field_area_address.0.value }}, {{ row.content['#row']._entity.field_address_country.0.value }} - {{ row.content['#row']._entity.field_postal_code.0.value }}
+					</address>
+				</div>
+			</div>
+		{% endfor %}
+	</div>
+</div> #}
+{# <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let selectedNid = null;
+
+    document.querySelectorAll('.delete-address-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedNid = btn.dataset.nid;
+        document.getElementById('delete-modal').classList.remove('hidden');
+      });
+    });
+
+    document.getElementById('cancel-delete').addEventListener('click', () => {
+      document.getElementById('delete-modal').classList.add('hidden');
+      selectedNid = null;
+    });
+
+    document.getElementById('confirm-delete').addEventListener('click', () => {
+      if (!selectedNid) return;
+
+      fetch(`/delete-address/${selectedNid}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json'
+        },
+      })
+      .then(response => {
+        if (response.ok) {
+          document.getElementById(`manage-address-${selectedNid}`)?.remove();
+        } else {
+          alert("Error deleting address.");
+        }
+        document.getElementById('delete-modal').classList.add('hidden');
+      });
+    });
+  });
+</script> #}
+{# <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let selectedNid = null;
+
+    const deleteModal = document.getElementById('delete-modal');
+    const globalSpinner = document.getElementById('global-spinner');
+
+    // Show modal when delete button is clicked
+    document.querySelectorAll('.delete-address-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedNid = btn.dataset.nid;
+        deleteModal.classList.remove('hidden');
+      });
+    });
+
+    // Cancel deletion
+    document.getElementById('cancel-delete').addEventListener('click', () => {
+      deleteModal.classList.add('hidden');
+      selectedNid = null;
+    });
+
+    // Confirm deletion
+    document.getElementById('confirm-delete').addEventListener('click', () => {
+      if (!selectedNid) return;
+
+      // Hide modal and show spinner
+      deleteModal.classList.add('hidden');
+      globalSpinner.classList.remove('hidden');
+
+      fetch(`/delete-address/${selectedNid}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/json'
+        },
+      })
+      .then(response => {
+        globalSpinner.classList.add('hidden');
+
+        if (response.ok) {
+          // Remove the deleted DOM node
+          document.getElementById(`manage-address-${selectedNid}`)?.remove();
+          location.reload(); // Optional page reload after deletion
+        } else {
+          alert("Error deleting address.");
+        }
+      });
+    });
+  });
+</script> #}
+
+{# <div
+	class="mx-auto max-w-screen-xl px-4">
+
+	<!-- Header Section -->
+	<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-10">
+		<div>
+			<a href="/my-profile" class="text-gray-700 hover:text-yellow-600">
+				<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
+					<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+				</svg>
+			</a>
+		</div>
+		<div class="text-center flex-1">
+			<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">
+				{{ 'Manage Address'|t }}
+			</h1>
+		</div>
+	</div>
+
+	<!-- Address Cards Grid -->
+	<div
+		class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pb-12">
+
+		<!-- Add New Address -->
+		<div class="border-dashed border-2 border-yellow-400 rounded-xl bg-white flex flex-col items-center justify-center p-8 hover:shadow-md transition cursor-pointer" onclick="window.location.href='/add-address'">
+			<img src="/themes/custom/engage_theme/images/Profile/location_pin.svg" alt="location" class="h-10 w-8 mb-2">
+			<h1 class="font-bold font-nevis text-xl sm:text-2xl text-yellow-500">Add New Address</h1>
+		</div> #}
+
+		<!-- Existing Addresses -->
+		{% for row in rows %}
+			<div
+				id="manage-address-{{ row.content['#row']._entity.nid.value }}" class="border-2 rounded-xl bg-white p-6 shadow-sm hover:shadow-lg transition">
+				<!-- Header with title and icons -->
+				<div class="flex justify-between items-center">
+					<h1 class="text-xl font-bold font-nevis capitalize">
+						{{ row.content['#row']._entity.field_address_type.0.value }}
+					</h1>
+					<div
+						class="inline-flex gap-4">
+						<!-- Edit link -->
+						<a href="/edit-address/{{ row.content['#row']._entity.nid.value }}">
+							<img src="/themes/custom/engage_theme/images/Profile/editing.svg" alt="edit" class="h-6 w-6 cursor-pointer">
+						</a>
+						<!-- Delete link -->
+						{# <a href="/delete-address/{{ row.content['#row']._entity.nid.value }}" class="delete-address">
+																			<img src="/themes/custom/engage_theme/images/Profile/delete_all.png" alt="delete" class="h-6 w-6 cursor-pointer">
+																		</a> #}
+
+						<!-- Trigger Modal -->
+						<a href="javascript:void(0);" data-nid="{{ row.content['#row']._entity.nid.value }}" class="delete-address-btn cursor-pointer"> <img src="/themes/custom/engage_theme/images/Profile/delete_all.png" alt="delete" class="h-6 w-6">
+						</a>
+
+					</div>
+				</div>
+
+				<!-- Address Body -->
+				<div class="mt-6">
+					<address class="text-base font-normal font-sans not-italic leading-relaxed text-gray-700">
+						{{ row.content['#row']._entity.field_street_and_house_no.0.value }},<br>
+						{{ row.content['#row']._entity.field_landmark.0.value }},<br>
+						{{ row.content['#row']._entity.field_area_address.0.value }},
+						{{ row.content['#row']._entity.field_address_country.0.value }}
+						-
+						{{ row.content['#row']._entity.field_postal_code.0.value }}
+					</address>
+				</div>
+			</div>
+		{% endfor %}
+
+	{# </div>
+</div> #}
+
+{# <!-- Global Loading Spinner -->
+<div id="global-spinner" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex justify-center items-center">
+  <div class="animate-spin rounded-full h-16 w-16 border-4 border-yellow-400 border-t-transparent"></div>
+</div>
+
+
+<!-- Delete Confirmation Modal -->
+<div id="delete-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex justify-center items-center">
+	<div class="bg-white rounded-xl p-6 w-[90%] max-w-md shadow-xl text-center">
+		<h2 class="text-xl font-bold mb-4 text-red-600">Are you sure?</h2>
+		<p class="mb-6 text-gray-700">Do you really want to delete this address? This action cannot be undone.</p>
+		<div class="flex justify-center gap-4">
+			<button id="cancel-delete" class="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400 text-black">Cancel</button>
+			<button id="confirm-delete" class="px-4 py-2 rounded bg-red-600 hover:bg-red-700 text-white">Delete</button>
+		</div>
+	</div>
+</div> #}

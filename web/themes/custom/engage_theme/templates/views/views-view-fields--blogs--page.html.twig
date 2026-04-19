@@ -1,0 +1,35 @@
+{# {{ dump(fields.field_blog_category) }} #}
+<div class="card blog-page s:pb-7 xs:pb-7">
+  <div class="relative s:m-0 xs:m-0">
+    <div class="blog-page-img rounded-lg">
+        {{ (fields.field_blog_image.content) }}
+    </div>
+    <div class="absolute bottom-0 left-0 text-2xl text-[#3e3a3a] bg-[#efefef] font-semibold px-10 py-2 s:px-2.5 s:text-sm s:py-1 s:px-7 xs:px-2.5 xs:text-sm xs:py-1 xs:px-7 font-sans rounded-tr-lg rounded-bl-lg">
+      {{ fields.field_blog_category.content }}
+    </div>
+  </div>
+
+  <div class="card-body px-0 mb-5 s:py-5 xs:py-3 s:m-0 xs:m-0">
+    <h2 class="card-title text-3xl text-dark font-bold font-['nevis'] s:text-xl xs:text-base mt-3">
+      {{ fields.title.content }}
+    </h2>
+
+    <div class="text-lg font-sans font-light text-[#333333] mt-3 s:text-base xs:text-sm">
+    {{ fields.field_blog_date.content }}  by <span class="font-bold">{{ fields.field_blog_author.content }}</span>
+    </div>
+
+    <div class="minlines card-desc text-lg font-sans text-gray83 font-normal my-3 mb-6 s:text-base xs:text-sm">
+      {{ row._entity.field_blog_body.0.value|striptags|slice(0, 340) ~ (row._entity.field_blog_body.0.value|striptags|length > 340 ? '...' : '') | raw }}
+    </div>
+
+    <div class="card-actions justify-start mt-3">
+      <a 
+        class="btn subscription_btn bg-yellow-500 hover:bg-yellow-600 text-white text-xl capitalize font-bold font-sans px-6 py-2 rounded-xl transition duration-200 s:h-9 s:min-h-full xs:h-9 xs:min-h-full s:basis-full xs:basis-full" 
+        href="/node/{{ row._entity.nid.0.value }}" 
+        target="_self"
+      >
+        {{ 'Read More'|t }}
+      </a>
+    </div>
+  </div>
+</div>

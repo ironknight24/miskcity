@@ -1,0 +1,30 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function career_application_theme($existing, $type, $theme, $path)
+{
+    return [
+        'career_application_success' => [
+            'template' => 'career-application-success',
+            'render element' => 'elements',
+        ],
+        'career_applications_list' => [
+            'variables' => ['applications' => []],
+            'template' => 'career-applications-list',
+        ],
+        'career_application_detail' => [
+            'variables' => [
+                'node' => NULL,
+                'application' => NULL,
+                'resume_url' => NULL,
+            ],
+            'template' => 'career-application-detail',
+        ],
+        'career_apply_form' => [
+            'render element' => 'form',
+            'template' => 'career-apply-form',
+        ],
+    ];
+}

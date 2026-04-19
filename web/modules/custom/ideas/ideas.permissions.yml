@@ -1,0 +1,4 @@
+upload ideas file:
+  title: 'Upload Ideas File'
+  description: 'Allows users to upload files for the Ideas form.'
+  restrict access: true

@@ -1,0 +1,7 @@
+name: 'Custom Ideas Page'
+type: module
+description: 'Provides functionality relates to my ideas page.'
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - user

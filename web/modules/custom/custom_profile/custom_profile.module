@@ -1,0 +1,103 @@
+<?php
+
+function custom_profile_theme($existing, $type, $theme, $path)
+{
+  $module_path = \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates';
+
+  return [
+    'family_members_block' => [
+      'variables' => ['members' => []],
+      'template' => 'family-members-block',
+      'path' => $module_path,
+    ],
+    'custom_profile' => [
+      'variables' => [
+        'form' => NULL,
+        'profile_picture_form' => NULL,
+        'family_form' => NULL,
+        'my_profile_title' => NULL,
+      ],
+      'template' => 'custom_profile',
+      'path' => $module_path,
+    ],
+    'add-family-member' => [
+      'render element' => 'form',
+      'template' => 'add-family-member',
+      'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
+    ],
+    'success-family-member' => [
+      'render element' => 'elements',
+      'template' => 'success-family-member', // Refers to my-static-page.html.twig
+    ],
+    'failed-family-member' => [
+      'render element' => 'elements',
+      'template' => 'failed-family-member', // Refers to my-static-page.html.twig
+    ],
+    'change-password' => [
+      'render element' => 'form',
+      'template' => 'change-password',
+      'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
+    ],
+    // 'add_address_form' => [
+    //   'render element' => 'form',
+    //   'template' => 'add-address-form',
+    //   'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
+    // ],
+    'add_address_form' => [
+      'render element' => 'form',
+      'template' => 'add-address-form', // Corresponds to add-address-form.html.twig
+      'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
+    ],
+    'my_services_page' => [
+      'variables' => [
+        'data' => [],
+        'total_count' => 0,
+        'current_page' => 1,
+        'items_per_page' => 10,
+        'search' => '', // <-- Include this
+      ],
+      'template' => 'my-services-page',
+      'path' => $module_path,
+    ],
+    'request_details_page' => [
+      'variables' => ['data' => []],
+      'template' => 'request-details-page',
+      'path' => $module_path,
+    ],
+
+  ];
+}
+
+
+function custom_profile_preprocess_page(array &$variables)
+{
+  if (\Drupal::routeMatch()->getRouteName() === 'custom_profile.my_account') {
+
+    // Optional: load custom block body field
+    $block_storage = \Drupal::entityTypeManager()->getStorage('block_content');
+    $blocks = $block_storage->loadByProperties([
+      'type' => 'basic',
+      'status' => 1,
+    ]);
+    $block = reset($blocks);
+    if ($block && $block->hasField('body')) {
+      $variables['my_profile_title'] = $block->get('body')->value;
+    }
+  }
+}
+
+function custom_profile_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id)
+{
+  // Target the AI CKEditor modal form
+  if ($form_id === 'ckeditor5_ai_ckeditor_dialog_form') {
+    $form['#attached']['library'][] = 'custom_profile/ai_modal_fix';
+  }
+}
+
+function custom_profile_page_attachments(array &$attachments) {
+  $theme = \Drupal::theme()->getActiveTheme()->getName();
+
+  if ($theme === 'gin' && \Drupal::service('router.admin_context')->isAdminRoute()) {
+    $attachments['#attached']['library'][] = 'custom_profile/ai_media_modal_fix';
+  }
+}

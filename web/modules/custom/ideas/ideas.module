@@ -1,0 +1,50 @@
+<?php
+
+function ideas_theme($existing, $type, $theme, $path) {
+  $module_path = \Drupal::service('extension.list.module')->getPath('ideas') . '/templates';
+
+  return [
+     'ideas' => [
+      'render element' => 'form',
+      'template' => 'ideas',
+      'path' => $module_path,
+    ]
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * This ensures that the 'ideas_create_queue' items are processed
+ * every time cron runs (which you can configure to run every 30 minutes).
+ */
+function ideas_cron() {
+  // Get the queue worker and the queue itself.
+  $queue = \Drupal::queue('ideas_create_queue');
+  $worker = \Drupal::service('plugin.manager.queue_worker')->createInstance('ideas_create_queue');
+
+  // Process up to 20 items per cron run (tune this number as needed).
+  $limit = 200;
+  $processed = 0;
+
+  while ($item = $queue->claimItem()) {
+    try {
+      $worker->processItem($item->data);
+      $queue->deleteItem($item);
+      $processed++;
+    }
+    catch (\Exception $e) {
+      // Log any failure and release the item for a retry later.
+      \Drupal::logger('ideas_cron')->error('Error processing idea queue: @msg', ['@msg' => $e->getMessage()]);
+      $queue->releaseItem($item);
+    }
+
+    if ($processed >= $limit) {
+      break;
+    }
+  }
+
+  if ($processed > 0) {
+    \Drupal::logger('ideas_cron')->notice('Processed @count idea(s) from the queue.', ['@count' => $processed]);
+  }
+}

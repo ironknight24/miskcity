@@ -1,0 +1,57 @@
+<div{{ attributes.addClass(classes) }}>
+  <div class="blogs-page mx-auto max-w-screen-xl bg-white px-4 py-6">
+    {{ title_prefix }}
+    {{ title }}
+    {{ title_suffix }}
+
+    {% if header %}
+      <header class="mb-6">{{ header }}</header>
+    {% endif %}
+
+    {{ exposed }}
+    {{ attachment_before }}
+
+    <div class="border-t border-[#dedede] dottedBorder my-10"></div>
+
+    {% if rows %}
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <!-- Blog Content -->
+        <div class="blogs-content lg:col-span-8">
+          <div class="space-y-10">
+            {% for row in rows %}
+              <div class="views-row">{{ row }}</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Sidebar: Latest Posts -->
+        <div class="blogs-sideview lg:col-span-4">
+          <div class="bg-[#f1f5f9] p-6 rounded-2xl shadow-sm">
+            <h2 class="text-2xl font-nevis font-bold mb-4">{{ 'Latest Posts'|t }}</h2>
+            {{ drupal_view('blogs', 'latest_posts') }}
+          </div>
+        </div>
+      </div>
+    {% elseif empty %}
+      <div class="text-center text-gray-500 py-8">{{ empty }}</div>
+    {% endif %}
+
+    {{ pager }}
+
+    {% if footer %}
+      <footer class="mt-8">{{ footer }}</footer>
+    {% endif %}
+
+    {{ feed_icons }}
+
+    <div class="border-t border-[#dedede] dottedBorder my-10"></div>
+
+    <!-- Trending Posts -->
+    <div class="blogs-belowview pt-8 pb-5">
+      <h2 class="text-4xl font-nevis text-black font-bold mb-6">{{ 'Trending Posts'|t }}</h2>
+      <div class="bg-[#f9fafb] py-6 rounded-2xl shadow-sm">
+        {{ drupal_view('blogs', 'trending_posts') }}
+      </div>
+    </div>
+  </div>
+</div>

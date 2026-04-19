@@ -1,0 +1,119 @@
+{# <div class="smart_services-container mt-8 mb-8">
+    <h1 class="text-2xl md:text-5xl text-center mb-8 lg:mt-16 lg:mb-16 font-nevis">{{ label }}</h1>
+
+    <div class="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-10">
+        {% for item in items %}
+            <div class="flex justify-center">
+            {{ item.content }}
+            </div>
+        {% endfor %}
+        {% if items|length <= 4 %}
+        <a href="/services" class="border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4">
+            <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+                src="/sites/default/files/2025-07/arrow_0.png"
+                alt="Other Services">
+            <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+                More Services
+            </h2>
+        </a>
+        {% endif %}
+    </div>
+</div>
+  #}
+
+{# <div class="smart_services-container mt-8 mb-8">
+    <h1 class="text-2xl md:text-5xl text-center mb-8 lg:mt-16 lg:mb-16 font-nevis">{{ label }}</h1>
+
+    <div class="flex flex-wrap justify-center gap-6 sm:gap-8 md:gap-10">
+        {% for item in items %}
+            <div class="flex justify-center">
+            {{ item.content }}
+            </div>
+        {% endfor %}
+        {% if items|length <= 4 %}
+        <a href="/services" class="border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4">
+            <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+                src="/sites/default/files/2025-07/arrow_0.png"
+                alt="Other Services">
+            <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+                More Services
+            </h2>
+        </a>
+        {% endif %}
+    </div>
+</div>
+  #}
+
+{# <div class="smart_services-container mt-8 mb-8 mx-auto max-w-screen-xl">
+	<h1 class="text-2xl md:text-5xl text-center mb-8 lg:mt-16 lg:mb-16 font-nevis">{{ label }}</h1>
+
+	<div class="flex gap-6 overflow-x-auto sm:overflow-x-visible sm:flex-wrap sm:justify-center sm:gap-8 md:gap-10 snap-x snap-mandatory no-scrollbar mx-2 sm:mx-0">
+		{% for item in items %}
+			<div class="flex-shrink-0 flex justify-center snap-start">
+				{{ item.content }}
+			</div>
+		{% endfor %}
+
+		{% if items|length <= 4 %}
+			<a href="/services" class="flex-shrink-0 border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4 snap-start">
+				<img class="object-contain h-16 w-16 md:h-20 md:w-20" src="/sites/default/files/2025-07/arrow_0.png" alt="Other Services">
+				<h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+					More Services
+				</h2>
+			</a>
+		{% endif %}
+	</div>
+</div> #}
+
+{# <div class="smart_services-container mt-8 mb-8 mx-auto max-w-screen-xl">
+  <h1 class="text-2xl md:text-5xl text-center mb-8 lg:mt-16 lg:mb-16 font-nevis">{{ label }}</h1>
+
+  <div class="flex flex-nowrap gap-6 mx-2 sm:mx-0
+              overflow-x-auto sm:overflow-x-hidden snap-x snap-mandatory no-scrollbar justify-center">
+    {% for item in items %}
+      <div class="flex-shrink-0 flex justify-center snap-start">
+        {{ item.content }}
+      </div>
+    {% endfor %}
+
+    {% if items|length <= 4 %}
+      <a href="/services"
+         class="flex-shrink-0 border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4 snap-start">
+        <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+             src="/sites/default/files/2025-07/arrow_0.png"
+             alt="Other Services">
+        <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+          More Services
+        </h2>
+      </a>
+    {% endif %}
+  </div>
+</div> #}
+
+<div class="smart_services-container mt-8 mb-8 mx-auto max-w-screen-xl">
+  <h1 class="text-2xl md:text-5xl text-center mb-8 lg:mt-16 lg:mb-16 font-nevis">
+    {{ label }}
+  </h1>
+
+  <div class="flex flex-nowrap gap-4 mx-2 sm:mx-0
+              overflow-x-auto sm:overflow-x-hidden snap-x snap-mandatory no-scrollbar justify-start sm:justify-center max-w-full">
+    {% for item in items %}
+      <div class="flex-shrink-0 flex justify-center snap-start">
+        {{ item.content }}
+      </div>
+    {% endfor %}
+
+    {% if items|length <= 4 %}
+      <a href="/services"
+         class="flex-shrink-0 border-custom cursor-pointer flex items-center justify-center flex-col w-44 h-40 xs:w-44 xs:h-40 s:w-44 s:h-40 md:w-60 md:h-52 gap-5 md:gap-10 text-xl rounded-2xl md:rounded-3xl bg-white border border-transparent hover:border-yellow-500 hover:border-b-4 transition duration-300 p-4 snap-start">
+        <img class="object-contain h-16 w-16 md:h-20 md:w-20"
+             src="/sites/default/files/2025-07/arrow_0.png"
+             alt="Other Services">
+        <h2 class="text-sm md:text-xl text-center text-gray-800 capitalize font-nevis">
+          More Services
+        </h2>
+      </a>
+    {% endif %}
+  </div>
+</div>
+

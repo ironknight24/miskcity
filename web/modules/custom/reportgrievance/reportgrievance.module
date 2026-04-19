@@ -1,0 +1,60 @@
+<?php
+
+/**
+ * Implements hook_theme().
+ */
+function reportgrievance_theme(array $existing, string $type, string $theme, string $path): array {
+  $moduleHandler = \Drupal::service('extension.list.module');
+  $module_path = $moduleHandler->getPath('reportgrievance');
+
+  return [
+    'report_grievance_form' => [
+      'render element' => 'form',
+      'template' => 'report-grievance-form',
+      'path' => $module_path . '/templates',
+    ],
+
+    'grievance_success' => [
+      'variables' => ['response_data' => NULL],
+    ],
+    'grievance_failure' => [],
+  ];
+}
+
+/**
+ * Implements hook_cron().
+ *
+ * Pre-warm grievance types and subtypes cache to improve form load performance.
+ */
+function reportgrievance_cron() {
+  \Drupal::logger('reportgrievance')->notice('Running cache pre-warm for grievance types.');
+
+  try {
+    /** @var \Drupal\reportgrievance\Service\GrievanceApiService $apiService */
+    $apiService = \Drupal::service('reportgrievance.grievance_api');
+
+    /** @var \Drupal\Core\Cache\CacheBackendInterface $cache */
+    $cache = \Drupal::cache();
+
+    // Fetch grievance types and cache them
+    $types = $apiService->getIncidentTypes();
+    if (!empty($types)) {
+      $cache->set('grievance_types', $types, time() + 1800);
+    }
+
+    // Fetch subtypes for each type and cache them
+    foreach ($types as $typeId => $typeName) {
+      if (!empty($typeId)) {
+        $subtypes = $apiService->getIncidentSubTypes((int) $typeId);
+        if (!empty($subtypes)) {
+          $cache->set('grievance_subtypes_' . $typeId, $subtypes, time() + 1800);
+        }
+      }
+    }
+
+    \Drupal::logger('reportgrievance')->notice('Grievance cache pre-warm complete.');
+  }
+  catch (\Exception $e) {
+    \Drupal::logger('reportgrievance')->error('Cache pre-warm failed: @message', ['@message' => $e->getMessage()]);
+  }
+}

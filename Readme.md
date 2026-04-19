@@ -9,6 +9,7 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
 - **macOS**: Apple Silicon (ARM) and Intel are supported by the `drupal` base image (multi-arch).
 - **RAM**: At least ~4 GB free for the default stack; add ~2 GB more if you enable the SonarQube profile.
 - **PHP in Docker**: The `web` image uses **PHP 8.4** (`Dockerfile.web`) so it matches the Composer platform requirement (`composer.lock`). If you run `composer` on the host, use PHP 8.4+ or rely on Composer inside the `web` container only.
+- **PHP extensions**: The image sets **`memory_limit` to 512M** (CLI and FPM) so `drush cr` and large pages do not hit the default 128M limit, and installs **`bcmath`** (required by Drupal Commerce and related code). Rebuild the `web` service after changing [`Dockerfile.web`](Dockerfile.web): `docker compose build web && docker compose up -d`.
 
 ## Quick start
 

@@ -111,6 +111,14 @@
             },
             "drupal/seckit": {
                 "Fix for X-Generator": "https://www.drupal.org/files/issues/2020-09-03/seckit-2.x-2795025-remove_x_generator.patch"
+            },
+            "drupal/commerce_bat": {
+                "Lesson: multi-slot isAvailable + site/user TZ for lesson calendar slots + cache key": "patches/commerce-bat-lesson-multi-slot-isavailable.patch",
+                "Court booking: lesson buffer play+duration in isAvailable + hourly skip": "patches/commerce-bat-court-booking-lesson-duration-buffer.patch"
+            },
+            "drupal/bat": {
+                "BAT Roomify: guard itemizeSplitHour when BAT_DAY row missing (PHP 8)": "patches/bat-roomify-itemizesplithour-null-safe.patch",
+                "BAT EventForm: normalize submitted datetimes to UTC (site TZ widgets)": "patches/bat-event-form-datetime-utc-save.patch"
             }
         },
         "merge-plugin": {

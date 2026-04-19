@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     curl \
     && docker-php-ext-configure gd --with-jpeg --with-webp --with-avif --with-freetype \
-    && docker-php-ext-install -j$(nproc) gd intl pdo_mysql xml \
+    && docker-php-ext-install -j$(nproc) bcmath gd intl pdo_mysql xml \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Composer
@@ -31,6 +31,9 @@ RUN pecl install xdebug \
 # Minimal Xdebug config for coverage (disable by default)
 RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/xdebug.ini \
     && echo "xdebug.start_with_request=no" >> /usr/local/etc/php/conf.d/xdebug.ini
+
+# Drupal + Drush CLI need more than default 128M (avoids memory exhausted on cache rebuilds).
+RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/zz-drupal-memory.ini
 
 # Add vendor/bin to PATH
 ENV PATH="/opt/drupal/vendor/bin:${PATH}"

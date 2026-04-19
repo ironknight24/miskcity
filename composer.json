@@ -12,45 +12,131 @@
         {
             "type": "composer",
             "url": "https://packages.drupal.org/8"
+        },
+        {
+            "type": "composer",
+            "url": "https://asset-packagist.org"
         }
     ],
     "require": {
-        "composer/installers": "^2.3",
+        "composer/installers": "^2.0",
+        "cweagans/composer-patches": "^1.7",
+        "drupal/admin_toolbar": "^3.6",
+        "drupal/ai": "^1.3",
+        "drupal/ai_agents": "^1.3@beta",
+        "drupal/ai_image_alt_text": "^1.0",
+        "drupal/ai_provider_ollama": "^1.2@RC",
+        "drupal/ai_search_block": "^1.0@RC",
+        "drupal/ai_vdb_provider_milvus": "^1.1@beta",
+        "drupal/autologout": "^2.0",
+        "drupal/bat": "^11.1@beta",
+        "drupal/bat_api": "^11.1@beta",
+        "drupal/better_exposed_filters": "^7.1",
+        "drupal/captcha": "^2.0",
+        "drupal/clientside_validation": "^4.1",
+        "drupal/commerce": "^3.2",
+        "drupal/commerce_bat": "^1.4",
+        "drupal/commerce_cart_links": "^1.1",
+        "drupal/commerce_license": "^3.0",
+        "drupal/commerce_recurring": "^1.0@RC",
+        "drupal/content_access": "^2.1@RC",
         "drupal/core-composer-scaffold": "^11.2",
-        "drupal/core-recipe-unpack": "^11.2",
         "drupal/core-project-message": "^11.2",
-        "drupal/core-recommended": "^11.2"
+        "drupal/core-recipe-unpack": "^11.2",
+        "drupal/core-recommended": "^11.2",
+        "drupal/csp": "^2.2",
+        "drupal/css_editor": "^2.0",
+        "drupal/devel": "^5.5",
+        "drupal/easy_breadcrumb": "^2.0",
+        "drupal/entity_reference_revisions": "^1.14",
+        "drupal/field_validation": "^3.0@beta",
+        "drupal/field_widget_actions": "^1.3",
+        "drupal/fivestar": "3.0.x-dev@dev",
+        "drupal/gin": "^5.0",
+        "drupal/jquery_ui": "^1.7",
+        "drupal/js_editor": "^1.0",
+        "drupal/jsonapi_extras": "^3.26",
+        "drupal/key": "^1.22",
+        "drupal/lang_dropdown": "^2.3",
+        "drupal/menu_item_extras": "^3.1",
+        "drupal/monitoring": "^1.19",
+        "drupal/oidc": "^2.3",
+        "drupal/openid_connect": "^3.0@alpha",
+        "drupal/paragraphs": "^1.20",
+        "drupal/profile": "^1.14",
+        "drupal/role_delegation": "^1.6",
+        "drupal/search_api": "^1.38",
+        "drupal/seckit": "^2.0",
+        "drupal/svg_image": "^3.2",
+        "drupal/twig_tweak": "^3.4",
+        "drupal/ultimate_cron": "^2.0@beta",
+        "drupal/views_bulk_operations": "^4.4",
+        "drupal/visitors": "^2.31",
+        "drupal/votingapi": "4.0.x-dev@dev",
+        "drupal/webform": "^6.3@beta",
+        "drupal/webform_rest": "^4.2",
+        "drupal/xhprof": "^2.0@beta",
+        "drush/drush": "^13.6",
+        "endroid/qr-code": "^6.0",
+        "npm-asset/chart.js": "^4.4",
+        "oomphinc/composer-installers-extender": "^2.0",
+        "wikimedia/composer-merge-plugin": "^2.1"
     },
     "conflict": {
         "drupal/drupal": "*"
     },
-    "minimum-stability": "stable",
+    "minimum-stability": "dev",
     "prefer-stable": true,
     "config": {
         "allow-plugins": {
             "composer/installers": true,
-            "drupal/core-composer-scaffold": true,
-            "drupal/core-recipe-unpack": true,
-            "drupal/core-project-message": true,
-            "phpstan/extension-installer": true,
+            "cweagans/composer-patches": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
+            "drupal/core-composer-scaffold": true,
+            "drupal/core-project-message": true,
+            "drupal/core-recipe-unpack": true,
+            "oomphinc/composer-installers-extender": true,
             "php-http/discovery": true,
-            "php-tuf/composer-integration": true
+            "php-tuf/composer-integration": true,
+            "phpstan/extension-installer": true,
+            "tbachert/spi": true,
+            "wikimedia/composer-merge-plugin": true
         },
         "sort-packages": true
     },
     "extra": {
+        "patches": {
+            "drupal/core": {
+                "Rest Module pagination and total": "https://www.drupal.org/files/issues/2018-06-30/2982729-viewsRestInfo.patch"
+            },
+            "drupal/seckit": {
+                "Fix for X-Generator": "https://www.drupal.org/files/issues/2020-09-03/seckit-2.x-2795025-remove_x_generator.patch"
+            }
+        },
+        "merge-plugin": {
+            "include": [
+                "web/modules/contrib/webform/composer.libraries.json",
+                "web/modules/contrib/charts/modules/charts_chartjs/composer.json"
+            ]
+        },
         "drupal-scaffold": {
             "locations": {
                 "web-root": "web/"
             }
         },
+        "installer-types": [
+            "bower-asset",
+            "npm-asset",
+            "drupal-library"
+        ],
         "installer-paths": {
             "web/core": [
                 "type:drupal-core"
             ],
             "web/libraries/{$name}": [
-                "type:drupal-library"
+                "type:drupal-library",
+                "type:npm-asset",
+                "type:bower-asset"
             ],
             "web/modules/contrib/{$name}": [
                 "type:drupal-module"

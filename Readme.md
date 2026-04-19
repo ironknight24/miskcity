@@ -8,6 +8,7 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
 - **Windows**: Enable WSL2 and use the WSL2 backend in Docker Desktop; clone the repo on the Linux filesystem (e.g. `\\wsl$\...`) for better file I/O. Ensure the project folder is allowed under Docker **Settings → Resources → File sharing**.
 - **macOS**: Apple Silicon (ARM) and Intel are supported by the `drupal` base image (multi-arch).
 - **RAM**: At least ~4 GB free for the default stack; add ~2 GB more if you enable the SonarQube profile.
+- **PHP in Docker**: The `web` image uses **PHP 8.4** (`Dockerfile.web`) so it matches the Composer platform requirement (`composer.lock`). If you run `composer` on the host, use PHP 8.4+ or rely on Composer inside the `web` container only.
 
 ## Quick start
 
@@ -26,24 +27,41 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
    docker compose up -d
    ```
 
-3. Open the site:
+   The MySQL service allows up to **60 seconds** on first boot (empty volume) before health checks count as failures—this helps slower disks (e.g. some Windows setups).
+
+3. Install PHP dependencies (required before Drush/Drupal can run). From the project root, using the same PHP version as production:
+
+   ```bash
+   docker compose exec web bash -lc "cd /opt/drupal && composer install"
+   ```
+
+4. Open the UI:
 
    | Service     | URL                         |
    | ----------- | --------------------------- |
    | Drupal site | http://localhost:8080       |
    | phpMyAdmin  | http://localhost:8081       |
 
-4. Install PHP dependencies from the project root (host or container):
+5. **Install Drupal** (once per machine; pick one):
 
-   ```bash
-   docker compose exec web bash -lc "cd /opt/drupal && composer install"
-   ```
+   - **Drush (recommended, same on Windows/macOS/Linux):**
 
-   Complete Drupal installation (database import, `drush site:install`, or your usual workflow) using the DB service:
+     ```bash
+     docker compose exec web bash -lc 'cd /opt/drupal && vendor/bin/drush site:install standard \
+       --db-url="mysql://drupal:drupal@db/drupal" \
+       --account-name=admin \
+       --account-pass=CHOOSE_A_STRONG_PASSWORD \
+       --site-name="Miskcity Portal" \
+       -y'
+     ```
 
-   - Host: `db` (from containers) or `127.0.0.1` from the host with port published if you add one
-   - Database: `drupal`
-   - User / password: `drupal` / `drupal` (see `docker-compose.yml`)
+   - **Or** use the web installer at http://localhost:8080/core/install.php and use these database settings from *inside* Docker (what Drupal sees):
+
+     - Host: `db`
+     - Database name: `drupal`
+     - Username / password: `drupal` / `drupal`
+
+   `settings.php` and `files/` are created under `web/sites/default/` and stay local (gitignored where appropriate). To reset and reinstall, empty the MySQL volume (`docker compose down -v`) and remove generated `settings.php` / `files` only if you know you need a clean slate.
 
 ## Optional: SonarQube profile
 
@@ -73,7 +91,7 @@ docker compose exec web bash -lc "cd /opt/drupal && vendor/bin/drush cr"
 docker compose exec web bash -lc "cd /opt/drupal && vendor/bin/drush <command>"
 ```
 
-`bash -lc` keeps working directory and quoting consistent on Windows, macOS, and Linux.
+`bash -lc` keeps working directory and quoting consistent on Windows, macOS, and Linux. On **Windows**, use **Git Bash** or **WSL** for the same shell behavior; native `cmd.exe` quoting differs.
 
 ### PHPUnit and coverage
 

@@ -1,5 +1,5 @@
 # Use official Drupal 11 PHP-FPM image
-FROM drupal:11-php8.3-fpm
+FROM drupal:11-php8.4-fpm
 
 # Set working directory
 WORKDIR /opt/drupal/web

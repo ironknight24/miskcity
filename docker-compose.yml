@@ -49,6 +49,7 @@ services:
       interval: 5s
       timeout: 20s
       retries: 10
+      start_period: 60s
     mem_limit: 2g
     networks:
       - drupal_network

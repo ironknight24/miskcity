@@ -14,7 +14,7 @@ services:
       - DRUPAL_DB_PASSWORD=drupal
       - DRUPAL_DB_NAME=drupal
     mem_limit: 2g
-    cpu_shares: 512
+    # Default 1024 shares; avoid throttling PHP-FPM vs other local containers on busy hosts.
     networks:
       - drupal_network
 
@@ -29,14 +29,17 @@ services:
     depends_on:
       - web
     mem_limit: 1g
-    cpu_shares: 256
     networks:
       - drupal_network
 
   db:
     image: mysql:8.0
     container_name: drupal_db_miskcityd11
-    command: '--default-authentication-plugin=mysql_native_password'
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --innodb_buffer_pool_size=256M
+      --innodb_flush_log_at_trx_commit=2
+      --skip-log-bin
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: drupal

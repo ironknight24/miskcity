@@ -1,0 +1,159 @@
+--- a/modules/bat_booking/src/Access/BookingAddAccessCheck.php	2026-03-19 00:38:06
++++ b/modules/bat_booking/src/Access/BookingAddAccessCheck.php	2026-04-20 03:30:18
+@@ -42,7 +42,7 @@
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, BookingBundleInterface $booking_bundle = NULL) {
++  public function access(AccountInterface $account, ?BookingBundleInterface $booking_bundle = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_booking');
+ 
+     if ($account->hasPermission('administer bat_booking_bundle entities')) {
+--- a/modules/bat_booking/src/Entity/Form/BookingForm.php	2026-03-19 00:38:06
++++ b/modules/bat_booking/src/Entity/Form/BookingForm.php	2026-04-20 03:30:18
+@@ -37,7 +37,7 @@
+    * @param \Drupal\Component\Datetime\TimeInterface $time
+    *   The time service.
+    */
+-  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL) {
++  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, ?EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, ?TimeInterface $time = NULL) {
+     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
+     $this->dateFormatter = $date_formatter;
+   }
+--- a/modules/bat_event/bat_event.module	2026-03-19 00:38:06
++++ b/modules/bat_event/bat_event.module	2026-04-20 03:30:18
+@@ -415,7 +415,7 @@
+  *
+  * @see bat_event_load()
+  */
+-function bat_event_load_multiple(array $event_ids = NULL, $reset = FALSE) {
++function bat_event_load_multiple(?array $event_ids = NULL, $reset = FALSE) {
+   if ($reset) {
+     \Drupal::entityTypeManager()->getStorage('bat_event')->resetCache($event_ids);
+   }
+--- a/modules/bat_event/src/Access/EventAddAccessCheck.php	2026-03-19 00:38:06
++++ b/modules/bat_event/src/Access/EventAddAccessCheck.php	2026-04-20 03:30:18
+@@ -42,7 +42,7 @@
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, EventTypeInterface $event_type = NULL) {
++  public function access(AccountInterface $account, ?EventTypeInterface $event_type = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_event');
+ 
+     if ($account->hasPermission('administer bat_event_type entities')) {
+--- a/modules/bat_event/src/Entity/Form/EventForm.php
++++ b/modules/bat_event/src/Entity/Form/EventForm.php
+@@ -64,24 +64,24 @@
+    *   The date service.
+    * @param \Symfony\Component\HttpFoundation\Request $request
+    *   The current request.
+-   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface $entity_type_bundle_info
+-   *   The entity type bundle service.
+-   * @param \Drupal\Component\Datetime\TimeInterface $time
+-   *   The time service.
+    * @param \Drupal\Core\Messenger\MessengerInterface $messenger
+    *   The messenger.
+    * @param \Drupal\bat_roomify\Store\DrupalDBStore $drupal_db_store
+    *   The bat event manager.
++   * @param \Drupal\Core\Entity\EntityTypeBundleInfoInterface|null $entity_type_bundle_info
++   *   The entity type bundle service.
++   * @param \Drupal\Component\Datetime\TimeInterface|null $time
++   *   The time service.
+    */
+   public function __construct(
+     EntityRepositoryInterface $entity_repository,
+     DateFormatterInterface $date_formatter,
+     Request $request,
+-    EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL,
+-    TimeInterface $time = NULL,
+     MessengerInterface $messenger,
+-    DrupalDBStore $drupal_db_store
+-    ) {
++    DrupalDBStore $drupal_db_store,
++    ?EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL,
++    ?TimeInterface $time = NULL,
++  ) {
+     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
+     $this->dateFormatter = $date_formatter;
+     $this->request = $request;
+@@ -97,10 +97,10 @@
+       $container->get('entity.repository'),
+       $container->get('date.formatter'),
+       $container->get('request_stack')->getCurrentRequest(),
++      $container->get('messenger'),
++      $container->get('bat_roomify.drupaldbstore'),
+       $container->get('entity_type.bundle.info'),
+-      $container->get('datetime.time'),
+-      $container->get('messenger'),
+-      $container->get('bat_roomify.drupaldbstore')
++      $container->get('datetime.time')
+     );
+   }
+ 
+--- a/modules/bat_unit/src/Access/UnitAddAccessCheck.php	2026-03-19 00:38:06
++++ b/modules/bat_unit/src/Access/UnitAddAccessCheck.php	2026-04-20 03:30:18
+@@ -42,7 +42,7 @@
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, UnitBundleInterface $unit_bundle = NULL) {
++  public function access(AccountInterface $account, ?UnitBundleInterface $unit_bundle = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_unit');
+ 
+     if ($account->hasPermission('administer bat_unit_bundle entities')) {
+--- a/modules/bat_unit/src/Access/UnitTypeAddAccessCheck.php	2026-03-19 00:38:06
++++ b/modules/bat_unit/src/Access/UnitTypeAddAccessCheck.php	2026-04-20 03:30:18
+@@ -43,7 +43,7 @@
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, TypeBundleInterface $type_bundle = NULL) {
++  public function access(AccountInterface $account, ?TypeBundleInterface $type_bundle = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_unit_type');
+ 
+     if ($account->hasPermission('administer bat_type_bundle entities')) {
+--- a/modules/bat_unit/src/Entity/Form/UnitForm.php	2026-03-19 00:38:06
++++ b/modules/bat_unit/src/Entity/Form/UnitForm.php	2026-04-20 03:30:18
+@@ -37,7 +37,7 @@
+    * @param \Drupal\Component\Datetime\TimeInterface $time
+    *   The time service.
+    */
+-  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL) {
++  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, ?EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, ?TimeInterface $time = NULL) {
+     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
+     $this->dateFormatter = $date_formatter;
+   }
+--- a/modules/bat_unit/src/Entity/Form/UnitTypeForm.php	2026-03-19 00:38:06
++++ b/modules/bat_unit/src/Entity/Form/UnitTypeForm.php	2026-04-20 03:30:18
+@@ -37,7 +37,7 @@
+    * @param \Drupal\Component\Datetime\TimeInterface $time
+    *   The time service.
+    */
+-  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL) {
++  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, ?EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, ?TimeInterface $time = NULL) {
+     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
+     $this->dateFormatter = $date_formatter;
+   }
+--- a/src/Access/TypeGroupAddAccessCheck.php	2026-03-19 00:38:06
++++ b/src/Access/TypeGroupAddAccessCheck.php	2026-04-20 03:30:18
+@@ -43,7 +43,7 @@
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, TypeGroupBundleInterface $type_group_bundle = NULL) {
++  public function access(AccountInterface $account, ?TypeGroupBundleInterface $type_group_bundle = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_type_group');
+ 
+     if ($account->hasPermission('administer bat_type_group_bundle entities')) {
+--- a/src/Entity/Form/TypeGroupForm.php	2026-03-19 00:38:06
++++ b/src/Entity/Form/TypeGroupForm.php	2026-04-20 03:30:18
+@@ -37,7 +37,7 @@
+    * @param \Drupal\Component\Datetime\TimeInterface $time
+    *   The time service.
+    */
+-  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, TimeInterface $time = NULL) {
++  public function __construct(EntityRepositoryInterface $entity_repository, DateFormatterInterface $date_formatter, ?EntityTypeBundleInfoInterface $entity_type_bundle_info = NULL, ?TimeInterface $time = NULL) {
+     parent::__construct($entity_repository, $entity_type_bundle_info, $time);
+     $this->dateFormatter = $date_formatter;
+   }

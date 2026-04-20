@@ -24,13 +24,15 @@ RUN apt-get update && apt-get install -y \
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Install Xdebug for code coverage
+# Xdebug: install but do NOT enable globally — it slows every request and drush (even with mode=off).
+# Use /usr/local/bin/php-xdebug for PHPUnit coverage (see Readme).
 RUN pecl install xdebug \
-    && docker-php-ext-enable xdebug
+    && XDEBUG_SO=$(find /usr/local/lib/php/extensions -name xdebug.so -print -quit) \
+    && printf '#!/bin/sh\nexec php -d zend_extension=%s "$@"\n' "$XDEBUG_SO" > /usr/local/bin/php-xdebug \
+    && chmod +x /usr/local/bin/php-xdebug
 
-# Minimal Xdebug config for coverage (disable by default)
-RUN echo "xdebug.mode=off" >> /usr/local/etc/php/conf.d/xdebug.ini \
-    && echo "xdebug.start_with_request=no" >> /usr/local/etc/php/conf.d/xdebug.ini
+# OPcache + realpath cache (faster bootstrap after cache clears, fewer stat() calls).
+COPY docker/php/99-opcache.ini /usr/local/etc/php/conf.d/99-opcache.ini
 
 # Drupal + Drush CLI need more than default 128M (avoids memory exhausted on cache rebuilds).
 RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/zz-drupal-memory.ini

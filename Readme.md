@@ -10,6 +10,7 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
 - **RAM**: At least ~4 GB free for the default stack; add ~2 GB more if you enable the SonarQube profile.
 - **PHP in Docker**: The `web` image uses **PHP 8.4** (`Dockerfile.web`) so it matches the Composer platform requirement (`composer.lock`). If you run `composer` on the host, use PHP 8.4+ or rely on Composer inside the `web` container only.
 - **PHP extensions**: The image sets **`memory_limit` to 512M** (CLI and FPM) so `drush cr` and large pages do not hit the default 128M limit, and installs **`bcmath`** (required by Drupal Commerce and related code). Rebuild the `web` service after changing [`Dockerfile.web`](Dockerfile.web): `docker compose build web && docker compose up -d`.
+- **Performance**: Xdebug is **installed but not loaded** by default (it noticeably slows Drupal bootstrap and `drush cr`). OPcache is tuned in [`docker/php/99-opcache.ini`](docker/php/99-opcache.ini). For PHPUnit coverage, use the **`php-xdebug`** wrapper (see PHPUnit section below).
 
 ## Quick start
 
@@ -103,7 +104,7 @@ mkdir -p coverage
 ```
 
 ```bash
-docker compose exec web bash -c "cd /opt/drupal && XDEBUG_MODE=coverage ./vendor/bin/phpunit --coverage-clover coverage/clover.xml -c phpunit.xml.dist"
+docker compose exec web bash -c "cd /opt/drupal && XDEBUG_MODE=coverage php-xdebug ./vendor/bin/phpunit --coverage-clover coverage/clover.xml -c phpunit.xml.dist"
 ```
 
 Coverage output is read by SonarQube via `sonar-project.properties` (`coverage/clover.xml`).

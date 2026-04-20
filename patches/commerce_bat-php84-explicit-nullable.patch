@@ -1,0 +1,11 @@
+--- a/src/EventSubscriber/OrderPlaceSubscriber.php
++++ b/src/EventSubscriber/OrderPlaceSubscriber.php
+@@ -391,7 +391,7 @@
+    * @return \DateTimeImmutable[]|null
+    *   Two-element array [start, end] or NULL if not derivable.
+    */
+-  protected function extractDateRange(OrderItemInterface $order_item, string $field_name, string $mode, ProductVariationInterface $variation = NULL): ?array {
++  protected function extractDateRange(OrderItemInterface $order_item, string $field_name, string $mode, ?ProductVariationInterface $variation = NULL): ?array {
+     $field = $order_item->get($field_name);
+ 
+     // Stored order item date values are in UTC (datetime fields). Parse them as UTC

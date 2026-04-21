@@ -182,6 +182,34 @@
   }
 
   /**
+   * Finds a BAT calendar segment by exact start, else same local date + minute in tz.
+   * Different lesson variations can use slightly different ISO strings for the same grid cell.
+   *
+   * @param {object} cal
+   * @param {string} anchorIso
+   * @param {string} tz
+   * @returns {object|undefined}
+   */
+  function findCalendarEntryAtSlot(cal, anchorIso, tz) {
+    const entries = calendarEntries(cal);
+    if (!anchorIso || !tz) {
+      return entries.find((e) => e.start === anchorIso);
+    }
+    const direct = entries.find((e) => e.start === anchorIso);
+    if (direct) {
+      return direct;
+    }
+    const anchorYmd = ymdInZone(anchorIso, tz);
+    const anchorMin = minutesSinceMidnightInZone(anchorIso, tz);
+    return entries.find(
+      (e) =>
+        e.start &&
+        ymdInZone(e.start, tz) === anchorYmd &&
+        minutesSinceMidnightInZone(e.start, tz) === anchorMin,
+    );
+  }
+
+  /**
    * @param {string} str
    * @returns {string}
    */
@@ -520,18 +548,25 @@
    * @param {number} slotCount
    * @returns {{start: string, end: string}|null}
    */
-  function consecutiveBlock(cal, startIso, slotCount) {
+  function consecutiveBlock(cal, startIso, slotCount, tz) {
     let cur = startIso;
+    let blockStartIso = startIso;
     let lastEnd = null;
     for (let i = 0; i < slotCount; i++) {
-      const entry = calendarEntries(cal).find((e) => e.start === cur);
+      const entry =
+        i === 0 && tz
+          ? findCalendarEntryAtSlot(cal, startIso, tz)
+          : calendarEntries(cal).find((e) => e.start === cur);
       if (!entry || !isEntrySelectable(entry)) {
         return null;
+      }
+      if (i === 0) {
+        blockStartIso = entry.start;
       }
       lastEnd = entry.end;
       cur = entry.end;
     }
-    return lastEnd ? { start: startIso, end: lastEnd } : null;
+    return lastEnd ? { start: blockStartIso, end: lastEnd } : null;
   }
 
   /**
@@ -542,11 +577,14 @@
    * @param {number} slotCount
    * @returns {string[]|null}
    */
-  function consecutiveBlockStarts(cal, startIso, slotCount) {
+  function consecutiveBlockStarts(cal, startIso, slotCount, tz) {
     const starts = [];
     let cur = startIso;
     for (let i = 0; i < slotCount; i++) {
-      const entry = calendarEntries(cal).find((e) => e.start === cur);
+      const entry =
+        i === 0 && tz
+          ? findCalendarEntryAtSlot(cal, startIso, tz)
+          : calendarEntries(cal).find((e) => e.start === cur);
       if (!entry || !isEntrySelectable(entry)) {
         return null;
       }
@@ -1032,7 +1070,7 @@
             if (!matchesStaggeredStart(startIso, tz, openM, hasWindow, bufferMinutes, playMinutes, slotLen)) {
               continue;
             }
-            const starts = consecutiveBlockStarts(calendars[v.id], startIso, requiredN);
+            const starts = consecutiveBlockStarts(calendars[v.id], startIso, requiredN, tz);
             if (!starts) {
               continue;
             }
@@ -1040,7 +1078,7 @@
             if (!rentalEnd || !slotFitsBookingWindow(startIso, rentalEnd, tz, hasWindow, openM, closeM)) {
               continue;
             }
-            return new Set(starts);
+            return new Set([startIso, ...starts]);
           }
           return new Set([startIso]);
         }
@@ -1276,7 +1314,7 @@
             refreshPitchSection();
             return;
           }
-          const byStart = new Map();
+          const laneMap = new Map();
           Object.keys(calendars).forEach((vid) => {
             calendarEntries(calendars[vid]).forEach((entry) => {
               if (!entry.start) {
@@ -1285,13 +1323,28 @@
               if (ymdInZone(entry.start, tz) !== selectedYmd) {
                 return;
               }
-              if (!byStart.has(entry.start)) {
-                byStart.set(entry.start, []);
+              const lane = `${selectedYmd}|${minutesSinceMidnightInZone(entry.start, tz)}`;
+              if (!laneMap.has(lane)) {
+                laneMap.set(lane, []);
               }
-              byStart.get(entry.start).push({ vid, entry });
+              laneMap.get(lane).push({ vid, entry });
             });
           });
-          const times = Array.from(byStart.keys()).sort();
+          const slotLanes = [];
+          laneMap.forEach((row, lane) => {
+            row.sort((a, b) => String(a.vid).localeCompare(String(b.vid)));
+            slotLanes.push({
+              lane,
+              row,
+              displayStartIso: row[0].entry.start,
+            });
+          });
+          slotLanes.sort(
+            (a, b) =>
+              minutesSinceMidnightInZone(a.displayStartIso, tz) -
+              minutesSinceMidnightInZone(b.displayStartIso, tz),
+          );
+          const times = slotLanes.map((s) => s.displayStartIso);
           const openM = parseHmMinutes(bookingDayStart);
           const closeM = parseHmMinutes(bookingDayEnd);
           const hasWindow = openM !== null && closeM !== null && closeM > openM;
@@ -1300,7 +1353,9 @@
           const nowMins = minutesNowInZoneForYmd(selectedYmd, tz);
           const sameDayClosed = sameDayCutoffMins !== null && nowMins >= 0 && nowMins > sameDayCutoffMins;
           const isToday = selectedYmd === todayYmd(tz);
-          const timesInWindow = times.filter((startIso) => {
+          const timesInWindow = slotLanes.filter((slot) => {
+            const startIso = slot.displayStartIso;
+            const row = slot.row;
             if (isToday && sameDayCutoffMins !== null) {
               const startM = minutesSinceMidnightInZone(startIso, tz);
               if (startM >= sameDayCutoffMins) {
@@ -1310,7 +1365,6 @@
             if (sameDayClosed) {
               return false;
             }
-            const row = byStart.get(startIso) || [];
             const sample = row.find(({ entry }) => entry && entry.end)?.entry;
             if (!sample || !sample.end) {
               return false;
@@ -1349,7 +1403,7 @@
               if (!matchesStaggeredStart(startIso, tz, openM, hasWindow, bufferMinutes, playMinutes, slotLen)) {
                 continue;
               }
-              const availabilityBlock = consecutiveBlock(calendars[v.id], startIso, requiredN);
+              const availabilityBlock = consecutiveBlock(calendars[v.id], startIso, requiredN, tz);
               if (!availabilityBlock) {
                 continue;
               }
@@ -1395,8 +1449,9 @@
             return;
           }
 
-          timesInWindow.forEach((startIso) => {
-            const row = byStart.get(startIso) || [];
+          timesInWindow.forEach((slot) => {
+            const startIso = slot.displayStartIso;
+            const row = slot.row;
             const hasSelectable = row.some(({ entry }) => isEntrySelectable(entry));
             const rentalEnd = playBufferEndIso(startIso, playMinutes, bufferMinutes);
 
@@ -1704,7 +1759,7 @@
             ) {
               return;
             }
-            const availabilityBlock = consecutiveBlock(calendars[v.id], startIso, requiredN);
+            const availabilityBlock = consecutiveBlock(calendars[v.id], startIso, requiredN, siteTimeZoneId);
             if (!availabilityBlock) {
               return;
             }

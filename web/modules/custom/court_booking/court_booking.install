@@ -248,3 +248,198 @@ function court_booking_update_9014(): void {
   \Drupal::moduleHandler()->loadInclude('court_booking', 'inc', 'court_booking.locale_register');
   _court_booking_register_js_interface_strings();
 }
+
+/**
+ * Per-variation lesson BAT units for mapped courts (fixes shared pool hiding slots).
+ *
+ * When Commerce BAT lesson capacity preset is "shared", all variations in the same
+ * capacity group map to one BAT unit — booking one court removes that time for
+ * every other court using the pool. This sets default_lesson_capacity to
+ * "separate" when still shared, clears commerce_bat_variation_unit rows for
+ * court_booking-mapped lesson variations, and re-runs ensureUnitForVariation().
+ */
+function court_booking_update_9015(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+  $preset_storage = $entity_type_manager->getStorage('commerce_bat_capacity_preset');
+  $preset = $preset_storage->load('default_lesson_capacity');
+  if ($preset && method_exists($preset, 'getCapacityMode') && $preset->getCapacityMode() === 'shared') {
+    $preset->set('capacity_mode', 'separate');
+    $preset->save();
+  }
+
+  $db = \Drupal::database();
+  if (!$db->schema()->tableExists('commerce_bat_variation_unit')) {
+    return;
+  }
+
+  /** @var \Drupal\commerce_bat\Availability\AvailabilityManagerInterface $availability */
+  $availability = \Drupal::service('commerce_bat.availability_manager');
+  $variation_storage = $entity_type_manager->getStorage('commerce_product_variation');
+
+  foreach (court_booking_mapped_variation_ids() as $vid) {
+    $variation = $variation_storage->load($vid);
+    if (!$variation instanceof \Drupal\commerce_product\Entity\ProductVariationInterface) {
+      continue;
+    }
+    if ($availability->getModeForVariation($variation) !== 'lesson') {
+      continue;
+    }
+    $db->delete('commerce_bat_variation_unit')
+      ->condition('variation_id', $vid)
+      ->execute();
+    $unit = $availability->ensureUnitForVariation($variation);
+    if ($unit) {
+      $availability->invalidateCalendarCache($variation);
+    }
+  }
+
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9015: Ensured separate lesson BAT units for court_booking mapped variations (preset default_lesson_capacity set to separate if it was shared).'
+  );
+}
+
+/**
+ * Unique BAT unit per mapped lesson variation (Commerce BAT reuses one unit for identical titles).
+ *
+ * In "separate" capacity mode, ensureUnitForVariation() still dedupes by variation
+ * label — two "Padel Court" SKUs map to the same unit. This creates one lesson unit
+ * per mapped variation with a unique name and mapping row.
+ */
+function court_booking_update_9016(): void {
+  $config = \Drupal::config('commerce_bat.settings');
+  $lesson_bundle = (string) ($config->get('lesson_unit_bundle') ?: 'lesson_unit');
+  $lesson_ut = (string) ($config->get('lesson_unit_type') ?: 'default');
+  $em = \Drupal::entityTypeManager();
+  if (!$em->getStorage('bat_unit_type')->load($lesson_ut)) {
+    \Drupal::logger('court_booking')->warning('court_booking_update_9016: BAT unit type @id missing; skipped.', ['@id' => $lesson_ut]);
+
+    return;
+  }
+
+  $db = \Drupal::database();
+  if (!$db->schema()->tableExists('commerce_bat_variation_unit')) {
+    return;
+  }
+
+  $unit_storage = $em->getStorage('bat_unit');
+  $variation_storage = $em->getStorage('commerce_product_variation');
+  /** @var \Drupal\commerce_bat\Availability\AvailabilityManagerInterface $availability */
+  $availability = \Drupal::service('commerce_bat.availability_manager');
+  $now = \Drupal::time()->getRequestTime();
+
+  foreach (court_booking_mapped_variation_ids() as $vid) {
+    $variation = $variation_storage->load($vid);
+    if (!$variation instanceof \Drupal\commerce_product\Entity\ProductVariationInterface) {
+      continue;
+    }
+    if ($availability->getModeForVariation($variation) !== 'lesson') {
+      continue;
+    }
+
+    $db->delete('commerce_bat_variation_unit')
+      ->condition('variation_id', $vid)
+      ->execute();
+
+    $base = trim($variation->getTitle());
+    if ($base === '') {
+      $base = 'Court';
+    }
+    $name = $base . ' (variation ' . $vid . ')';
+
+    /** @var \Drupal\bat\Entity\UnitInterface $unit */
+    $unit = $unit_storage->create([
+      'type' => $lesson_bundle,
+      'name' => $name,
+      'unit_type_id' => $lesson_ut,
+    ]);
+    $unit->save();
+
+    if ($unit->hasField('field_variation_ref') && $unit->get('field_variation_ref')->isEmpty()) {
+      $unit->set('field_variation_ref', $vid);
+      try {
+        $unit->save();
+      }
+      catch (\Throwable $e) {
+        \Drupal::logger('court_booking')->warning(
+          'court_booking_update_9016: Could not set field_variation_ref on unit @u: @m',
+          ['@u' => (string) $unit->id(), '@m' => $e->getMessage()],
+        );
+      }
+    }
+
+    $db->insert('commerce_bat_variation_unit')
+      ->fields([
+        'variation_id' => $vid,
+        'unit_id' => (int) $unit->id(),
+        'created' => $now,
+        'changed' => $now,
+      ])
+      ->execute();
+
+    $availability->invalidateCalendarCache($variation);
+  }
+
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9016: Created uniquely named lesson BAT units for each court_booking mapped variation.'
+  );
+}
+
+/**
+ * Re-point lesson BAT events to the unit Commerce BAT maps each variation to.
+ *
+ * After 9015/9016, commerce_bat_variation_unit points each SKU at a new bat_unit,
+ * but existing bat_event rows still referenced the old pooled unit. Availability
+ * JSON is built from the mapped unit, so bookings looked "missing" and every
+ * court appeared free. This updates event_bat_unit_reference from field_variation_ref.
+ */
+function court_booking_update_9017(): void {
+  $config = \Drupal::config('commerce_bat.settings');
+  $lesson_event_bundle = (string) ($config->get('lesson_event_type') ?: 'lesson_event');
+  $em = \Drupal::entityTypeManager();
+  $storage = $em->getStorage('bat_event');
+  $variation_storage = $em->getStorage('commerce_product_variation');
+  /** @var \Drupal\commerce_bat\Availability\AvailabilityManagerInterface $availability */
+  $availability = \Drupal::service('commerce_bat.availability_manager');
+
+  $ids = \Drupal::entityQuery('bat_event')
+    ->accessCheck(FALSE)
+    ->condition('type', $lesson_event_bundle)
+    ->execute();
+
+  $fixed = 0;
+  foreach ($ids as $id) {
+    $event = $storage->load($id);
+    if (!$event || !$event->hasField('field_variation_ref') || $event->get('field_variation_ref')->isEmpty()) {
+      continue;
+    }
+    if (!$event->hasField('event_bat_unit_reference') || $event->get('event_bat_unit_reference')->isEmpty()) {
+      continue;
+    }
+    $vid = (int) $event->get('field_variation_ref')->target_id;
+    $variation = $variation_storage->load($vid);
+    if (!$variation instanceof \Drupal\commerce_product\Entity\ProductVariationInterface) {
+      continue;
+    }
+    if ($availability->getModeForVariation($variation) !== 'lesson') {
+      continue;
+    }
+    $unit = $availability->getUnitForVariation($variation);
+    if (!$unit) {
+      continue;
+    }
+    $correct = (int) $unit->id();
+    $current = (int) $event->get('event_bat_unit_reference')->target_id;
+    if ($current === $correct) {
+      continue;
+    }
+    $event->set('event_bat_unit_reference', $correct);
+    $event->save();
+    $availability->invalidateCalendarCache($variation);
+    $fixed++;
+  }
+
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9017: Re-pointed @count lesson BAT event(s) to canonical units for their variation.',
+    ['@count' => (string) $fixed],
+  );
+}

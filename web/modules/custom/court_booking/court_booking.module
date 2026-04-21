@@ -186,6 +186,41 @@ function court_booking_variation_has_published_court_node(ProductVariationInterf
 }
 
 /**
+ * Human-readable facility / area label for a court node (cart + summaries).
+ *
+ * Prefers `field_location` (plain text on this site), then `field_court_location`
+ * (string or entity reference), then empty string so callers can fall back.
+ */
+function court_booking_court_location_label(?NodeInterface $node): string {
+  if (!$node instanceof NodeInterface || $node->bundle() !== 'court') {
+    return '';
+  }
+  if ($node->hasField('field_location') && !$node->get('field_location')->isEmpty()) {
+    $text = trim((string) $node->get('field_location')->value);
+    if ($text !== '') {
+      return $text;
+    }
+  }
+  if ($node->hasField('field_court_location') && !$node->get('field_court_location')->isEmpty()) {
+    $field = $node->get('field_court_location');
+    $type = $field->getFieldDefinition()->getType();
+    if (in_array($type, ['entity_reference', 'entity_reference_revisions'], TRUE)) {
+      $referenced = $field->entity;
+      if ($referenced) {
+        return trim($referenced->label());
+      }
+    }
+    else {
+      $text = trim($field->first()->getString());
+      if ($text !== '') {
+        return $text;
+      }
+    }
+  }
+  return '';
+}
+
+/**
  * First configured sport term ID for this variation, or 0.
  */
 function court_booking_sport_tid_for_variation(ProductVariationInterface $variation): int {
@@ -381,14 +416,13 @@ function court_booking_preprocess_commerce_product_variation(array &$variables):
   $thumb = CourtBookingVariationThumbnail::data($variation, $file_url_generator);
   $variables['cart_thumbnail_url'] = $thumb['url'];
   $variables['cart_location_label'] = '';
+  $variables['cart_line_title'] = '';
   $node = CourtBookingVariationThumbnail::courtNode($variation);
   if ($node instanceof NodeInterface) {
-    if ($node->hasField('field_court_location') && !$node->get('field_court_location')->isEmpty()) {
-      $variables['cart_location_label'] = trim($node->get('field_court_location')->first()->getString());
-    }
-    else {
-      $variables['cart_location_label'] = $node->label();
-    }
+    $facility = court_booking_court_location_label($node);
+    $variables['cart_location_label'] = $facility;
+    $variables['cart_line_title'] = $node->label();
+    $variables['attributes']['class'][] = 'cb-cart-variation--court';
     $variables['#cache']['tags'] = Cache::mergeTags($variables['#cache']['tags'] ?? [], $node->getCacheTags());
   }
   $variables['#cache']['tags'] = Cache::mergeTags($variables['#cache']['tags'] ?? [], $thumb['cache_tags'], $variation->getCacheTags());

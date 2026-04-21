@@ -443,3 +443,50 @@ function court_booking_update_9017(): void {
     ['@count' => (string) $fixed],
   );
 }
+
+/**
+ * Cart view: use Court booking slot formatter for BAT rental date on order items.
+ *
+ * The default daterange formatter does not output the date/time + edit control
+ * expected on the booking cart (see CourtBookingCartRentalSlotFormatter).
+ */
+function court_booking_update_9018(): void {
+  $factory = \Drupal::configFactory();
+  $id = 'views.view.commerce_cart_form';
+  if (!$factory->get($id)->get('status')) {
+    \Drupal::logger('court_booking')->warning('court_booking_update_9018: View @id not found or disabled; skipped.', ['@id' => $id]);
+
+    return;
+  }
+
+  $editable = $factory->getEditable($id);
+  $display = $editable->get('display');
+  if (!is_array($display) || !isset($display['default']['display_options']['fields']['field_cbat_rental_date'])) {
+    \Drupal::logger('court_booking')->warning('court_booking_update_9018: field_cbat_rental_date missing on cart view; skipped.');
+
+    return;
+  }
+
+  $display['default']['display_options']['fields']['field_cbat_rental_date']['type'] = 'court_booking_cart_rental_slot';
+  $display['default']['display_options']['fields']['field_cbat_rental_date']['settings'] = [
+    'show_edit' => TRUE,
+  ];
+
+  $editable->set('display', $display);
+
+  $deps = $editable->get('dependencies.module');
+  if (!is_array($deps)) {
+    $deps = [];
+  }
+  if (!in_array('court_booking', $deps, TRUE)) {
+    $deps[] = 'court_booking';
+    sort($deps);
+    $editable->set('dependencies.module', array_values(array_unique($deps)));
+  }
+
+  $editable->save();
+
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9018: commerce_cart_form field_cbat_rental_date now uses court_booking_cart_rental_slot formatter.',
+  );
+}

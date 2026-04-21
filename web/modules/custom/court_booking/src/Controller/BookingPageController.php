@@ -15,6 +15,7 @@ use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 
 /**
  * Renders the booking shell and bootstrap data for drupalSettings.
@@ -43,7 +44,7 @@ class BookingPageController extends ControllerBase {
   /**
    * Booking page render array.
    */
-  public function content(): array {
+  public function content(string $sport): array|RedirectResponse {
     $config = $this->config('court_booking.settings');
     $mappings = $config->get('sport_mappings') ?: [];
     $commerce_bat = $this->config('commerce_bat.settings');
@@ -51,8 +52,19 @@ class BookingPageController extends ControllerBase {
     $site_tz = $this->displayTimeZoneId();
     $langcode = $this->languageManager()->getCurrentLanguage()->getId();
     $request = \Drupal::request();
-    $initial_sport = $request->query->get('sport');
-    $initial_sport_str = $initial_sport !== NULL && $initial_sport !== '' ? (string) $initial_sport : '';
+    $decoded_sport = rawurldecode($sport);
+    $normalized_segment = \court_booking_sport_slug_from_text($decoded_sport);
+    if ($normalized_segment === '') {
+      return new RedirectResponse(Url::fromRoute('court_booking.booking_page', [
+        'sport' => \court_booking_default_sport_slug(),
+      ], ['query' => $request->query->all()])->toString(), 302);
+    }
+    if ($decoded_sport !== $normalized_segment) {
+      return new RedirectResponse(Url::fromRoute('court_booking.booking_page', [
+        'sport' => $normalized_segment,
+      ], ['query' => $request->query->all()])->toString(), 301);
+    }
+    $route_sport_slug = $normalized_segment;
 
     $term_storage = $this->entityTypeManager()->getStorage('taxonomy_term');
     $variation_storage = $this->entityTypeManager()->getStorage('commerce_product_variation');
@@ -93,6 +105,7 @@ class BookingPageController extends ControllerBase {
       }
       $term = $term_storage->load($tid);
       $label = $term ? $term->getName() : (string) $tid;
+      $sport_slug = \court_booking_sport_slugify($label);
       $variations_out = [];
       foreach ($variation_entities as $variation) {
         $court_node = court_booking_variation_published_court_node($variation);
@@ -136,6 +149,10 @@ class BookingPageController extends ControllerBase {
         $sports[] = [
           'id' => (string) $tid,
           'label' => $label,
+          'slug' => $sport_slug,
+          'url' => Url::fromRoute('court_booking.booking_page', [
+            'sport' => $sport_slug,
+          ])->toString(),
           'variations' => $variations_out,
           'booking' => $this->sportSettings->bookingRulesForJs($merged, $site_tz, $langcode),
           'durationGridMinutes' => CourtBookingPlayDurationGrid::lcmMany($slot_lens),
@@ -156,10 +173,24 @@ class BookingPageController extends ControllerBase {
     if ($sports !== []) {
       $default_tid = (int) ($sports[0]['id'] ?? 0);
       foreach ($sports as $sp) {
-        if ($initial_sport_str !== '' && (string) ($sp['id'] ?? '') === $initial_sport_str) {
+        if ($route_sport_slug !== '' && (string) ($sp['slug'] ?? '') === $route_sport_slug) {
           $default_tid = (int) $sp['id'];
           break;
         }
+      }
+    }
+    if ($sports !== [] && $route_sport_slug !== '') {
+      $matched = FALSE;
+      foreach ($sports as $sp) {
+        if ((string) ($sp['slug'] ?? '') === $route_sport_slug) {
+          $matched = TRUE;
+          break;
+        }
+      }
+      if (!$matched) {
+        return new RedirectResponse(Url::fromRoute('court_booking.booking_page', [
+            'sport' => (string) ($sports[0]['slug'] ?? \court_booking_default_sport_slug()),
+        ])->toString(), 302);
       }
     }
     $merged_root = $default_tid > 0
@@ -201,7 +232,7 @@ class BookingPageController extends ControllerBase {
             'addUrl' => Url::fromRoute('court_booking.add')->toString(),
             'slotCandidatesUrl' => Url::fromRoute('court_booking.slot_candidates')->toString(),
             'csrfToken' => $csrf_token,
-            'initialSportId' => $initial_sport_str,
+            'initialSportId' => (string) $default_tid,
             'initialVariationId' => $initial_variation !== NULL && $initial_variation !== '' ? (string) $initial_variation : '',
             'maxBookingHours' => $max_booking_hours,
           ],
@@ -222,7 +253,7 @@ class BookingPageController extends ControllerBase {
           'user',
           // drupalSettings.timezone must match date strip + booking window math.
           'timezone',
-          'url.query_args:sport',
+          'url.path',
           'url.query_args:variation',
         ],
       ],

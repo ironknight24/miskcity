@@ -112,12 +112,14 @@ final class CourtBookingCourtNodeDisplay {
     ];
 
     $cart_url = Url::fromRoute('commerce_cart.page')->toString();
-    $booking_back_url = Url::fromRoute('court_booking.booking_page')->toString();
+    $booking_back_url = Url::fromRoute('court_booking.booking_page', [
+      'sport' => \court_booking_default_sport_slug(),
+    ])->toString();
     if ($node->hasField('field_sport_ref') && !$node->get('field_sport_ref')->isEmpty()) {
       $tid = (int) $node->get('field_sport_ref')->target_id;
       if ($tid > 0) {
-        $booking_back_url = Url::fromRoute('court_booking.booking_page', [], [
-          'query' => ['sport' => (string) $tid],
+        $booking_back_url = Url::fromRoute('court_booking.booking_page', [
+          'sport' => \court_booking_slug_for_sport_tid($tid) ?: \court_booking_default_sport_slug(),
         ])->toString();
       }
     }

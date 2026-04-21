@@ -1,6 +1,6 @@
 # Court Booking
 
-Custom booking flow (Twig + vanilla JS) on `/book/amenities`, backed by Commerce BAT JSON availability and server-side add-to-cart validation.
+Custom booking flow (Twig + vanilla JS) on `/amenities/{sport}`, backed by Commerce BAT JSON availability and server-side add-to-cart validation. The `{sport}` segment is a lowercase hyphenated slug derived from the sport term name (spaces and punctuation become hyphens), for example **Beach volleyball** → `/amenities/beach-volleyball` and **Running track** → `/amenities/running-track`.
 
 ## Requirements
 
@@ -25,7 +25,7 @@ Grant **access court booking page** and **use court booking add** to roles that 
 - **Commerce → Configuration → Court booking: Slot management** (`/admin/commerce/config/court-booking/slot-management`) lets staff block a **date and local time range** on a mapped lesson court without needing **Administer commerce**. Permission: **Block court time slots (slot management)** (`administer court booking slot blocks`). Users with **Administer court booking settings** can use the same screen via the **Slot management** tab next to Court booking settings.
 - Submitting a range that **overlaps an existing admin blockout** for the same court is **rejected in form validation** with a clear message (Commerce BAT may otherwise merge blockouts on save; the UI enforces a single explicit block per window for staff clarity).
 - Blocks are stored as **Commerce BAT blockout events** (same as **Commerce → Commerce BAT → Create blocking event**). **Temporary resource closures** in Court booking settings are separate: they are **full-day** ranges per variation for messaging/validation, not fine-grained BAT calendar blocks.
-- **Manual QA:** Grant the permission to a test user, pick a court/date/times, submit **Block time slot**, then confirm `/book/amenities` (or add-to-cart) no longer offers that window. Use **Configuration → Development → Performance → Clear cache** or `drush cr` if menus do not appear until cache is rebuilt.
+- **Manual QA:** Grant the permission to a test user, pick a court/date/times, submit **Block time slot**, then confirm `/amenities/{sport}` (or add-to-cart) no longer offers that window. Use **Configuration → Development → Performance → Clear cache** or `drush cr` if menus do not appear until cache is rebuilt.
 
 ### Bookings & overrides (placed orders + BAT + post-checkout slot changes)
 

@@ -1,10 +1,11 @@
 court_booking.booking_page:
-  path: '/book/amenities'
+  path: '/amenities/{sport}'
   defaults:
     _controller: '\Drupal\court_booking\Controller\BookingPageController::content'
     _title: 'Amenities'
   requirements:
     _permission: 'access court booking page'
+    sport: '[a-z0-9-]+'
 
 court_booking.court_detail:
   path: '/book/court/{commerce_product_variation}'

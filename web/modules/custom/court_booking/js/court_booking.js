@@ -831,6 +831,10 @@
             btn.textContent = sport.label;
             btn.dataset.sportId = String(sport.id);
             btn.addEventListener('click', () => {
+              if (sport.url) {
+                window.location.href = String(sport.url);
+                return;
+              }
               sportId = String(sport.id);
               selectedStartIso = null;
               calendars = null;

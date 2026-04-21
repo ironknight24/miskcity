@@ -122,15 +122,14 @@ class CourtDetailController extends ControllerBase {
       }
     }
 
-    $sport_tid = court_booking_sport_tid_for_variation($variation);
-    $book_query = [
-      'variation' => $variation->id(),
-    ];
-    if ($sport_tid) {
-      $book_query['sport'] = (string) $sport_tid;
-    }
-    $book_url = Url::fromRoute('court_booking.booking_page', [], [
-      'query' => $book_query,
+    $sport_tid = \court_booking_sport_tid_for_variation($variation);
+    $sport_slug = $sport_tid > 0
+      ? \court_booking_slug_for_sport_tid($sport_tid)
+      : NULL;
+    $book_url = Url::fromRoute('court_booking.booking_page', [
+      'sport' => $sport_slug ?: \court_booking_default_sport_slug(),
+    ], [
+      'query' => ['variation' => $variation->id()],
     ])->toString();
 
     return [
@@ -141,7 +140,9 @@ class CourtDetailController extends ControllerBase {
       '#description' => $description,
       '#unit_lines' => $unit_lines,
       '#book_url' => $book_url,
-      '#amenities_url' => Url::fromRoute('court_booking.booking_page')->toString(),
+      '#amenities_url' => Url::fromRoute('court_booking.booking_page', [
+        'sport' => \court_booking_default_sport_slug(),
+      ])->toString(),
       '#attached' => [
         'library' => ['misk/global'],
       ],

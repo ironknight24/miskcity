@@ -31,7 +31,7 @@ function _court_booking_grant_default_booking_permissions(): void {
 }
 
 /**
- * Grant public booking permissions (fixes 403 for /book/amenities for guests).
+ * Grant public booking permissions (fixes 403 for /amenities/{sport} for guests).
  */
 function court_booking_update_9001(): void {
   _court_booking_grant_default_booking_permissions();

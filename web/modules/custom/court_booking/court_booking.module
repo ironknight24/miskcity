@@ -109,7 +109,9 @@ function court_booking_form_alter(&$form, FormStateInterface $form_state, $form_
   $form['court_booking_book_link'] = [
     '#type' => 'link',
     '#title' => t('Book a time on the amenities page'),
-    '#url' => Url::fromRoute('court_booking.booking_page'),
+    '#url' => Url::fromRoute('court_booking.booking_page', [
+      'sport' => court_booking_default_sport_slug(),
+    ]),
     '#weight' => -5,
     '#attributes' => ['class' => ['button', 'button--primary']],
   ];
@@ -128,7 +130,9 @@ function court_booking_entity_view_alter(array &$build, EntityInterface $entity,
   $build['court_booking_cta'] = [
     '#type' => 'link',
     '#title' => t('Book a court'),
-    '#url' => Url::fromRoute('court_booking.booking_page'),
+    '#url' => Url::fromRoute('court_booking.booking_page', [
+      'sport' => court_booking_default_sport_slug(),
+    ]),
     '#weight' => 15,
     '#attributes' => ['class' => ['button', 'button--primary']],
   ];
@@ -203,6 +207,59 @@ function court_booking_sport_tid_for_variation(ProductVariationInterface $variat
     }
   }
   return 0;
+}
+
+/**
+ * Normalizes arbitrary text to a URL path segment (lowercase, hyphenated).
+ *
+ * Word separators (spaces, punctuation) become single hyphens, so multi-word
+ * sport names match URLs such as /amenities/beach-volleyball or
+ * /amenities/running-track. Used for both taxonomy term labels and the {sport}
+ * route parameter so checking is consistent.
+ */
+function court_booking_sport_slug_from_text(string $text): string {
+  $ascii = \Drupal::transliteration()->transliterate(trim($text), 'en');
+  $slug = mb_strtolower($ascii);
+  $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
+  $slug = preg_replace('/-+/', '-', $slug) ?? '';
+  $slug = trim($slug, '-');
+  return $slug;
+}
+
+/**
+ * Creates a stable lowercase URL slug from a sport label (fallback for empty).
+ */
+function court_booking_sport_slugify(string $label): string {
+  $slug = court_booking_sport_slug_from_text($label);
+  return $slug !== '' ? $slug : 'sport';
+}
+
+/**
+ * Resolves the configured sport slug for a taxonomy term ID.
+ */
+function court_booking_slug_for_sport_tid(int $sport_tid): ?string {
+  if ($sport_tid <= 0) {
+    return NULL;
+  }
+  $term = \Drupal::entityTypeManager()->getStorage('taxonomy_term')->load($sport_tid);
+  if (!$term) {
+    return NULL;
+  }
+  return court_booking_sport_slugify($term->label());
+}
+
+/**
+ * First configured mapped sport slug (for generic booking links).
+ */
+function court_booking_default_sport_slug(): string {
+  foreach (court_booking_sport_mappings() as $row) {
+    $tid = (int) ($row['sport_tid'] ?? 0);
+    $slug = court_booking_slug_for_sport_tid($tid);
+    if ($slug) {
+      return $slug;
+    }
+  }
+  return 'sport';
 }
 
 /**
@@ -357,7 +414,9 @@ function court_booking_preprocess_page(array &$variables): void {
         '<span class="cb-cart-page-heading__back-icon" aria-hidden="true">‹</span>' .
         '<span class="cb-cart-page-heading__back-text">' . $go_back . '</span></span>'
       ),
-      '#url' => Url::fromRoute('court_booking.booking_page'),
+      '#url' => Url::fromRoute('court_booking.booking_page', [
+        'sport' => court_booking_default_sport_slug(),
+      ]),
       '#attributes' => [
         'class' => ['cb-cart-page-heading__back'],
       ],

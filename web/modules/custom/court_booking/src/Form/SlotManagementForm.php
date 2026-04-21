@@ -66,7 +66,7 @@ final class SlotManagementForm extends FormBase {
 
     $form['variation_id'] = [
       '#type' => 'select',
-      '#title' => $this->t('Court (variation)'),
+      '#title' => $this->t('Court'),
       '#options' => $options,
       '#required' => TRUE,
       '#empty_option' => $this->t('- Select -'),
@@ -332,6 +332,13 @@ final class SlotManagementForm extends FormBase {
     $variation_storage = $this->entityTypeManager->getStorage('commerce_product_variation');
     $product_storage = $this->entityTypeManager->getStorage('commerce_product');
     $options = [];
+    $included = [];
+    $skips = [
+      'not_configured' => 0,
+      'no_published_court_node' => 0,
+      'not_lesson' => 0,
+      'duplicate' => 0,
+    ];
 
     foreach ($mappings as $row) {
       $product_id = (int) ($row['product_id'] ?? 0);
@@ -358,19 +365,36 @@ final class SlotManagementForm extends FormBase {
 
       foreach ($variation_entities as $variation) {
         if (!court_booking_variation_is_configured($variation)) {
+          $skips['not_configured']++;
           continue;
         }
         if (!court_booking_variation_has_published_court_node($variation)) {
+          $skips['no_published_court_node']++;
           continue;
         }
         if ($this->availabilityManager->getModeForVariation($variation) !== 'lesson') {
+          $skips['not_lesson']++;
           continue;
         }
         $id = (string) $variation->id();
         if (isset($options[$id])) {
+          $skips['duplicate']++;
           continue;
         }
-        $options[$id] = $variation->getTitle();
+        $court = \Drupal\court_booking\CourtBookingVariationThumbnail::courtNode($variation);
+        $court_title = $court ? $court->label() : '';
+        $court_location = function_exists('court_booking_court_location_label')
+          ? \court_booking_court_location_label($court)
+          : '';
+        $label = $court_title !== '' ? $court_title : $variation->getTitle();
+        $options[$id] = $label;
+        $included[] = [
+          'variationId' => (int) $variation->id(),
+          'variationTitle' => $variation->getTitle(),
+          'courtTitle' => $court_title,
+          'courtLocation' => $court_location,
+          'renderedLabel' => $label,
+        ];
       }
     }
 

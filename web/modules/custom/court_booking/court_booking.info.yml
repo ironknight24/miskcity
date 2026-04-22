@@ -11,6 +11,8 @@ dependencies:
   - drupal:commerce_price
   - drupal:commerce_cart
   - drupal:commerce_product
+  - drupal:commerce_checkout
   - drupal:commerce_bat
+  - simple_oauth:simple_oauth
   - bat:bat_unit
   - drupal:taxonomy

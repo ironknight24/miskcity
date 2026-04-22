@@ -79,3 +79,31 @@ services:
     class: Drupal\court_booking\Access\PostCheckoutSlotAccessCheck
     tags:
       - { name: access_check, applies_to: _court_booking_post_checkout_slot }
+
+  court_booking.api:
+    class: Drupal\court_booking\CourtBookingApiService
+    arguments:
+      - '@court_booking.bat_unit_ensurer'
+      - '@commerce_cart.cart_manager'
+      - '@commerce_cart.cart_provider'
+      - '@commerce_store.current_store'
+      - '@logger.channel.court_booking'
+      - '@court_booking.slot_booking'
+      - '@commerce_order.order_refresh'
+      - '@commerce_bat.availability_manager'
+      - '@config.factory'
+      - '@commerce_checkout.checkout_order_manager'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  court_booking.commerce_checkout_rest:
+    class: Drupal\court_booking\CommerceCheckoutRestService
+    arguments:
+      - '@commerce_cart.cart_provider'
+      - '@commerce_store.current_store'
+      - '@entity_type.manager'
+      - '@event_dispatcher'
+      - '@commerce_order.order_refresh'
+      - '@config.factory'
+    calls:
+      - [setStringTranslation, ['@string_translation']]

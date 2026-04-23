@@ -93,8 +93,22 @@ services:
       - '@commerce_bat.availability_manager'
       - '@config.factory'
       - '@commerce_checkout.checkout_order_manager'
+      - '@court_booking.sport_settings'
     calls:
       - [setStringTranslation, ['@string_translation']]
+
+  court_booking.bearer_auth_provider:
+    class: Drupal\court_booking\Authentication\CourtBookingBearerAuthProvider
+    arguments:
+      - '@login_logout.oauth_login_service'
+      - '@http_client'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+      - '@entity_type.manager'
+      - '@logger.channel.court_booking'
+      - '@cache.default'
+    tags:
+      - { name: authentication_provider, provider_id: court_booking_bearer, priority: 100 }
 
   court_booking.commerce_checkout_rest:
     class: Drupal\court_booking\CommerceCheckoutRestService
@@ -105,5 +119,7 @@ services:
       - '@event_dispatcher'
       - '@commerce_order.order_refresh'
       - '@config.factory'
+      - '@logger.channel.court_booking'
+      - '@keyvalue'
     calls:
       - [setStringTranslation, ['@string_translation']]

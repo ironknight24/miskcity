@@ -60,8 +60,13 @@ class UserInfoCheckSubscriber implements EventSubscriberInterface
             return;
         }
 
-        // Skip for anonymous or admin users
+            // Skip for anonymous or admin users
         if ($this->currentUser->isAnonymous() || $this->currentUser->hasPermission('administer site configuration')) {
+            return;
+        }
+
+        // Bearer-authenticated requests (REST API) use IDAM token validation, not session-based token validation.
+        if (str_starts_with((string) $event->getRequest()->headers->get('Authorization', ''), 'Bearer ')) {
             return;
         }
 

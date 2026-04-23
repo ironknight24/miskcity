@@ -89,14 +89,17 @@ class LoginSubmitHandlerTest extends UnitTestCase {
     $form = [];
     $form_state = $this->createMock(FormStateInterface::class);
     $form_state->method('get')->with('email_validated')->willReturn(FALSE);
-    $form_state->method('getValue')->with('email')->willReturn('test@example.com');
+    $form_state->method('getValue')->with('email')->willReturn('Test@Example.com ');
 
     $this->apimanTokenService->method('getApimanAccessToken')->willReturn('token');
     $this->vaultConfigService->method('getGlobalVariables')->willReturn([
       'apiManConfig' => ['config' => ['apiUrl' => 'http://api.com', 'apiVersion' => 'v1']]
     ]);
 
-    $this->oauthLoginService->method('checkEmailExists')->willReturn(TRUE);
+    $this->oauthLoginService->expects($this->once())
+      ->method('checkEmailExists')
+      ->with('test@example.com', 'token', 'http://api.com', 'v1')
+      ->willReturn(TRUE);
 
     $form_state->expects($this->once())->method('set')->with('email_validated', TRUE)->willReturnSelf();
     $form_state->expects($this->once())->method('setRebuild');
@@ -150,11 +153,14 @@ class LoginSubmitHandlerTest extends UnitTestCase {
     $form = [];
     $form_state = $this->createMock(FormStateInterface::class);
     $form_state->method('get')->with('email_validated')->willReturn(FALSE);
-    $form_state->method('getValue')->with('email')->willReturn('new@example.com');
+    $form_state->method('getValue')->with('email')->willReturn('New@Example.com ');
 
     $this->apimanTokenService->method('getApimanAccessToken')->willReturn('token');
     $this->vaultConfigService->method('getGlobalVariables')->willReturn([]);
-    $this->oauthLoginService->method('checkEmailExists')->willReturn(FALSE);
+    $this->oauthLoginService->expects($this->once())
+      ->method('checkEmailExists')
+      ->with('new@example.com', 'token', '', '')
+      ->willReturn(FALSE);
 
     $tempStore = $this->createMock(PrivateTempStore::class);
     $this->tempStoreFactory->method('get')->with('login_logout')->willReturn($tempStore);

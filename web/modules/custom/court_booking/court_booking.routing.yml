@@ -100,7 +100,8 @@ court_booking.post_checkout_slot:
       commerce_order_item:
         type: entity:commerce_order_item
 
-# OAuth2 (Bearer) JSON API for mobile clients — see COURT_BOOKING_API.md
+# Bearer token JSON API for mobile/SPA clients — see COURT_BOOKING_API.md
+# Auth for booking writes: Authorization: Bearer <access_token> from the WSO2 login flow.
 court_booking.rest_v1_availability:
   path: '/rest/v1/court-booking/variations/{commerce_product_variation}/availability'
   defaults:
@@ -110,7 +111,6 @@ court_booking.rest_v1_availability:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::candidatesOrAvailability'
     commerce_product_variation: '\d+'
   options:
-    _auth: ['oauth2']
     parameters:
       commerce_product_variation:
         type: entity:commerce_product_variation
@@ -124,7 +124,6 @@ court_booking.rest_v1_slot_check:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::candidatesOrAvailability'
     commerce_product_variation: '\d+'
   options:
-    _auth: ['oauth2']
     parameters:
       commerce_product_variation:
         type: entity:commerce_product_variation
@@ -136,8 +135,14 @@ court_booking.rest_v1_slot_candidates:
   methods: [POST]
   requirements:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::candidatesOrAvailability'
-  options:
-    _auth: ['oauth2']
+
+court_booking.rest_v1_sports:
+  path: '/rest/v1/court-booking/sports'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::sports'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::candidatesOrAvailability'
 
 court_booking.rest_v1_add_line:
   path: '/rest/v1/court-booking/cart/line-items'
@@ -147,7 +152,7 @@ court_booking.rest_v1_add_line:
   requirements:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
   options:
-    _auth: ['oauth2']
+    _auth: ['court_booking_bearer']
 
 court_booking.rest_v1_patch_line:
   path: '/rest/v1/court-booking/cart/line-items/{commerce_order_item}'
@@ -158,7 +163,21 @@ court_booking.rest_v1_patch_line:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
     _court_booking_cart_slot_order_item: 'TRUE'
   options:
-    _auth: ['oauth2']
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order_item:
+        type: entity:commerce_order_item
+
+court_booking.rest_v1_delete_line:
+  path: '/rest/v1/court-booking/cart/line-items/{commerce_order_item}'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::deleteLineItem'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
+    _court_booking_cart_slot_order_item: 'TRUE'
+  options:
+    _auth: ['court_booking_bearer']
     parameters:
       commerce_order_item:
         type: entity:commerce_order_item
@@ -171,7 +190,7 @@ court_booking.rest_v1_commerce_cart:
   requirements:
     _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::checkout'
   options:
-    _auth: ['oauth2']
+    _auth: ['court_booking_bearer', 'cookie']
 
 court_booking.rest_v1_commerce_complete:
   path: '/rest/v1/commerce/orders/{commerce_order}/checkout/complete'
@@ -182,7 +201,57 @@ court_booking.rest_v1_commerce_complete:
     _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
     commerce_order: '\d+'
   options:
-    _auth: ['oauth2']
+    _auth: ['court_booking_bearer']
     parameters:
       commerce_order:
         type: entity:commerce_order
+
+court_booking.rest_v1_commerce_payment_details:
+  path: '/rest/v1/commerce/orders/{commerce_order}/payment/details'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentDetails'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_commerce_payment_confirm:
+  path: '/rest/v1/commerce/orders/{commerce_order}/payment/confirm'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentConfirm'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_commerce_payment_failure:
+  path: '/rest/v1/commerce/orders/{commerce_order}/payment/failure'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentFailure'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_commerce_payment_webhook:
+  path: '/rest/v1/commerce/payments/webhook'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\PaymentWebhookRestController::receive'
+  methods: [POST]
+  requirements:
+    _access: 'TRUE'

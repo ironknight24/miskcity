@@ -40,6 +40,32 @@
         </option>
       {% endfor %}
     </select>
+  {% elseif type == 'password' %}
+    <input
+      type="password"
+      id="{{ id }}"
+      name="{{ name }}"
+      {% if maxlength %} maxlength="{{ maxlength }}" {% endif %}
+      {% if required %} required {% endif %}
+      class="peer w-full px-2.5 pb-2.5 pt-4 pe-10 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
+      {{ disabled ? 'disabled' }}
+      {{ attrs }}
+    />
+    <button
+      type="button"
+      class="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 cursor-pointer items-center justify-center"
+      aria-label="Toggle password visibility">
+      <img
+        src="/themes/custom/engage_theme/images/Profile/hide-eye.svg"
+        alt=""
+        class="hide-eye-old icon-hide h-4 w-5"
+      >
+      <img
+        src="/themes/custom/engage_theme/images/Profile/show-eye.svg"
+        alt=""
+        class="show-eye-old icon-show hidden h-4 w-6"
+      >
+    </button>
   {% else %}
     <input
       type="{{ type }}"

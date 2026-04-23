@@ -52,4 +52,43 @@ final class CommerceRestController extends ControllerBase {
     return new JsonResponse($result['data'], $result['status']);
   }
 
+  /**
+   * Collects payment details for API-first offsite checkout flow.
+   */
+  public function paymentDetails(OrderInterface $commerce_order, Request $request): JsonResponse {
+    $raw = $request->getContent();
+    $data = $raw ? json_decode($raw, TRUE) : [];
+    if (!is_array($data)) {
+      throw new BadRequestHttpException('Invalid JSON body.');
+    }
+    $result = $this->commerceCheckoutRest->collectPaymentDetails($commerce_order, $this->currentUser(), $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * Confirms payment and places order for API-first offsite checkout flow.
+   */
+  public function paymentConfirm(OrderInterface $commerce_order, Request $request): JsonResponse {
+    $raw = $request->getContent();
+    $data = $raw ? json_decode($raw, TRUE) : [];
+    if (!is_array($data)) {
+      throw new BadRequestHttpException('Invalid JSON body.');
+    }
+    $result = $this->commerceCheckoutRest->confirmPayment($commerce_order, $this->currentUser(), $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * Reports payment failure for an order.
+   */
+  public function paymentFailure(OrderInterface $commerce_order, Request $request): JsonResponse {
+    $raw = $request->getContent();
+    $data = $raw ? json_decode($raw, TRUE) : [];
+    if (!is_array($data)) {
+      throw new BadRequestHttpException('Invalid JSON body.');
+    }
+    $result = $this->commerceCheckoutRest->reportPaymentFailure($commerce_order, $this->currentUser(), $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
 }

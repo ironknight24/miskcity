@@ -37,3 +37,11 @@ login_logout.password_recovery_status:
     _title: 'Password Recovery Status'
   requirements:
     _permission: 'access content'
+
+login_logout.rest_v1_auth_login:
+  path: '/rest/v1/auth/login'
+  defaults:
+    _controller: '\Drupal\login_logout\Controller\AuthRestController::login'
+  methods: [POST]
+  requirements:
+    _access: 'TRUE'

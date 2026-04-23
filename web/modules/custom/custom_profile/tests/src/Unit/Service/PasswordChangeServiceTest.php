@@ -154,7 +154,7 @@ class PasswordChangeServiceTest extends UnitTestCase {
     $this->apiHttpClientService->method('postIdamAuth')->willReturn(['emails' => ['test@example.com']]);
 
     $result = $this->service->changePassword('old', 'new', 'new');
-    $this->assertFalse($result['status']); // Note: The original code doesn't set status to TRUE on success, only message.
+    $this->assertTrue($result['status']);
     $this->assertEquals('Password changed successfully. Please log in again.', $result['message']);
   }
 

@@ -71,6 +71,11 @@ class PasswordChangeService
                     );
 
                     $result['message'] = $this->resolvePasswordChangeMessage($resPass, $email, $result['message']);
+                    if (empty($resPass['error'])
+                        && !empty($resPass['emails'][0])
+                        && $resPass['emails'][0] === $email) {
+                        $result['status'] = TRUE;
+                    }
                 }
             }
         } catch (\Exception $e) {

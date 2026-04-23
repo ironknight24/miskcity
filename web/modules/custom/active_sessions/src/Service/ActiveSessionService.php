@@ -82,7 +82,7 @@ class ActiveSessionService
         $idamconfig = $this->vaultConfigService->getGlobalVariables()['applicationConfig']['config']['idamconfig'];
         
         // Construct the IDAM API endpoint URL for retrieving user sessions
-        $url = self::SECURE_URL. $idamconfig .':9443/api/users/v1/me/sessions';
+        $url = self::SECURE_URL. $idamconfig .'/api/users/v1/me/sessions';
         
         try {
             // Make HTTP GET request to fetch active sessions
@@ -126,7 +126,7 @@ class ActiveSessionService
         $idamconfig = $this->vaultConfigService->getGlobalVariables()['applicationConfig']['config']['idamconfig'];
         
         // Construct the IDAM API endpoint URL for the specific session
-        $url = self::SECURE_URL . $idamconfig .':9443/api/users/v1/me/sessions/' . $session_id;
+        $url = self::SECURE_URL . $idamconfig .'/api/users/v1/me/sessions/' . $session_id;
 
         try {
             // Make HTTP DELETE request to terminate the session
@@ -165,7 +165,7 @@ class ActiveSessionService
         $idamconfig = $this->vaultConfigService->getGlobalVariables()['applicationConfig']['config']['idamconfig'];
         
         // Construct the IDAM API endpoint URL for terminating all other sessions
-        $url = self::SECURE_URL . $idamconfig .':9443/api/users/v1/me/sessions';
+        $url = self::SECURE_URL . $idamconfig .'/api/users/v1/me/sessions';
 
         try {
             // Make HTTP DELETE request to terminate all other sessions

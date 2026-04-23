@@ -1,31 +1,55 @@
 # Court booking REST API (`/rest/v1/`)
 
-Mobile and SPA clients authenticate with **OAuth 2** (Simple OAuth). Send:
+Mobile and SPA clients authenticate booking-mutating endpoints with a **Bearer token** —
+the `access_token` returned by `POST /rest/v1/auth/login` (the WSO2 IDAM login flow
+provided by the `login_logout` module). Send it as:
 
 `Authorization: Bearer <access_token>`
 
-Token endpoint (default): `POST /oauth/token`  
-Configure clients, keys, and grants under **Configuration → People → Simple OAuth**.
+**This is the same `access_token` field** that `POST /rest/v1/auth/login` returns in its
+JSON response body. No separate token endpoint or Simple OAuth flow is needed.
 
-## OAuth setup (administrator)
+```
+POST /rest/v1/auth/login  →  { "access_token": "...", "id_token": "...", ... }
+                                          |
+                    use this value as the bearer token
+                                          ↓
+Authorization: Bearer <access_token>  →  court-booking / commerce endpoints
+```
 
-1. Enable modules: **Simple OAuth** (pulls **Consumers**), **Commerce Checkout** (already required by this module).
-2. Generate public/private keys: **Configuration → People → Simple OAuth** (or use existing keys).
-3. Create an **OAuth2 Client** (consumer) for the mobile app with a grant your app supports (e.g. Resource Owner Password Credentials, Authorization Code, or Client Credentials for machine users).
-4. Assign the Drupal user account that will book courts the permissions:
-   - `use court booking add`
-   - `access court booking page` (for read-only availability/slot-candidates), or rely on the add permission
-   - `access checkout` (for cart and checkout completion endpoints)
+## How token validation works (server side)
+
+The `court_booking_bearer` authentication provider (`CourtBookingBearerAuthProvider`)
+performs three steps on every authenticated request. If **any** step fails the request is
+rejected — there is no fallback path.
+
+1. **IDAM live check** — sends `POST https://{idamhost}/oauth2/userinfo` with the bearer
+   token. WSO2 returns the `sub` claim (the user's email) only for active, non-expired
+   tokens. An expired, revoked, or forged token is rejected here.
+2. **Portal existence check** — calls the same `tiotcitizenapp` portal API used during the
+   login email-step (`POST {apiUrl}/tiotcitizenapp{apiVersion}/user/details`) to confirm
+   the user is still registered in the city portal.
+3. **Drupal user load** — loads the active Drupal user whose `mail` matches the `sub`
+   returned in step 1.
+
+If the token is missing, expired, revoked, or the email is not found in the portal, the
+request returns **403 Forbidden** (Drupal treats unauthenticated REST access as forbidden
+on routes that require authentication).
+
+Availability endpoints are public and do not require a bearer token.
 
 ## Court booking endpoints
 
 | Method | Path | Body / query | Notes |
 |--------|------|--------------|-------|
-| GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval`, `breakdown` | Same JSON as `GET /commerce-bat/availability/{id}` |
+| POST | `/rest/v1/auth/login` | JSON: `email`, `password` | Public login endpoint; returns OAuth token payload for API clients |
+| GET | `/rest/v1/court-booking/sports` | — | Full bootstrap payload for app clients (sports, variations, merged booking rules, date strip) |
+| GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval` | Rule-aware timeslots only from `court_booking.settings` |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Same as `GET /commerce-bat/check/{id}` → `{ "available": bool }` |
-| POST | `/rest/v1/court-booking/slot-candidates` | JSON: `ymd`, `duration_minutes` or `duration_hours`, `variation_ids`, `quantity` | Staggered candidates when buffer &gt; 0 |
+| POST | `/rest/v1/court-booking/slot-candidates` | JSON: `ymd`, `duration_minutes` or `duration_hours`, `variation_ids`, `quantity` | Staggered candidates when buffer > 0 |
 | POST | `/rest/v1/court-booking/cart/line-items` | JSON: `variation_id`, `start`, `end`, `quantity` | Adds validated line; response includes `order_id`, `order_item_id`, `total`, `checkout_url` |
-| PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user’s cart |
+| PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user's cart |
+| POST | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | Optional JSON body `{}` | Cancels/removes a draft cart booking line item (no refund automation). **POST** (not DELETE) for broader client/proxy compatibility. |
 
 Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/slot-candidates`, `/court-booking/cart/slot/{order_item}`.
 
@@ -35,6 +59,8 @@ Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/sl
 |--------|------|------|-------|
 | GET | `/rest/v1/commerce/cart` | — | Current cart for the **court booking order type** (from `court_booking.settings`). |
 | POST | `/rest/v1/commerce/orders/{order_id}/checkout/complete` | See below | Completes checkout for **manual** gateways or **zero balance**. |
+| POST | `/rest/v1/commerce/orders/{order_id}/payment/failure` | JSON: `gateway`, `code`, `message`, optional `raw` | Authenticated client-reported payment failure audit endpoint (cancel-only policy). |
+| POST | `/rest/v1/commerce/payments/webhook` | JSON webhook payload + signature headers | Gateway callback endpoint, idempotent and signature-validated. |
 
 ### Checkout complete body
 
@@ -54,6 +80,565 @@ Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/sl
 
 **Zero balance** orders complete without `payment_gateway_id`.
 
+## Cancellation and payment-failure APIs
+
+Copy-pastable examples for these flows also appear as **steps 10–12** in the [cURL examples](#curl-examples) section below (next to the rest of the numbered checkout flow).
+
+### Cancel a draft booking line item
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/cart/line-items/12" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{}'
+```
+
+Returns `200` on success with order and line-item identifiers.  
+Returns `409` if the order is no longer draft (placed/completed/canceled).
+
+### Report payment failure (client-reported)
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/payment/failure" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "gateway": "example_payment",
+    "code": "DECLINED",
+    "message": "Card declined by issuer",
+    "raw": {
+      "transaction_id": "abc-123"
+    }
+  }'
+```
+
+This endpoint records failure details and may move the order to canceled if the cancel transition is available.
+
+### Payment webhook callback
+
+Headers required:
+- `X-Payment-Timestamp` (unix epoch seconds)
+- `X-Payment-Signature` (hex HMAC-SHA256 of `<timestamp>.<raw_body>` using server secret)
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/payments/webhook" \
+  -H "Content-Type: application/json" \
+  -H "X-Payment-Timestamp: 1777777777" \
+  -H "X-Payment-Signature: YOUR_HEX_HMAC_SIGNATURE" \
+  -d '{
+    "event_id": "evt_1001",
+    "order_id": 5,
+    "status": "failed",
+    "gateway": "example_payment",
+    "code": "EXPIRED",
+    "message": "Payment session expired"
+  }'
+```
+
+Webhook events are idempotent by `event_id`.
+
+### Refund policy
+
+- Cancellation endpoints are **cancel-only**.
+- No automatic refund is triggered by these APIs.
+- Refunds remain out-of-band/manual or gateway-managed.
+
+## cURL examples
+
+Replace `YOUR_ACCESS_TOKEN` with the `access_token` from your login response, and adjust
+the numeric IDs (`1`, `2`, etc.) to match your actual variation / order / order-item IDs.
+Base URL: `http://localhost:8080` (matches the Docker Compose setup).
+
+Steps **10–12** cover **removing a draft cart line**, **client-reported payment failure**, and the **gateway payment webhook** (the same endpoints summarized earlier under *Cancellation and payment-failure APIs*).
+
+### Test credentials
+
+The following IDAM account is available for local / dev testing:
+
+| Field | Value |
+|---|---|
+| `email` | `eswartrinitynew@gmail.com` |
+| `password` | `Trinity@123` |
+
+Use these in step 1 (login) to obtain a real `access_token` for all subsequent calls.
+
+> **Note:** Do not use these credentials in production or commit them in environment-specific config files.
+
+### Postman quick setup
+
+Create a Postman environment with:
+
+- `base_url` = `http://localhost:8080`
+- `email` = `eswartrinitynew@gmail.com`
+- `password` = `Trinity@123`
+- `access_token` = `<value from login response — paste after running step 1>`
+- `variation_id` = `1`
+- `order_id` = `5`
+- `order_item_id` = `12`
+
+For protected endpoints, set:
+
+- Authorization tab -> Type: **Bearer Token**
+- Token: `{{access_token}}`
+
+For public endpoints (availability/slot/slot-candidates), keep Authorization as **No Auth**.
+
+For availability requests:
+
+- Required query params: `from`, `to` (YYYY-MM-DD).
+- Optional `interval`: numeric minutes (e.g. `60`) or ISO duration (e.g. `PT60M`).
+- If `interval` is omitted, API defaults to `commerce_bat.settings.lesson_slot_length_minutes`.
+
+---
+
+### 1. Login (public) and get access token
+
+The `access_token` returned here is the **same token** used as the bearer token for every
+protected endpoint below. Call this first, copy the `access_token` value, and supply it as
+`Authorization: Bearer <access_token>` on all subsequent calls.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "email": "eswartrinitynew@gmail.com",
+    "password": "Trinity@123"
+  }'
+```
+
+**Successful response**
+
+```json
+{
+  "access_token": "<copy this value for all subsequent requests>",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "....",
+  "id_token": "...."
+}
+```
+
+Save `access_token` in a shell variable for convenience:
+
+```bash
+ACCESS_TOKEN=$(curl -s -X POST \
+  "http://localhost:8080/rest/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"eswartrinitynew@gmail.com","password":"Trinity@123"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+echo $ACCESS_TOKEN
+```
+
+Then replace `YOUR_ACCESS_TOKEN` in all examples below with `$ACCESS_TOKEN`.
+
+**Error responses**
+
+- `400`: missing/invalid JSON body fields
+- `401`: invalid credentials
+- `503`: upstream authentication service unavailable
+
+---
+
+### 2. Get sports bootstrap data (public)
+
+```bash
+curl -X GET \
+  "http://localhost:8080/rest/v1/court-booking/sports" \
+  -H "Accept: application/json"
+```
+
+This response mirrors booking page bootstrap data for mobile:
+- `sports[]` with court variations and pricing
+- per-sport `booking` rules (hours, max duration, buffer, blackout dates, resource closures)
+- `dates[]` date strip and regional metadata (`timezone`, locale, first day of week)
+
+---
+
+### 3. Get court availability calendar
+
+```bash
+curl -X GET \
+  "http://localhost:8080/rest/v1/court-booking/variations/1/availability?from=2026-05-01&to=2026-05-31" \
+  -H "Accept: application/json"
+```
+
+**Query parameters**
+
+| Param | Example | Notes |
+|---|---|---|
+| `from` | `2026-05-01` | Start date (YYYY-MM-DD) |
+| `to` | `2026-05-31` | End date (YYYY-MM-DD) |
+| `interval` | `60` or `PT60M` | Optional – play duration for each returned slot |
+
+**Availability behavior**
+
+- Response is filtered to rule-valid slots only.
+- Rules come from merged `court_booking.settings` (global plus sport override for the variation).
+- API enforces booking hours, same-day cutoff, blackout dates, resource closures, and buffer behavior.
+- When buffer is configured, slot cadence follows `interval + buffer`.
+
+**Example response**
+
+```json
+{
+  "variation_id": 2,
+  "timezone": "Asia/Kolkata",
+  "interval": "PT60M",
+  "interval_minutes": 60,
+  "buffer_minutes": 0,
+  "from": "2026-05-23",
+  "to": "2026-05-23",
+  "slots": [
+    {
+      "start": "2026-05-23T00:30:00Z",
+      "end": "2026-05-23T01:30:00Z",
+      "ymd": "2026-05-23"
+    }
+  ]
+}
+```
+
+**Invalid interval response**
+
+```json
+{
+  "error": "Invalid interval"
+}
+```
+
+---
+
+### 4. Check a specific slot availability
+
+```bash
+curl -X GET \
+  "http://localhost:8080/rest/v1/court-booking/variations/1/slot?start=2026-05-10T09:00:00&end=2026-05-10T10:00:00&quantity=1" \
+  -H "Accept: application/json"
+```
+
+**Response:** `{ "available": true }` or `{ "available": false }`
+
+---
+
+### 5. Get slot candidates for a day
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/slot-candidates" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "ymd": "2026-05-10",
+    "duration_minutes": 60,
+    "variation_ids": [1, 2],
+    "quantity": 1
+  }'
+```
+
+Use `duration_hours` instead of `duration_minutes` if you prefer:
+
+```bash
+  -d '{
+    "ymd": "2026-05-10",
+    "duration_hours": 1,
+    "variation_ids": [1],
+    "quantity": 1
+  }'
+```
+
+---
+
+### 6. Add a court booking to cart
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/cart/line-items" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "variation_id": 1,
+    "start": "2026-05-10T09:00:00",
+    "end": "2026-05-10T10:00:00",
+    "quantity": 1
+  }'
+```
+
+**Successful response:**
+
+```json
+{
+  "status": "ok",
+  "order_id": 5,
+  "order_item_id": 12,
+  "total": "INR 500.00",
+  "checkout_url": "http://localhost:8080/checkout/5/order_information"
+}
+```
+
+---
+
+### 7. Update slot on an existing cart line item
+
+Replace `12` with the `order_item_id` from the add-to-cart response above.
+
+```bash
+curl -X PATCH \
+  "http://localhost:8080/rest/v1/court-booking/cart/line-items/12" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "start": "2026-05-10T10:00:00",
+    "end": "2026-05-10T11:00:00"
+  }'
+```
+
+---
+
+### 8. Get current cart
+
+```bash
+curl -X GET \
+  "http://localhost:8080/rest/v1/commerce/cart" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: application/json"
+```
+
+**Successful response:**
+
+```json
+{
+  "order_id": 5,
+  "state": "draft",
+  "checkout_step": "order_information",
+  "total": "INR 500.00",
+  "balance": "INR 500.00",
+  "line_items": [
+    {
+      "order_item_id": 12,
+      "title": "Badminton Court A",
+      "quantity": "1",
+      "rental": {
+        "value": "2026-05-10T09:00:00",
+        "end_value": "2026-05-10T10:00:00"
+      }
+    }
+  ],
+  "checkout_url": "http://localhost:8080/checkout/5/order_information"
+}
+```
+
+---
+
+### 9. Collect payment details (`example_payment` API flow)
+
+Use this endpoint before checkout complete when `payment_gateway_id=example_payment`.
+The API validates and stores only masked/non-sensitive metadata.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/payment/details" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "payment_gateway_id": "example_payment",
+    "payment": {
+      "card_holder_name": "Eswar Trinity",
+      "card_number": "4111111111111111",
+      "cvv": "123",
+      "exp_month": 12,
+      "exp_year": 2030,
+      "billing_email": "eswartrinitynew@gmail.com",
+      "card_brand": "visa"
+    }
+  }'
+```
+
+**Successful response:**
+
+```json
+{
+  "status": "details_collected",
+  "order_id": 5,
+  "payment_session_id": "pay_abc123...",
+  "gateway": "example_payment",
+  "next_action": "confirm_payment"
+}
+```
+
+---
+
+### 10. Confirm payment (`example_payment` API flow)
+
+Use the `payment_session_id` returned by step 9.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/payment/confirm" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "payment_session_id": "pay_abc123...",
+    "payment_status": "captured",
+    "gateway_reference": "txn_1001"
+  }'
+```
+
+**Successful response:**
+
+```json
+{
+  "order_id": 5,
+  "state": "completed",
+  "payment_id": 44,
+  "message": "Order completed."
+}
+```
+
+---
+
+### 11. Complete checkout (manual payment gateway / zero balance)
+
+Replace `5` with your `order_id`. The `payment_gateway_id` must match a gateway
+machine name configured under **Commerce → Configuration → Payment gateways**.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/checkout/complete" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "payment_gateway_id": "example_payment",
+    "manual_received": true
+  }'
+```
+
+**Zero-balance order (no payment gateway needed):**
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/checkout/complete" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{}'
+```
+
+**Successful response:**
+
+```json
+{
+  "order_id": 5,
+  "state": "completed",
+  "message": "Order completed."
+}
+```
+
+---
+
+### 12. Remove a draft cart line item (cancel)
+
+Same path shape as PATCH, but **POST** cancels the line. Same bearer auth and `order_item_id`. Only **draft** cart orders return `200`; non-draft returns `409`. Body may be `{}` or omitted if your client sends `Content-Type: application/json`.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/cart/line-items/12" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{}'
+```
+
+---
+
+### 13. Report payment failure (authenticated client)
+
+Records failure on the user’s **own draft** order (same access as checkout complete). Optional `raw` is any JSON-serializable object for audit.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/orders/5/payment/failure" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "gateway": "example_payment",
+    "code": "DECLINED",
+    "message": "Card declined by issuer",
+    "raw": {
+      "transaction_id": "abc-123"
+    }
+  }'
+```
+
+---
+
+### 14. Payment webhook (gateway → server)
+
+No bearer token. Requires `court_booking_webhook_secret` in Drupal settings. Signature = **hex** HMAC-SHA256 of `<X-Payment-Timestamp>.<exact raw request body>` with that secret. Timestamp must be within **±300 seconds** of server time.
+
+Use a **here-doc or file** so the body bytes used for signing match the body sent:
+
+```bash
+BODY='{"event_id":"evt_1001","order_id":5,"status":"failed","gateway":"example_payment","code":"EXPIRED","message":"Payment session expired"}'
+TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "YOUR_WEBHOOK_SECRET" | awk '{print $2}')
+curl -X POST \
+  "http://localhost:8080/rest/v1/commerce/payments/webhook" \
+  -H "Content-Type: application/json" \
+  -H "X-Payment-Timestamp: ${TS}" \
+  -H "X-Payment-Signature: ${SIG}" \
+  -d "$BODY"
+```
+
+`event_id` must be unique per logical event; replays return `200` with `status: duplicate`.
+
+---
+
+### Typical end-to-end flow
+
+```
+1. Login via the site → capture `access_token` from login response
+2. GET  /rest/v1/court-booking/sports                          → load sports/courts/rules
+3. GET  /rest/v1/court-booking/variations/{id}/availability    → pick a date range
+4. POST /rest/v1/court-booking/slot-candidates                 → pick an open slot
+5. GET  /rest/v1/court-booking/variations/{id}/slot            → confirm slot is free
+6. POST /rest/v1/court-booking/cart/line-items                 → add to cart → get order_id
+7. GET  /rest/v1/commerce/cart                                 → review cart
+8. POST /rest/v1/commerce/orders/{order_id}/payment/details    → collect payment metadata (example_payment)
+9. POST /rest/v1/commerce/orders/{order_id}/payment/confirm    → confirm + place order (example_payment)
+10. POST /rest/v1/commerce/orders/{order_id}/checkout/complete → place order (manual gateway / zero-balance)
+```
+
+Optional / error paths:
+
+```
+POST   /rest/v1/court-booking/cart/line-items/{order_item_id}           → drop a draft line (step 12)
+POST   /rest/v1/commerce/orders/{order_id}/payment/failure              → client-reported decline (step 13)
+POST   /rest/v1/commerce/payments/webhook                               → gateway callback (step 14)
+```
+
+---
+
+## Required Drupal permissions for the authenticated user
+
+| Permission | Required for |
+|---|---|
+| _None_ | GET availability, slot check, slot candidates (public) |
+| `use court booking add` | POST add line, PATCH slot, POST `…/line-items/{id}` remove draft line |
+| `access checkout` | GET cart, POST checkout complete |
+
 ## Payment gateway audit
 
 Confirm which gateways are enabled in the target environment (`/admin/commerce/config/payment`). Automated API completion is implemented for:
@@ -65,8 +650,8 @@ All other types should use web checkout or a future gateway-specific integration
 
 ## Functional checks
 
-- Compare availability for the same variation and `from`/`to` against `GET /commerce-bat/availability/{id}` (anonymous allowed there; REST requires OAuth + permission).
-- After `POST .../checkout/complete`, confirm BAT sync: order should reach **completed** (or your workflow’s equivalent) and `commerce_bat_sync_order_events()` should run via existing subscribers.
+- Validate availability against admin booking rules on `/admin/commerce/config/court-booking` (hours, buffer, blackout dates, resource closures).
+- After `POST .../checkout/complete`, confirm BAT sync: order should reach **completed** (or your workflow's equivalent) and `commerce_bat_sync_order_events()` should run via existing subscribers.
 
 ## Database (reference)
 

@@ -3,11 +3,13 @@
 namespace Drupal\court_booking;
 
 use Drupal\commerce_bat\Availability\AvailabilityManagerInterface;
+use Drupal\commerce_bat\Util\DateTimeHelper;
 use Drupal\commerce_cart\CartManagerInterface;
 use Drupal\commerce_cart\CartProviderInterface;
 use Drupal\commerce_checkout\CheckoutOrderManagerInterface;
 use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_order\OrderRefreshInterface;
+use Drupal\commerce_product\Entity\ProductInterface;
 use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\commerce_store\CurrentStoreInterface;
@@ -15,7 +17,9 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
+use Drupal\node\NodeInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Shared JSON logic for session-based and OAuth REST court booking endpoints.
@@ -35,6 +39,7 @@ final class CourtBookingApiService {
     protected AvailabilityManagerInterface $availabilityManager,
     protected ConfigFactoryInterface $configFactory,
     protected CheckoutOrderManagerInterface $checkoutOrderManager,
+    protected CourtBookingSportSettings $sportSettings,
   ) {}
 
   /**
@@ -83,7 +88,7 @@ final class CourtBookingApiService {
         continue;
       }
       $v = $variations[$vid];
-      if (court_booking_variation_is_configured($v) && court_booking_variation_has_published_court_node($v)) {
+      if (\court_booking_variation_is_configured($v) && \court_booking_variation_has_published_court_node($v)) {
         $filtered_ids[] = $vid;
       }
     }
@@ -104,6 +109,281 @@ final class CourtBookingApiService {
       : [];
 
     return ['status' => 200, 'data' => ['slots' => $slots]];
+  }
+
+  /**
+   * Builds rule-aware availability slots for a variation and date range.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildAvailabilityResponse(ProductVariationInterface $variation, Request $request, AccountInterface $account): array {
+    $from_raw = trim((string) $request->query->get('from', ''));
+    $to_raw = trim((string) $request->query->get('to', ''));
+    if ($from_raw === '' || $to_raw === '') {
+      return ['status' => 400, 'data' => ['error' => 'Missing required query params: from, to']];
+    }
+
+    $interval_raw = trim((string) $request->query->get('interval', ''));
+    $slot_minutes = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
+    $interval_minutes = $this->normalizeIntervalMinutes($interval_raw, $slot_minutes);
+    if ($interval_minutes === NULL) {
+      return ['status' => 400, 'data' => ['error' => 'Invalid interval']];
+    }
+
+    // Pull booking rules from merged variation-level configuration.
+    $merged_rules = $this->sportSettings->getMergedForVariation($variation);
+    $buffer_minutes = max(0, min(180, (int) ($merged_rules['buffer_minutes'] ?? 0)));
+    $block_minutes = $interval_minutes + $buffer_minutes;
+
+    $site_tz = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    try {
+      $tz = new \DateTimeZone($site_tz);
+    }
+    catch (\Throwable $e) {
+      $site_tz = 'UTC';
+      $tz = new \DateTimeZone($site_tz);
+    }
+
+    $from_local = $this->parseLocalDate($from_raw, $tz);
+    $to_local = $this->parseLocalDate($to_raw, $tz);
+    if (!$from_local || !$to_local) {
+      return ['status' => 400, 'data' => ['error' => 'Invalid from/to date']];
+    }
+    if ($to_local < $from_local) {
+      return ['status' => 400, 'data' => ['error' => 'Invalid range: to must be >= from']];
+    }
+
+    $open_m = $this->slotBooking->parseHmToMinutes((string) ($merged_rules['booking_day_start'] ?? '06:00'));
+    $close_m = $this->slotBooking->parseHmToMinutes((string) ($merged_rules['booking_day_end'] ?? '23:00'));
+    if ($open_m === NULL || $close_m === NULL || $close_m <= $open_m) {
+      $open_m = 0;
+      $close_m = 24 * 60;
+    }
+    $step_minutes = $buffer_minutes > 0 ? $block_minutes : $interval_minutes;
+
+    $slots = [];
+    $cursor = $from_local;
+    while ($cursor <= $to_local) {
+      $ymd = $cursor->format('Y-m-d');
+      for ($start_m = $open_m; $start_m + $block_minutes <= $close_m; $start_m += $step_minutes) {
+        $local_start = $cursor->setTime(intdiv($start_m, 60), $start_m % 60, 0);
+        $start_utc = DateTimeHelper::normalizeUtc($local_start->setTimezone(new \DateTimeZone('UTC')));
+        $end_utc = $start_utc->add(new \DateInterval('PT' . $block_minutes . 'M'));
+        $validation = $this->slotBooking->validateLessonSlot(
+          $variation,
+          DateTimeHelper::formatUtc($start_utc),
+          DateTimeHelper::formatUtc($end_utc),
+          1,
+          $account,
+          FALSE,
+        );
+        if (!empty($validation['ok'])) {
+          $slots[] = [
+            'start' => DateTimeHelper::formatUtc($start_utc),
+            'end' => DateTimeHelper::formatUtc($end_utc),
+            'ymd' => $ymd,
+          ];
+        }
+      }
+      $cursor = $cursor->modify('+1 day');
+    }
+
+    return [
+      'status' => 200,
+      'data' => [
+        'variation_id' => (int) $variation->id(),
+        'timezone' => $site_tz,
+        'interval' => 'PT' . $interval_minutes . 'M',
+        'interval_minutes' => $interval_minutes,
+        'buffer_minutes' => $buffer_minutes,
+        'from' => $from_local->format('Y-m-d'),
+        'to' => $to_local->format('Y-m-d'),
+        'slots' => $slots,
+      ],
+    ];
+  }
+
+  /**
+   * Returns mobile bootstrap data equivalent to page drupalSettings payload.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildSportsBootstrapResponse(AccountInterface $account): array {
+    $config = $this->configFactory->get('court_booking.settings');
+    $commerce_bat = $this->configFactory->get('commerce_bat.settings');
+    $mappings = $config->get('sport_mappings') ?: [];
+    if (!is_array($mappings)) {
+      return ['status' => 200, 'data' => ['sports' => []]];
+    }
+
+    $entity_type_manager = \Drupal::entityTypeManager();
+    $term_storage = $entity_type_manager->getStorage('taxonomy_term');
+    $variation_storage = $entity_type_manager->getStorage('commerce_product_variation');
+    $product_storage = $entity_type_manager->getStorage('commerce_product');
+    $currency_formatter = \Drupal::service('commerce_price.currency_formatter');
+    $file_url_generator = \Drupal::service('file_url_generator');
+    $language_manager = \Drupal::languageManager();
+
+    $slot_minutes = max(1, (int) ($commerce_bat->get('lesson_slot_length_minutes') ?: 60));
+    $site_tz = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $langcode = $language_manager->getCurrentLanguage()->getId();
+
+    $sports = [];
+    foreach ($mappings as $row) {
+      $tid = (int) ($row['sport_tid'] ?? 0);
+      if ($tid <= 0) {
+        continue;
+      }
+      $variation_entities = $this->mappedSportVariations($row, $variation_storage, $product_storage);
+      if ($variation_entities === []) {
+        continue;
+      }
+
+      $term = $term_storage->load($tid);
+      $label = $term ? $term->label() : (string) $tid;
+      $sport_slug = \court_booking_sport_slugify($label);
+
+      $variations_out = [];
+      foreach ($variation_entities as $variation) {
+        $court_node = \court_booking_variation_published_court_node($variation);
+        if (!$court_node instanceof NodeInterface) {
+          continue;
+        }
+        $price = '';
+        $price_amount = '';
+        $price_currency = '';
+        $variation_price = $variation->getPrice();
+        if ($variation_price) {
+          $price = $currency_formatter->format($variation_price->getNumber(), $variation_price->getCurrencyCode());
+          $price_amount = $variation_price->getNumber();
+          $price_currency = $variation_price->getCurrencyCode();
+        }
+        $card = CourtBookingVariationThumbnail::data($variation, $file_url_generator);
+        $slot_len = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
+        $variations_out[] = [
+          'id' => (int) $variation->id(),
+          'title' => $court_node->getTitle(),
+          'courtTitle' => $court_node->getTitle(),
+          'variationTitle' => $variation->getTitle(),
+          'price' => $price,
+          'priceAmount' => $price_amount,
+          'priceCurrencyCode' => $price_currency,
+          'image' => $card['url'] ?? '',
+          'slotMinutes' => $slot_len,
+          'detailUrl' => Url::fromRoute('court_booking.court_detail', [
+            'commerce_product_variation' => $variation->id(),
+          ])->setAbsolute()->toString(),
+        ];
+      }
+      if ($variations_out === []) {
+        continue;
+      }
+
+      $merged = $this->sportSettings->getMergedForSport($tid);
+      $slot_lens = array_map(static fn(array $item): int => max(1, (int) ($item['slotMinutes'] ?? 60)), $variations_out);
+      $sports[] = [
+        'id' => (string) $tid,
+        'label' => $label,
+        'slug' => $sport_slug,
+        'url' => Url::fromRoute('court_booking.booking_page', ['sport' => $sport_slug])->toString(),
+        'variations' => $variations_out,
+        'booking' => $this->sportSettings->bookingRulesForJs($merged, $site_tz, $langcode),
+        'durationGridMinutes' => CourtBookingPlayDurationGrid::lcmMany($slot_lens),
+      ];
+    }
+
+    $default_tid = $sports !== [] ? (string) ($sports[0]['id'] ?? '') : '';
+    $root_rules = $default_tid !== '' ? $this->sportSettings->getMergedForSport((int) $default_tid) : $this->sportSettings->getGlobalBookingRules();
+    $root_booking = $this->sportSettings->bookingRulesForJs($root_rules, $site_tz, $langcode);
+
+    return [
+      'status' => 200,
+      'data' => [
+        'sports' => $sports,
+        'initialSportId' => $default_tid,
+        'slotInterval' => 'PT' . $slot_minutes . 'M',
+        'slotMinutes' => $slot_minutes,
+        'timezone' => $site_tz,
+        'interfaceLangcode' => $langcode,
+        'intlLocale' => CourtBookingRegional::intlLocaleForLangcode($langcode),
+        'countryCode' => CourtBookingRegional::defaultCountryCode($this->configFactory),
+        'firstDayOfWeek' => CourtBookingRegional::firstDayOfWeek($this->configFactory),
+        'bookingDayStart' => (string) ($root_booking['bookingDayStart'] ?? '06:00'),
+        'bookingDayEnd' => (string) ($root_booking['bookingDayEnd'] ?? '23:00'),
+        'bufferMinutes' => (int) ($root_booking['bufferMinutes'] ?? 0),
+        'sameDayCutoffHm' => (string) ($root_booking['sameDayCutoffHm'] ?? ''),
+        'blackoutDates' => (array) ($root_booking['blackoutDates'] ?? []),
+        'resourceClosuresByVariation' => (array) ($root_booking['resourceClosuresByVariation'] ?? []),
+        'dates' => (array) ($root_booking['dates'] ?? []),
+        'maxBookingHours' => (int) ($root_booking['maxBookingHours'] ?? 4),
+      ],
+    ];
+  }
+
+  /**
+   * Parses interval query into minutes.
+   */
+  private function normalizeIntervalMinutes(string $interval_raw, int $default_minutes): ?int {
+    $raw = trim($interval_raw);
+    if ($raw === '') {
+      return $default_minutes;
+    }
+    if (preg_match('/^\d+$/', $raw)) {
+      $minutes = (int) $raw;
+      return $minutes > 0 ? $minutes : NULL;
+    }
+    if (preg_match('/^PT(\d+)M$/i', $raw, $m)) {
+      $minutes = (int) ($m[1] ?? 0);
+      return $minutes > 0 ? $minutes : NULL;
+    }
+    return NULL;
+  }
+
+  /**
+   * Parses incoming date-like query input into local day in target timezone.
+   */
+  private function parseLocalDate(string $raw, \DateTimeZone $tz): ?\DateTimeImmutable {
+    $value = trim($raw);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+      return new \DateTimeImmutable($value . ' 00:00:00', $tz);
+    }
+    try {
+      $dt = new \DateTimeImmutable($value);
+      return new \DateTimeImmutable($dt->setTimezone($tz)->format('Y-m-d') . ' 00:00:00', $tz);
+    }
+    catch (\Throwable $e) {
+      return NULL;
+    }
+  }
+
+  /**
+   * Loads published variations mapped for a sport mapping row.
+   *
+   * @return array<int, ProductVariationInterface>
+   */
+  private function mappedSportVariations(array $row, $variation_storage, $product_storage): array {
+    $product_id = (int) ($row['product_id'] ?? 0);
+    $legacy_vids = array_map('intval', (array) ($row['variation_ids'] ?? []));
+    $variation_entities = [];
+    if ($product_id > 0) {
+      $product = $product_storage->load($product_id);
+      if ($product instanceof ProductInterface) {
+        foreach ($product->getVariations() as $variation) {
+          if ($variation instanceof ProductVariationInterface && $variation->isPublished()) {
+            $variation_entities[] = $variation;
+          }
+        }
+      }
+    }
+    else {
+      foreach ($legacy_vids as $vid) {
+        $variation = $variation_storage->load($vid);
+        if ($variation instanceof ProductVariationInterface && $variation->isPublished()) {
+          $variation_entities[] = $variation;
+        }
+      }
+    }
+    return $variation_entities;
   }
 
   /**
@@ -135,11 +415,13 @@ final class CourtBookingApiService {
       return ['status' => 400, 'data' => ['message' => (string) $this->t('Invalid product variation.')]];
     }
 
-    if (!court_booking_variation_is_configured($variation)) {
+    $isConfigured = \court_booking_variation_is_configured($variation);
+    $hasCourtNode = \court_booking_variation_has_published_court_node($variation);
+    if (!$isConfigured) {
       return ['status' => 403, 'data' => ['message' => (string) $this->t('This court is not enabled for the booking page.')]];
     }
 
-    if (!court_booking_variation_has_published_court_node($variation)) {
+    if (!$hasCourtNode) {
       return ['status' => 403, 'data' => ['message' => (string) $this->t('This court is not available for booking.')]];
     }
 
@@ -291,6 +573,53 @@ final class CourtBookingApiService {
     }
 
     return ['status' => 200, 'data' => $payload];
+  }
+
+  /**
+   * Cancels/removes a booking line item from user's draft cart.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function cancelBookingLineItem(AccountInterface $account, OrderItemInterface $commerce_order_item): array {
+    $order = $commerce_order_item->getOrder();
+    if (!$order) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found for this line item.')]];
+    }
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+    if ($order->getState()->getId() !== 'draft') {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Only draft cart items can be canceled via this endpoint.'),
+        'state' => $order->getState()->getId(),
+      ]];
+    }
+
+    try {
+      if (method_exists($order, 'removeItem')) {
+        $order->removeItem($commerce_order_item);
+      }
+      $commerce_order_item->delete();
+      $this->orderRefresh->refresh($order);
+      $order->save();
+      if (function_exists('commerce_bat_sync_order_events')) {
+        \commerce_bat_sync_order_events($order);
+      }
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('Cart line item cancel failed for item @item: @msg', [
+        '@item' => (int) $commerce_order_item->id(),
+        '@msg' => $e->getMessage(),
+      ]);
+      return ['status' => 500, 'data' => ['message' => (string) $this->t('Could not cancel booking line item.')]];
+    }
+
+    return ['status' => 200, 'data' => [
+      'status' => 'ok',
+      'message' => (string) $this->t('Booking line item canceled.'),
+      'order_id' => (int) $order->id(),
+      'order_item_id' => (int) $commerce_order_item->id(),
+    ]];
   }
 
 }

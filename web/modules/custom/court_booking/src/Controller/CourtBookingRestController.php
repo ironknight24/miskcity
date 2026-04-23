@@ -17,6 +17,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  */
 final class CourtBookingRestController extends ControllerBase {
 
+  private const INVALID_JSON_BODY = 'Invalid JSON body.';
+
   public function __construct(
     protected CourtBookingApiService $courtBookingApi,
     protected AvailabilityController $availabilityController,
@@ -33,10 +35,11 @@ final class CourtBookingRestController extends ControllerBase {
   }
 
   /**
-   * Calendar JSON (same as commerce_bat.availability_json).
+   * Rule-aware availability slots.
    */
-  public function availability(ProductVariation $commerce_product_variation, Request $request) {
-    return $this->availabilityController->calendar($commerce_product_variation, $request);
+  public function availability(ProductVariation $commerce_product_variation, Request $request): JsonResponse {
+    $result = $this->courtBookingApi->buildAvailabilityResponse($commerce_product_variation, $request, $this->currentUser());
+    return new JsonResponse($result['data'], $result['status']);
   }
 
   /**
@@ -53,9 +56,17 @@ final class CourtBookingRestController extends ControllerBase {
     $raw = $request->getContent();
     $data = $raw ? json_decode($raw, TRUE) : [];
     if (!is_array($data)) {
-      throw new BadRequestHttpException('Invalid JSON body.');
+      throw new BadRequestHttpException(self::INVALID_JSON_BODY);
     }
     $result = $this->courtBookingApi->buildSlotCandidatesResponse($data, $this->currentUser());
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * Sports bootstrap payload for mobile clients.
+   */
+  public function sports(): JsonResponse {
+    $result = $this->courtBookingApi->buildSportsBootstrapResponse($this->currentUser());
     return new JsonResponse($result['data'], $result['status']);
   }
 
@@ -66,7 +77,7 @@ final class CourtBookingRestController extends ControllerBase {
     $raw = $request->getContent();
     $data = $raw ? json_decode($raw, TRUE) : [];
     if (!is_array($data)) {
-      throw new BadRequestHttpException('Invalid JSON body.');
+      throw new BadRequestHttpException(self::INVALID_JSON_BODY);
     }
     $result = $this->courtBookingApi->addBookingLineItem($this->currentUser(), $data, [
       'include_legacy_redirect' => FALSE,
@@ -82,9 +93,17 @@ final class CourtBookingRestController extends ControllerBase {
     $raw = $request->getContent();
     $data = $raw ? json_decode($raw, TRUE) : [];
     if (!is_array($data)) {
-      throw new BadRequestHttpException('Invalid JSON body.');
+      throw new BadRequestHttpException(self::INVALID_JSON_BODY);
     }
     $result = $this->courtBookingApi->updateCartLineSlot($this->currentUser(), $commerce_order_item, $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * POST cancel/remove cart line item (draft orders only).
+   */
+  public function deleteLineItem(OrderItemInterface $commerce_order_item): JsonResponse {
+    $result = $this->courtBookingApi->cancelBookingLineItem($this->currentUser(), $commerce_order_item);
     return new JsonResponse($result['data'], $result['status']);
   }
 

@@ -2001,6 +2001,11 @@ video {
   border-color: rgb(253 230 138 / var(--tw-border-opacity, 1));
 }
 
+.border-gray-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(243 244 246 / var(--tw-border-opacity, 1));
+}
+
 .border-gray-200 {
   --tw-border-opacity: 1;
   border-color: rgb(229 231 235 / var(--tw-border-opacity, 1));
@@ -2548,6 +2553,10 @@ video {
   padding-bottom: 45px;
 }
 
+.pe-10 {
+  padding-inline-end: 2.5rem;
+}
+
 .pl-10 {
   padding-left: 2.5rem;
 }
@@ -2798,6 +2807,11 @@ video {
 .text-\[\#02216E\] {
   --tw-text-opacity: 1;
   color: rgb(2 33 110 / var(--tw-text-opacity, 1));
+}
+
+.text-\[\#1a1a1a\] {
+  --tw-text-opacity: 1;
+  color: rgb(26 26 26 / var(--tw-text-opacity, 1));
 }
 
 .text-\[\#2c2627\] {
@@ -3733,6 +3747,142 @@ select {
   border-radius: 5px;
 }
 
+/* Core comment edit/add forms (admin + frontend comment_form markup) */
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"],
+form.comment-form[data-drupal-selector="comment-form"] {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 12px 16px 20px;
+  box-sizing: border-box;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-item,
+form.comment-form[data-drupal-selector="comment-form"] .form-item {
+  margin-bottom: 10px;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] label,
+form.comment-form[data-drupal-selector="comment-form"] label,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] h4,
+form.comment-form[data-drupal-selector="comment-form"] h4,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] legend,
+form.comment-form[data-drupal-selector="comment-form"] legend {
+  font-family: "Open Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #2f2f2f;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] details#edit-author,
+form.comment-form[data-drupal-selector="comment-form"] details#edit-author {
+  margin-bottom: 14px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  padding: 12px;
+  background-color: #fff;
+  box-sizing: border-box;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-text,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-url,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-date,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-time,
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-select,
+form.comment-form[data-drupal-selector="comment-form"] .form-text,
+form.comment-form[data-drupal-selector="comment-form"] .form-url,
+form.comment-form[data-drupal-selector="comment-form"] .form-date,
+form.comment-form[data-drupal-selector="comment-form"] .form-time,
+form.comment-form[data-drupal-selector="comment-form"] .form-select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #d9d9d9;
+  border-radius: 8px;
+  background-color: #fff;
+  box-sizing: border-box;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] #edit-status,
+form.comment-form[data-drupal-selector="comment-form"] #edit-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-type-radio,
+form.comment-form[data-drupal-selector="comment-form"] .form-type-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] .form-radio,
+form.comment-form[data-drupal-selector="comment-form"] .form-radio {
+  width: 16px;
+  height: 16px;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] #edit-actions,
+form.comment-form[data-drupal-selector="comment-form"] #edit-actions,
+form.comment-form [data-drupal-selector="edit-actions"],
+form[data-drupal-selector^="comment-"] [data-drupal-selector="edit-actions"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] #edit-actions .form-submit,
+form.comment-form[data-drupal-selector="comment-form"] #edit-actions .form-submit,
+form.comment-form[data-drupal-selector="comment-form"] #edit-actions .button,
+form.comment-form [data-drupal-selector="edit-actions"] .form-submit,
+form.comment-form [data-drupal-selector="edit-actions"] .button,
+form[data-drupal-selector^="comment-"] [data-drupal-selector="edit-actions"] .form-submit,
+form[data-drupal-selector^="comment-"] [data-drupal-selector="edit-actions"] .button {
+  -moz-appearance: none;
+       appearance: none;
+  -webkit-appearance: none;
+  padding: 10px 20px;
+  min-height: 40px;
+  color: #fff !important;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  text-transform: capitalize;
+  font-weight: 700;
+  font-family: "Open Sans", sans-serif;
+  background-color: #ffcc00 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+  box-shadow: none !important;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] #edit-actions .form-submit:hover,
+form.comment-form[data-drupal-selector="comment-form"] #edit-actions .form-submit:hover,
+form.comment-form[data-drupal-selector="comment-form"] #edit-actions .button:hover,
+form.comment-form [data-drupal-selector="edit-actions"] .form-submit:hover,
+form.comment-form [data-drupal-selector="edit-actions"] .button:hover,
+form[data-drupal-selector^="comment-"] [data-drupal-selector="edit-actions"] .form-submit:hover,
+form[data-drupal-selector^="comment-"] [data-drupal-selector="edit-actions"] .button:hover {
+  background-color: #e6b800 !important;
+}
+
+form.comment-comment-form.comment-form[data-drupal-selector="comment-form"] #edit-comment-body-wrapper textarea,
+form.comment-form[data-drupal-selector="comment-form"] #edit-comment-body-wrapper textarea,
+form.comment-form #edit-comment-body-wrapper .form-textarea,
+form[data-drupal-selector^="comment-"] #edit-comment-body-wrapper .form-textarea,
+form.comment-form .js-form-type-textarea .form-textarea,
+form[data-drupal-selector^="comment-"] .js-form-type-textarea .form-textarea {
+  width: 100%;
+  min-height: 120px;
+  border: 1px solid #d9d9d9 !important;
+  border-radius: 8px;
+  padding: 12px;
+  box-sizing: border-box;
+  background-color: #fff;
+}
+
 .contenting [role="navigation"] {
   position: absolute;
   left: 0;
@@ -4598,6 +4748,10 @@ select {
 
   .sm\:p-10 {
     padding: 2.5rem;
+  }
+
+  .sm\:p-12 {
+    padding: 3rem;
   }
 
   .sm\:p-4 {

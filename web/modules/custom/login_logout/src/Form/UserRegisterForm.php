@@ -169,7 +169,7 @@ class UserRegisterForm extends FormBase
     }
 
     $form['#theme'] = 'user_register';
-    $form['#attached']['library'][] = 'login_logout/user-login-library';
+    $form['#attached']['library'][] = 'login_logout/user-register-library';
 
     return $form;
   }

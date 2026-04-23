@@ -1,5 +1,5 @@
 user-login-library:
-  version: 9.x
+  version: VERSION
   css:
     layout:
       css/user-login.css: {}
@@ -10,7 +10,7 @@ user-login-library:
 
 
 user-register-library:
-  version: 9.x
+  version: VERSION
   css:
     layout:
       css/user-register.css: {}
@@ -20,7 +20,7 @@ user-register-library:
     js/user-register.js: { attributes: { type: module } }
 
 auto_dismiss_messages:
-  version: 1.x
+  version: VERSION
   js:
     js/auto-dismiss.js: {}
   dependencies:

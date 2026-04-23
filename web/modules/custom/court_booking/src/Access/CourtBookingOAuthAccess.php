@@ -11,20 +11,19 @@ use Drupal\Core\Session\AccountInterface;
 final class CourtBookingOAuthAccess {
 
   /**
-   * Slot candidates or calendar: booking page or add permission.
+   * Public read-only availability endpoints.
    */
   public static function candidatesOrAvailability(AccountInterface $account): AccessResult {
-    if ($account->hasPermission('access court booking page') || $account->hasPermission('use court booking add')) {
-      return AccessResult::allowed()->cachePerPermissions();
-    }
-    return AccessResult::forbidden()->cachePerPermissions();
+    $isPublicRead = $account->isAnonymous() || $account->isAuthenticated();
+    return AccessResult::allowedIf($isPublicRead)->cachePerPermissions();
   }
 
   /**
    * Add-to-cart style operations.
    */
   public static function addPermission(AccountInterface $account): AccessResult {
-    return AccessResult::allowedIfHasPermission($account, 'use court booking add')
+    $allowed = $account->isAuthenticated() && $account->hasPermission('use court booking add');
+    return AccessResult::allowedIf($allowed)
       ->cachePerPermissions();
   }
 

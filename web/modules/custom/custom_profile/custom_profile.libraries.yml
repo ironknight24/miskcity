@@ -12,6 +12,7 @@ profile_assets:
     - core/jquery
     - core/drupal
     - core/drupalSettings
+    - core/once
 
 add-family-member-library:
   version: 1.x

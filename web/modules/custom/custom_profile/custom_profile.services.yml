@@ -30,8 +30,8 @@ services:
     class: Drupal\custom_profile\Service\PasswordChangeService
     arguments:
       - '@global_module.global_variables'
-      - '@global_module.vault_config_service'
-      - '@global_module.api_http_client'
       - '@logger.factory'
       - '@current_user'
       - '@session'
+      - '@global_module.vault_config_service'
+      - '@global_module.api_http_client'

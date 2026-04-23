@@ -123,7 +123,7 @@ class LoginSubmitHandler {
    */
   public function handleFormSubmission(array &$form, FormStateInterface $form_state) {
     unset($form);
-    $email = $form_state->getValue('email');
+    $email = mb_strtolower(trim((string) $form_state->getValue('email')));
     if ($form_state->get('email_validated')) {
       $this->handlePasswordStep($email, $form_state);
     } else {

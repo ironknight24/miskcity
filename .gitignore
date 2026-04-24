@@ -38,3 +38,4 @@ node_modules/
 # PHPUnit / Sonar coverage artifacts (directory tracked via coverage/.gitkeep)
 /coverage/*
 !/coverage/.gitkeep
+*.sql

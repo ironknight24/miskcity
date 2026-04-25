@@ -1,0 +1,45 @@
+<?php
+
+/**
+ * @file
+ * Install hooks for Event booking.
+ */
+
+use Drupal\user\Entity\Role;
+
+/**
+ * Implements hook_install().
+ */
+function event_booking_install(): void {
+  $role = Role::load('authenticated');
+  if ($role && !$role->hasPermission('use event booking api')) {
+    $role->grantPermission('use event booking api');
+    $role->save();
+  }
+}
+
+/**
+ * Seed event node reverse-lookup settings for receipts (event references variation).
+ */
+function event_booking_update_9002(): void {
+  $config = \Drupal::configFactory()->getEditable('event_booking.settings');
+  if ($config->get('event_node_bundle') === NULL || $config->get('event_node_bundle') === '') {
+    $config->set('event_node_bundle', 'events');
+  }
+  if ($config->get('event_ticket_variation_field') === NULL || $config->get('event_ticket_variation_field') === '') {
+    $config->set('event_ticket_variation_field', 'field_prod_event_variation');
+  }
+  $config->save();
+}
+
+/**
+ * Align ticket variation field default with Events content type (field_prod_event_variation).
+ */
+function event_booking_update_9003(): void {
+  $config = \Drupal::configFactory()->getEditable('event_booking.settings');
+  $current = $config->get('event_ticket_variation_field');
+  if ($current === NULL || $current === '' || $current === 'field_product_ticket_variation') {
+    $config->set('event_ticket_variation_field', 'field_prod_event_variation');
+    $config->save();
+  }
+}

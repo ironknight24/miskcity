@@ -1,0 +1,54 @@
+--- a/src/Plugin/Validation/Constraint/BatAvailabilityConstraintValidator.php	2026-04-25 06:56:38.649051226 +0000
++++ b/src/Plugin/Validation/Constraint/BatAvailabilityConstraintValidator.php	2026-04-25 06:56:49.463730000 +0000
+@@ -160,15 +160,48 @@
+       }
+     }
+     if ($end && $end <= $start && $mode === 'lesson') {
+-      $length = max(15, $this->availabilityManager->getLessonSlotLength($variation));
+-      $end = $start->add(new \DateInterval('PT' . $length . 'M'));
++      $this->context->buildViolation($constraint->message, [
++        '%label' => $variation->label(),
++      ])->addViolation();
++      return;
+     }
+     if ($end <= $start) {
+       if ($mode === 'rental') {
+         $end = $start->add(new \DateInterval('P1D'));
+       }
+       else {
+-        $end = $start->add(new \DateInterval('PT1S'));
++        $this->context->buildViolation($constraint->message, [
++          '%label' => $variation->label(),
++        ])->addViolation();
++        return;
++      }
++    }
++    if ($mode === 'lesson') {
++      $cb_config = $this->configFactory->get('court_booking.settings');
++      $open_hm = (string) ($cb_config->get('booking_day_start') ?: '06:00');
++      $close_hm = (string) ($cb_config->get('booking_day_end') ?: '23:00');
++      $open_parts = array_map('intval', explode(':', $open_hm . ':00', 3));
++      $close_parts = array_map('intval', explode(':', $close_hm . ':00', 3));
++      $open_m = $open_parts[0] * 60 + ($open_parts[1] ?? 0);
++      $close_m = $close_parts[0] * 60 + ($close_parts[1] ?? 0);
++      if ($open_m < $close_m) {
++        $site_tz_id = $this->configFactory->get('system.date')->get('timezone.default') ?: 'UTC';
++        try {
++          $site_tz = new \DateTimeZone($site_tz_id);
++        }
++        catch (\Throwable $e) {
++          $site_tz = new \DateTimeZone('UTC');
++        }
++        $start_local = $start->setTimezone($site_tz);
++        $end_local = $end->setTimezone($site_tz);
++        $start_m = (int) $start_local->format('G') * 60 + (int) $start_local->format('i');
++        $end_m = (int) $end_local->format('G') * 60 + (int) $end_local->format('i');
++        if ($start_m < $open_m || $end_m > $close_m || $end_m < $start_m) {
++          $this->context->buildViolation($constraint->message, [
++            '%label' => $variation->label(),
++          ])->addViolation();
++          return;
++        }
+       }
+     }
+     $quantity = max(1, (int) $entity->getQuantity());

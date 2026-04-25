@@ -1,0 +1,39 @@
+event_booking.settings:
+  type: config_object
+  label: 'Event booking settings'
+  mapping:
+    commerce_store_id:
+      type: string
+      label: 'Commerce store ID (numeric)'
+    order_type_id:
+      type: string
+      label: 'Commerce order type ID for carts'
+    default_variation_id:
+      type: integer
+      label: 'Default product variation ID for general ticket'
+    allowed_variation_ids:
+      type: sequence
+      label: 'Allowed variation IDs (empty = any published purchasable variation in store)'
+      sequence:
+        type: integer
+    max_quantity_per_request:
+      type: integer
+      label: 'Maximum tickets per add-to-cart request'
+    event_node_bundle:
+      type: string
+      label: 'Machine name of the event content type (node bundle)'
+    event_ticket_variation_field:
+      type: string
+      label: 'Machine name of the event node field referencing the ticket product variation'
+    variation_event_reference_field:
+      type: string
+      label: 'Optional legacy machine name of variation field referencing the event (receipt fallback only)'
+    event_date_range_field:
+      type: string
+      label: 'Machine name of event node daterange field'
+    event_image_field:
+      type: string
+      label: 'Machine name of event node image field'
+    event_location_field:
+      type: string
+      label: 'Machine name of event node location field'

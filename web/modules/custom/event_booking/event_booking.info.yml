@@ -1,0 +1,18 @@
+name: 'Event booking'
+type: module
+description: 'REST API for event ticket cart, portal user verification, checkout, and receipts.'
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - commerce:commerce
+  - commerce:commerce_cart
+  - commerce:commerce_order
+  - commerce:commerce_product
+  - commerce:commerce_checkout
+  - commerce:commerce_store
+  - commerce:commerce_payment
+  - commerce_stock:commerce_stock
+  - node:node
+  - global_module:global_module
+  - login_logout:login_logout
+  - court_booking:court_booking

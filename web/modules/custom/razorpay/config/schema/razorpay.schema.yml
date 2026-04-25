@@ -1,0 +1,27 @@
+commerce_payment.commerce_payment_gateway.plugin.razorpay:
+  type: commerce_payment_gateway_configuration
+  mapping:
+    key_id:
+      type: string
+      label: 'Key ID'
+    key_secret:
+      type: string
+      label: 'Key Secret'
+    payment_action:
+      type: string
+      label: 'Payment Action'
+
+razorpay.settings:
+  type: config_object
+  label: 'Razorpay settings'
+  mapping:
+    razorpay_flags:
+      type: mapping
+      label: 'Razorpay webhook flags'
+      mapping:
+        webhook_secret:
+          type: string
+          label: 'Webhook secret'
+        webhook_enable_at:
+          type: integer
+          label: 'Webhook enable timestamp'

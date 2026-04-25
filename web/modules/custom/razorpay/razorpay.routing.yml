@@ -1,0 +1,33 @@
+razorpay.capture_payment:
+  path: '/capturePayment'
+  defaults:
+    _controller: '\Drupal\razorpay\Controller\RzpController::capturePayment'
+  requirements:
+    _access: 'TRUE'
+
+razorpay.ipn_handler:
+  path: '/payment/ipn-handler'
+  defaults:
+    _controller: '\Drupal\razorpay\Controller\IPNController::handleIPN'
+    _title: 'IPN Handler'
+  methods: [POST]
+  requirements:
+    _csrf_token: 'TRUE'
+
+# Legacy route name bridge for transition from drupal_commerce_razorpay.
+drupal_commerce_razorpay.capturePayment:
+  path: '/capturePayment'
+  defaults:
+    _controller: '\Drupal\razorpay\Controller\RzpController::capturePayment'
+  requirements:
+    _access: 'TRUE'
+
+# Legacy route name bridge for transition from drupal_commerce_razorpay.
+drupal_commerce_razorpay.ipn_handler:
+  path: '/payment/ipn-handler'
+  defaults:
+    _controller: '\Drupal\razorpay\Controller\IPNController::handleIPN'
+    _title: 'IPN Handler'
+  methods: [POST]
+  requirements:
+    _csrf_token: 'TRUE'

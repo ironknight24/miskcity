@@ -1,0 +1,6 @@
+event_booking.settings:
+  title: 'Event booking API'
+  description: 'Configure event store and field mappings for ticket API.'
+  parent: commerce.configuration
+  route_name: event_booking.settings
+  weight: 35

@@ -1,0 +1,11 @@
+commerce_store_id: '2'
+order_type_id: default
+default_variation_id: 7
+allowed_variation_ids: []
+max_quantity_per_request: 500
+event_node_bundle: events
+event_ticket_variation_field: field_prod_event_variation
+variation_event_reference_field: ''
+event_date_range_field: field_event_date_time
+event_image_field: field_event_image
+event_location_field: field_event_location

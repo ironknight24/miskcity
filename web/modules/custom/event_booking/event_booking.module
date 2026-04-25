@@ -1,0 +1,6 @@
+<?php
+
+/**
+ * @file
+ * Event booking: REST API for event ticket purchases.
+ */

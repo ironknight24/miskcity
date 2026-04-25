@@ -1,0 +1,8 @@
+razorpay.payment:
+  js:
+    https://checkout.razorpay.com/v1/checkout.js: { type: external }
+    js/razorpay.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
+    - core/once

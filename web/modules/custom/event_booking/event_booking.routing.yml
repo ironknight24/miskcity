@@ -1,0 +1,142 @@
+event_booking.settings:
+  path: '/admin/commerce/config/event-booking'
+  defaults:
+    _form: '\Drupal\event_booking\Form\EventBookingSettingsForm'
+    _title: 'Event booking API'
+  requirements:
+    _permission: 'administer event booking'
+
+event_booking.rest_v1_portal_verify:
+  path: '/rest/v1/event-booking/portal-user/verify'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::verifyPortalUser'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_portal_context:
+  path: '/rest/v1/event-booking/portal-user/context'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::portalUserContext'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_ticket_variation_pricing:
+  path: '/rest/v1/event-booking/ticket-variations/{commerce_product_variation}/pricing'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::ticketVariationPricing'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_product_variation:
+        type: entity:commerce_product_variation
+
+event_booking.rest_v1_cart_items:
+  path: '/rest/v1/event-booking/cart/items'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::addCartItems'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_cart:
+  path: '/rest/v1/event-booking/cart'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::getCart'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_clear_cart:
+  path: '/rest/v1/event-booking/cart/clear'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::clearCart'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_payment_details:
+  path: '/rest/v1/event-booking/orders/{commerce_order}/payment/details'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::paymentDetails'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+event_booking.rest_v1_payment_confirm:
+  path: '/rest/v1/event-booking/orders/{commerce_order}/payment/confirm'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::paymentConfirm'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+event_booking.rest_v1_receipt:
+  path: '/rest/v1/event-booking/orders/{commerce_order}/receipt'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::receipt'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+event_booking.rest_v1_my_events_upcoming:
+  path: '/rest/v1/event-booking/my-events/upcoming'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::myBookedUpcomingEvents'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_my_events_completed:
+  path: '/rest/v1/event-booking/my-events/completed'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::myBookedCompletedEvents'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::bookingApi'
+  options:
+    _auth: ['court_booking_bearer']
+
+event_booking.rest_v1_my_unified_bookings:
+  path: '/rest/v1/bookings/my'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::myUnifiedBookings'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\event_booking\Access\EventBookingOAuthAccess::unifiedBookingsApi'
+  options:
+    _auth: ['court_booking_bearer']

@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * @file
+ * Install and update hooks for Razorpay module.
+ */
+
+/**
+ * Populate Razorpay compatibility settings from legacy module if present.
+ */
+function razorpay_update_11001(): void {
+  $factory = \Drupal::configFactory();
+  $legacy = $factory->get('drupal_commerce_razorpay.settings');
+  $editable = $factory->getEditable('razorpay.settings');
+  if ($editable->get('razorpay_flags') === NULL && $legacy->get('razorpay_flags') !== NULL) {
+    $editable->set('razorpay_flags', (array) $legacy->get('razorpay_flags'))->save();
+  }
+}
+
+/**
+ * Ensure legacy Razorpay config is mirrored for backward compatibility.
+ */
+function razorpay_update_11002(): void {
+  $factory = \Drupal::configFactory();
+  $new_settings = $factory->get('razorpay.settings');
+  $legacy_editable = $factory->getEditable('drupal_commerce_razorpay.settings');
+  if ($legacy_editable->get('razorpay_flags') === NULL && $new_settings->get('razorpay_flags') !== NULL) {
+    $legacy_editable->set('razorpay_flags', (array) $new_settings->get('razorpay_flags'))->save();
+  }
+}
+
+/**
+ * Normalize existing Razorpay gateway plugin configuration on migrated sites.
+ */
+function razorpay_update_11003(): void {
+  $storage = \Drupal::entityTypeManager()->getStorage('commerce_payment_gateway');
+  /** @var \Drupal\commerce_payment\Entity\PaymentGatewayInterface[] $gateways */
+  $gateways = $storage->loadMultiple();
+  foreach ($gateways as $gateway) {
+    if ($gateway->getPluginId() !== 'razorpay') {
+      continue;
+    }
+    $configuration = $gateway->getPlugin()->getConfiguration();
+    if (isset($configuration['payment_action']) && is_array($configuration['payment_action'])) {
+      $configuration['payment_action'] = (string) (reset($configuration['payment_action']) ?: 'capture');
+      $gateway->set('configuration', $configuration);
+      $gateway->save();
+    }
+  }
+}
+

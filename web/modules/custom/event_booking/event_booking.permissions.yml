@@ -1,0 +1,7 @@
+use event booking api:
+  title: 'Use event booking REST API'
+  description: 'Call event ticket booking endpoints under /rest/v1/event-booking.'
+
+administer event booking:
+  title: 'Administer event booking'
+  description: 'Configure event store, order type, and field mappings for event booking API.'

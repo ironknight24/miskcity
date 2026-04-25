@@ -1,0 +1,7 @@
+name: Razorpay
+type: module
+description: Provides Drupal Commerce integration for Razorpay payments.
+core_version_requirement: ^11
+package: Custom
+dependencies:
+  - commerce:commerce_payment

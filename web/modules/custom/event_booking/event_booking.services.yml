@@ -1,0 +1,24 @@
+services:
+  logger.channel.event_booking:
+    parent: logger.channel_base
+    arguments: ['event_booking']
+
+  event_booking.api:
+    class: Drupal\event_booking\EventBookingApiService
+    arguments:
+      - '@commerce_cart.cart_manager'
+      - '@commerce_cart.cart_provider'
+      - '@commerce_order.order_refresh'
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@config.factory'
+      - '@http_client'
+      - '@global_module.apiman_token_service'
+      - '@global_module.vault_config_service'
+      - '@global_module.global_variables'
+      - '@file_url_generator'
+      - '@commerce_stock.service_manager'
+      - '@logger.channel.event_booking'
+      - '@court_booking.api'
+    calls:
+      - [setStringTranslation, ['@string_translation']]

@@ -44,6 +44,17 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
    | Drupal site | http://localhost:8080       |
    | phpMyAdmin  | http://localhost:8081       |
 
+### Database import (large SQL dumps)
+
+- Prefer importing via the MySQL CLI inside the `db` container (avoids phpMyAdmin PHP memory/time limits). The `db` service uses `--max_allowed_packet=256M` (see `docker-compose.yml`).
+- After importing an existing site, add `web/sites/default/settings.php` (gitignored). Copy the tracked example:
+
+  ```bash
+  cp web/sites/default/example.settings.docker.php web/sites/default/settings.php
+  ```
+
+- Some phpMyAdmin exports contain **unescaped single quotes** inside `longtext` (e.g. `ai_log.prompt`, `visitors.visitors_title`). MySQL will reject those statements. Build a sanitized file with `bash scripts/make-drupal-import-sql.sh`, then import `drupal_import.sql` instead of the raw dump (see the comment after the `ai_log` header in that file).
+
 5. **Install Drupal** (once per machine; pick one):
 
    - **Drush (recommended, same on Windows/macOS/Linux):**

@@ -9,6 +9,7 @@
 
 # Ignore Drupal's site-specific files
 /web/sites/*/settings.php
+/web/sites/*/example.settings.docker.php
 /web/sites/*/settings.local.php
 /web/sites/*/services.yml
 /web/sites/*/services.local.yml
@@ -31,6 +32,10 @@
 .DS_Store
 Thumbs.db
 
+# Local SQL dumps (large; do not commit)
+/drupal.sql
+/drupal_import.sql
+
 # Other common excludes
 node_modules/
 .sass-cache/
@@ -39,3 +44,4 @@ node_modules/
 /coverage/*
 !/coverage/.gitkeep
 *.sql
+scripts/

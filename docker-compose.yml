@@ -40,6 +40,8 @@ services:
       --innodb_buffer_pool_size=1024M
       --innodb_flush_log_at_trx_commit=2
       --skip-log-bin
+      --max_allowed_packet=256M
+      --sql_mode=NO_ENGINE_SUBSTITUTION
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: drupal

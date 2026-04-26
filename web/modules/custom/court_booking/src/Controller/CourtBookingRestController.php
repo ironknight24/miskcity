@@ -71,6 +71,22 @@ final class CourtBookingRestController extends ControllerBase {
   }
 
   /**
+   * GET completed-order court bookings whose rental end is still in the future.
+   */
+  public function myBookingsUpcoming(Request $request): JsonResponse {
+    $result = $this->courtBookingApi->buildMyBookingsResponse($this->currentUser(), 'upcoming', $this->extractListParams($request));
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * GET completed-order court bookings whose rental end is in the past.
+   */
+  public function myBookingsPast(Request $request): JsonResponse {
+    $result = $this->courtBookingApi->buildMyBookingsResponse($this->currentUser(), 'past', $this->extractListParams($request));
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
    * POST add cart line.
    */
   public function addLineItem(Request $request): JsonResponse {
@@ -105,6 +121,39 @@ final class CourtBookingRestController extends ControllerBase {
   public function deleteLineItem(OrderItemInterface $commerce_order_item): JsonResponse {
     $result = $this->courtBookingApi->cancelBookingLineItem($this->currentUser(), $commerce_order_item);
     return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * POST clears all line items from the current user's court draft cart.
+   */
+  public function clearCart(Request $request): JsonResponse {
+    $raw = $request->getContent();
+    $data = $raw !== '' ? json_decode($raw, TRUE) : [];
+    if (!is_array($data)) {
+      throw new BadRequestHttpException(self::INVALID_JSON_BODY);
+    }
+    $result = $this->courtBookingApi->clearCart($this->currentUser());
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * @return array{page: int, limit: int, q: string, sport_tid: int}
+   */
+  private function extractListParams(Request $request): array {
+    $page = max(0, (int) $request->query->get('page', 0));
+    $limit = (int) $request->query->get('limit', 10);
+    if ($limit <= 0) {
+      $limit = 10;
+    }
+    $limit = min($limit, 50);
+    $q = trim((string) $request->query->get('q', ''));
+    $sport_tid = max(0, (int) $request->query->get('sport_tid', 0));
+    return [
+      'page' => $page,
+      'limit' => $limit,
+      'q' => $q,
+      'sport_tid' => $sport_tid,
+    ];
   }
 
 }

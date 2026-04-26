@@ -7,6 +7,7 @@ use Drupal\commerce_bat\Util\DateTimeHelper;
 use Drupal\commerce_cart\CartManagerInterface;
 use Drupal\commerce_cart\CartProviderInterface;
 use Drupal\commerce_checkout\CheckoutOrderManagerInterface;
+use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_order\OrderRefreshInterface;
 use Drupal\commerce_product\Entity\ProductInterface;
@@ -14,9 +15,12 @@ use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\commerce_store\CurrentStoreInterface;
 use Drupal\Core\Config\ConfigFactoryInterface;
+use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
+use Drupal\file\FileInterface;
 use Drupal\node\NodeInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
@@ -40,6 +44,8 @@ final class CourtBookingApiService {
     protected ConfigFactoryInterface $configFactory,
     protected CheckoutOrderManagerInterface $checkoutOrderManager,
     protected CourtBookingSportSettings $sportSettings,
+    protected EntityTypeManagerInterface $entityTypeManager,
+    protected FileUrlGeneratorInterface $fileUrlGenerator,
   ) {}
 
   /**
@@ -620,6 +626,380 @@ final class CourtBookingApiService {
       'order_id' => (int) $order->id(),
       'order_item_id' => (int) $commerce_order_item->id(),
     ]];
+  }
+
+  /**
+   * Clears all line items from the current user's court booking draft cart.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function clearCart(AccountInterface $account): array {
+    if (!$account->isAuthenticated()) {
+      return ['status' => 401, 'data' => ['message' => (string) $this->t('Authentication required.')]];
+    }
+    $store = $this->currentStore->getStore();
+    if (!$store) {
+      return ['status' => 500, 'data' => ['message' => (string) $this->t('No active store is configured.')]];
+    }
+    $order_type = (string) ($this->configFactory->get('court_booking.settings')->get('order_type_id') ?: 'default');
+    $cart = $this->cartProvider->getCart($order_type, $store, $account);
+    if (!$cart instanceof OrderInterface) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('No active court cart.')]];
+    }
+    if ((int) $cart->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+
+    $this->orderRefresh->refresh($cart);
+    if ($cart->getState()->getId() !== 'draft') {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Only draft carts can be cleared.'),
+        'state' => $cart->getState()->getId(),
+      ]];
+    }
+
+    $removed_count = 0;
+    try {
+      $items = $cart->getItems();
+      foreach ($items as $item) {
+        if (method_exists($cart, 'removeItem')) {
+          $cart->removeItem($item);
+        }
+        $item->delete();
+        $removed_count++;
+      }
+      $this->orderRefresh->refresh($cart);
+      $cart->save();
+      if (function_exists('commerce_bat_sync_order_events')) {
+        \commerce_bat_sync_order_events($cart);
+      }
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('court_booking clear cart failed for order @order: @msg', [
+        '@order' => (int) $cart->id(),
+        '@msg' => $e->getMessage(),
+      ]);
+      return ['status' => 500, 'data' => ['message' => (string) $this->t('Could not clear court cart.')]];
+    }
+
+    return ['status' => 200, 'data' => [
+      'status' => 'ok',
+      'message' => (string) $this->t('Cart cleared.'),
+      'order_id' => (int) $cart->id(),
+      'removed_count' => $removed_count,
+      'remaining_items' => count($cart->getItems()),
+    ]];
+  }
+
+  /**
+   * Lists authenticated user's completed court bookings (upcoming or past).
+   *
+   * @param array<string, int|string> $params
+   *   Keys: page, limit, q, sport_tid (optional).
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildMyBookingsResponse(AccountInterface $account, string $bucket, array $params): array {
+    if (!$account->isAuthenticated()) {
+      return ['status' => 401, 'data' => ['message' => (string) $this->t('Authentication required.')]];
+    }
+    $bucket = mb_strtolower(trim($bucket));
+    if (!in_array($bucket, ['upcoming', 'past'], TRUE)) {
+      $bucket = 'upcoming';
+    }
+    $page = max(0, (int) ($params['page'] ?? 0));
+    $limit = (int) ($params['limit'] ?? 10);
+    if ($limit <= 0) {
+      $limit = 10;
+    }
+    $limit = min($limit, 50);
+    $q = mb_strtolower(trim((string) ($params['q'] ?? '')));
+    $sport_tid = max(0, (int) ($params['sport_tid'] ?? 0));
+
+    $cb_config = $this->configFactory->get('court_booking.settings');
+    $order_type_id = (string) ($cb_config->get('order_type_id') ?: 'default');
+    $store = $this->currentStore->getStore();
+
+    $order_storage = $this->entityTypeManager->getStorage('commerce_order');
+    $query = $order_storage->getQuery()
+      ->accessCheck(TRUE)
+      ->condition('uid', (int) $account->id())
+      ->condition('state', 'completed')
+      ->condition('type', $order_type_id)
+      ->sort('order_id', 'DESC');
+    if ($store) {
+      $query->condition('store_id', $store->id());
+    }
+    $order_ids = $query->execute();
+    if (!$order_ids) {
+      return ['status' => 200, 'data' => $this->buildMyBookingsPagerResponse([], $page, $limit)];
+    }
+
+    $orders = $order_storage->loadMultiple($order_ids);
+    $variation_orders = $this->completedOrderIdsByVariation($orders);
+    $now = \Drupal::time()->getRequestTime();
+    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $candidates = [];
+
+    foreach ($orders as $order) {
+      if (!$order instanceof OrderInterface) {
+        continue;
+      }
+      foreach ($order->getItems() as $item) {
+        $rental_meta = $this->bookingRentalTimestamps($item);
+        if ($rental_meta === NULL) {
+          continue;
+        }
+        $end_ts = $rental_meta['end_ts'];
+        $is_upcoming = $end_ts >= $now;
+        if (($bucket === 'upcoming' && !$is_upcoming) || ($bucket === 'past' && $is_upcoming)) {
+          continue;
+        }
+        $purchased = $item->getPurchasedEntity();
+        if (!$purchased instanceof ProductVariationInterface) {
+          continue;
+        }
+        $variation_id = (int) $purchased->id();
+        if ($sport_tid > 0 && \court_booking_sport_tid_for_variation($purchased) !== $sport_tid) {
+          continue;
+        }
+        $court_node = \court_booking_variation_published_court_node($purchased);
+        if ($court_node instanceof NodeInterface && !$court_node->access('view', $account)) {
+          $court_node = NULL;
+        }
+        $title = $court_node ? $court_node->getTitle() : (string) $item->getTitle();
+        $location = $court_node ? \court_booking_court_location_label($court_node) : '';
+        if ($q !== '' && !$this->bookingRowMatchesQuery($q, $title, $location)) {
+          continue;
+        }
+        $thumb = CourtBookingVariationThumbnail::data($purchased, $this->fileUrlGenerator);
+        $image = $thumb['url'] ?? NULL;
+        $start_raw = $rental_meta['start_raw'];
+        $end_raw = $rental_meta['end_raw'];
+        $rental = [
+          'value' => $start_raw,
+          'end_value' => $end_raw,
+          'timezone' => $tz_id,
+        ];
+        $rental += $this->rentalUtcStringsToDisplayIso($start_raw, $end_raw, $tz_id, (int) $item->id());
+
+        $row = [
+          'order_id' => (int) $order->id(),
+          'order_ids' => $variation_id ? ($variation_orders[$variation_id] ?? [(int) $order->id()]) : [(int) $order->id()],
+          'order_item_id' => (int) $item->id(),
+          'variation_id' => $variation_id,
+          'title' => $title,
+          'quantity' => (string) $item->getQuantity(),
+          'rental' => $rental,
+          'location' => $location !== '' ? $location : NULL,
+          'image' => $image,
+          'state' => $order->getState()->getId(),
+          '_sort_start' => $rental_meta['start_ts'],
+        ];
+        if ($court_node instanceof NodeInterface) {
+          $row['nid'] = (int) $court_node->id();
+          $row['fields'] = $this->serializeCourtNodeFields($court_node);
+        }
+        else {
+          $row['fields'] = [];
+        }
+        $candidates[] = $row;
+      }
+    }
+
+    usort($candidates, static function (array $a, array $b) use ($bucket): int {
+      $sa = (int) ($a['_sort_start'] ?? 0);
+      $sb = (int) ($b['_sort_start'] ?? 0);
+      return $bucket === 'past' ? $sb <=> $sa : $sa <=> $sb;
+    });
+
+    foreach ($candidates as &$row) {
+      unset($row['_sort_start']);
+    }
+    unset($row);
+
+    return ['status' => 200, 'data' => $this->buildMyBookingsPagerResponse($candidates, $page, $limit)];
+  }
+
+  /**
+   * @param \Drupal\commerce_order\Entity\OrderInterface[] $orders
+   *
+   * @return array<int, int[]>
+   */
+  private function completedOrderIdsByVariation(array $orders): array {
+    $map = [];
+    foreach ($orders as $order) {
+      if (!$order instanceof OrderInterface) {
+        continue;
+      }
+      if ($order->getState()->getId() !== 'completed') {
+        continue;
+      }
+      $oid = (int) $order->id();
+      foreach ($order->getItems() as $item) {
+        $purchased = $item->getPurchasedEntity();
+        if (!$purchased instanceof ProductVariationInterface) {
+          continue;
+        }
+        if (!$item->hasField('field_cbat_rental_date') || $item->get('field_cbat_rental_date')->isEmpty()) {
+          continue;
+        }
+        $vid = (int) $purchased->id();
+        $map[$vid][$oid] = TRUE;
+      }
+    }
+    $out = [];
+    foreach ($map as $vid => $oids) {
+      $ids = array_keys($oids);
+      sort($ids, SORT_NUMERIC);
+      $out[$vid] = $ids;
+    }
+    return $out;
+  }
+
+  /**
+   * @return array{start_ts: int, end_ts: int, start_raw: string, end_raw: string}|null
+   */
+  private function bookingRentalTimestamps(OrderItemInterface $item): ?array {
+    if (!$item->hasField('field_cbat_rental_date') || $item->get('field_cbat_rental_date')->isEmpty()) {
+      return NULL;
+    }
+    $val = $item->get('field_cbat_rental_date')->first()->getValue();
+    $start_s = trim((string) ($val['value'] ?? ''));
+    $end_s = trim((string) ($val['end_value'] ?? ''));
+    if ($start_s === '' || $end_s === '') {
+      return NULL;
+    }
+    try {
+      $start_utc = DateTimeHelper::normalizeUtc(DateTimeHelper::parseUtc($start_s, FALSE));
+      $end_utc = DateTimeHelper::normalizeUtc(DateTimeHelper::parseUtc($end_s, FALSE));
+      return [
+        'start_ts' => $start_utc->getTimestamp(),
+        'end_ts' => $end_utc->getTimestamp(),
+        'start_raw' => $start_s,
+        'end_raw' => $end_s,
+      ];
+    }
+    catch (\Throwable $e) {
+      $this->logger->warning('my-bookings: rental parse failed for order_item=@id: @msg', [
+        '@id' => (string) $item->id(),
+        '@msg' => $e->getMessage(),
+      ]);
+      return NULL;
+    }
+  }
+
+  private function bookingRowMatchesQuery(string $q, string $title, string $location): bool {
+    $haystack = mb_strtolower($title . ' ' . $location);
+    return $q === '' || str_contains($haystack, $q);
+  }
+
+  /**
+   * @return array{start?: string, end?: string}
+   */
+  private function rentalUtcStringsToDisplayIso(string $value, string $end_value, string $tz_id, int $order_item_id): array {
+    $out = [];
+    try {
+      $tz = new \DateTimeZone($tz_id);
+    }
+    catch (\Throwable $e) {
+      $this->logger->warning('my-bookings: invalid timezone @tz for order_item=@id: @msg', [
+        '@tz' => $tz_id,
+        '@id' => (string) $order_item_id,
+        '@msg' => $e->getMessage(),
+      ]);
+      return $out;
+    }
+    foreach ([['raw' => $value, 'key' => 'start'], ['raw' => $end_value, 'key' => 'end']] as $spec) {
+      $raw = trim($spec['raw']);
+      if ($raw === '') {
+        continue;
+      }
+      try {
+        $utc = DateTimeHelper::normalizeUtc(DateTimeHelper::parseUtc($raw, FALSE));
+        $out[$spec['key']] = $utc->setTimezone($tz)->format(DATE_ATOM);
+      }
+      catch (\Throwable $e) {
+        $this->logger->warning('my-bookings: could not format @key for order_item=@id: @msg', [
+          '@key' => $spec['key'],
+          '@id' => (string) $order_item_id,
+          '@msg' => $e->getMessage(),
+        ]);
+      }
+    }
+    return $out;
+  }
+
+  /**
+   * @return array{rows: array<int, mixed>, pager: array<string, mixed>}
+   */
+  private function buildMyBookingsPagerResponse(array $rows, int $page, int $limit): array {
+    $total = count($rows);
+    $total_pages = $limit > 0 ? (int) ceil($total / $limit) : 1;
+    if ($total_pages <= 0) {
+      $total_pages = 1;
+    }
+    $offset = $page * $limit;
+    $paged_rows = $limit > 0 ? array_slice($rows, $offset, $limit) : $rows;
+    return [
+      'rows' => array_values($paged_rows),
+      'pager' => [
+        'current_page' => $page,
+        'total_items' => (string) $total,
+        'total_pages' => $total_pages,
+        'items_per_page' => $limit,
+      ],
+    ];
+  }
+
+  /**
+   * @return array<string, array<int, array<string, mixed>>>
+   */
+  private function serializeCourtNodeFields(NodeInterface $node): array {
+    $fields = [];
+    foreach ($node->getFields() as $field_name => $items) {
+      $definition = $items->getFieldDefinition();
+      $storage_definition = $definition->getFieldStorageDefinition();
+      if ($storage_definition->isBaseField() || $this->isSkippedCourtNodeField($field_name)) {
+        continue;
+      }
+      $values = [];
+      foreach ($items as $item) {
+        $value = $item->getValue();
+        if (isset($item->entity) && $item->entity instanceof FileInterface) {
+          $value['url'] = $this->fileUrlGenerator->generateAbsoluteString($item->entity->getFileUri());
+        }
+        $values[] = $value;
+      }
+      $fields[$field_name] = $values;
+    }
+    ksort($fields);
+    return $fields;
+  }
+
+  private function isSkippedCourtNodeField(string $field_name): bool {
+    $skipped = [
+      'nid',
+      'uuid',
+      'vid',
+      'type',
+      'revision_timestamp',
+      'revision_uid',
+      'revision_log',
+      'revision_default',
+      'revision_translation_affected',
+      'langcode',
+      'default_langcode',
+      'status',
+      'uid',
+      'title',
+      'created',
+      'changed',
+      'promote',
+      'sticky',
+      'path',
+    ];
+    return in_array($field_name, $skipped, TRUE) || str_starts_with($field_name, 'revision_');
   }
 
 }

@@ -94,6 +94,8 @@ services:
       - '@config.factory'
       - '@commerce_checkout.checkout_order_manager'
       - '@court_booking.sport_settings'
+      - '@entity_type.manager'
+      - '@file_url_generator'
     calls:
       - [setStringTranslation, ['@string_translation']]
 

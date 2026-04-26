@@ -2,6 +2,7 @@
 
 namespace Drupal\court_booking;
 
+use Drupal\commerce_bat\Util\DateTimeHelper;
 use Drupal\commerce_cart\CartProviderInterface;
 use Drupal\commerce_checkout\Event\CheckoutEvents;
 use Drupal\commerce_order\Entity\OrderInterface;
@@ -63,8 +64,17 @@ final class CommerceCheckoutRestService {
 
   /**
    * Serializes cart for JSON.
+   *
+   * Rental `value` / `end_value` remain stored UTC strings (Commerce BAT).
+   * `start` / `end` are the same instants in the effective display timezone
+   * (see \Drupal\court_booking\CourtBookingRegional::effectiveTimeZoneId).
    */
-  public function buildCartPayload(OrderInterface $order): array {
+  public function buildCartPayload(OrderInterface $order, ?AccountInterface $account = NULL): array {
+    $tz_account = $account ?? $order->getCustomer();
+    if (!$tz_account instanceof AccountInterface) {
+      $tz_account = \Drupal::currentUser();
+    }
+    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $tz_account);
     $items = [];
     foreach ($order->getItems() as $item) {
       $row = [
@@ -79,7 +89,14 @@ final class CommerceCheckoutRestService {
           $row['rental'] = [
             'value' => $val['value'] ?? NULL,
             'end_value' => $val['end_value'] ?? NULL,
+            'timezone' => $tz_id,
           ];
+          $row['rental'] += $this->rentalUtcStringsToDisplayIso(
+            (string) ($val['value'] ?? ''),
+            (string) ($val['end_value'] ?? ''),
+            $tz_id,
+            (int) $item->id(),
+          );
         }
       }
       $items[] = $row;
@@ -97,6 +114,44 @@ final class CommerceCheckoutRestService {
         'step' => $checkout_step ?: 'order_information',
       ], ['absolute' => TRUE])->toString(),
     ];
+  }
+
+  /**
+   * Converts stored UTC rental strings to ISO-8601 in the display timezone.
+   *
+   * @return array{start?: string, end?: string}
+   */
+  private function rentalUtcStringsToDisplayIso(string $value, string $end_value, string $tz_id, int $order_item_id): array {
+    $out = [];
+    try {
+      $tz = new \DateTimeZone($tz_id);
+    }
+    catch (\Throwable $e) {
+      $this->logger->warning('court_booking cart rental: invalid timezone @tz for order_item=@id: @msg', [
+        '@tz' => $tz_id,
+        '@id' => (string) $order_item_id,
+        '@msg' => $e->getMessage(),
+      ]);
+      return $out;
+    }
+    foreach ([['raw' => $value, 'key' => 'start'], ['raw' => $end_value, 'key' => 'end']] as $spec) {
+      $raw = trim($spec['raw']);
+      if ($raw === '') {
+        continue;
+      }
+      try {
+        $utc = DateTimeHelper::normalizeUtc(DateTimeHelper::parseUtc($raw, FALSE));
+        $out[$spec['key']] = $utc->setTimezone($tz)->format(DATE_ATOM);
+      }
+      catch (\Throwable $e) {
+        $this->logger->warning('court_booking cart rental: could not format @key for order_item=@id: @msg', [
+          '@key' => $spec['key'],
+          '@id' => (string) $order_item_id,
+          '@msg' => $e->getMessage(),
+        ]);
+      }
+    }
+    return $out;
   }
 
   /**

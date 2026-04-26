@@ -44,10 +44,13 @@ Availability endpoints are public and do not require a bearer token.
 |--------|------|--------------|-------|
 | POST | `/rest/v1/auth/login` | JSON: `email`, `password` | Public login endpoint; returns OAuth token payload for API clients |
 | GET | `/rest/v1/court-booking/sports` | — | Full bootstrap payload for app clients (sports, variations, merged booking rules, date strip) |
+| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q`, optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is still in the future (`rows` + `pager`). |
+| GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is before now. |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval` | Rule-aware timeslots only from `court_booking.settings` |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Same as `GET /commerce-bat/check/{id}` → `{ "available": bool }` |
 | POST | `/rest/v1/court-booking/slot-candidates` | JSON: `ymd`, `duration_minutes` or `duration_hours`, `variation_ids`, `quantity` | Staggered candidates when buffer > 0 |
 | POST | `/rest/v1/court-booking/cart/line-items` | JSON: `variation_id`, `start`, `end`, `quantity` | Adds validated line; response includes `order_id`, `order_item_id`, `total`, `checkout_url` |
+| POST | `/rest/v1/court-booking/cart/clear` | Optional JSON body `{}` | Clears **all** lines from current user's **draft** court cart; triggers BAT sync. Use `Content-Type: application/json` (or send empty body). |
 | PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user's cart |
 | POST | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | Optional JSON body `{}` | Cancels/removes a draft cart booking line item (no refund automation). **POST** (not DELETE) for broader client/proxy compatibility. |
 
@@ -57,7 +60,7 @@ Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/sl
 
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
-| GET | `/rest/v1/commerce/cart` | — | Current cart for the **court booking order type** (from `court_booking.settings`). |
+| GET | `/rest/v1/commerce/cart` | — | Current cart for the **court booking order type** (from `court_booking.settings`). Line item `rental` includes UTC storage (`value` / `end_value`) plus `start` / `end` in the effective display timezone (see step 8). |
 | POST | `/rest/v1/commerce/orders/{order_id}/checkout/complete` | See below | Completes checkout for **manual** gateways or **zero balance**. |
 | POST | `/rest/v1/commerce/orders/{order_id}/payment/failure` | JSON: `gateway`, `code`, `message`, optional `raw` | Authenticated client-reported payment failure audit endpoint (cancel-only policy). |
 | POST | `/rest/v1/commerce/payments/webhook` | JSON webhook payload + signature headers | Gateway callback endpoint, idempotent and signature-validated. |
@@ -261,6 +264,32 @@ This response mirrors booking page bootstrap data for mobile:
 
 ---
 
+### 2A. My court bookings — upcoming and past (authenticated)
+
+These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is still at or after the current time; **past** means the rental **end** is before now.
+
+Query params (both endpoints): `page` (default `0`), `limit` (default `10`, max `50`), `q` (optional search on title and location), `sport_tid` (optional; same taxonomy id as `sports[].id`).
+
+`rental` on each row includes UTC storage (`value` / `end_value`), `timezone`, and display instants `start` / `end` (ISO-8601 with offset), same semantics as `GET /rest/v1/commerce/cart`.
+
+```bash
+curl -s -X GET \
+  "http://localhost:8080/rest/v1/court-booking/my-bookings/upcoming?page=0&limit=10&q=padel&sport_tid=3" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```bash
+curl -s -X GET \
+  "http://localhost:8080/rest/v1/court-booking/my-bookings/past?page=0&limit=10" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: application/json"
+```
+
+Unified court + event feed (separate pagers): `GET /rest/v1/bookings/my` — documented in `event_booking` **EVENT_BOOKING_API.md**.
+
+---
+
 ### 3. Get court availability calendar
 
 ```bash
@@ -403,6 +432,42 @@ curl -X PATCH \
 
 ---
 
+### 7A. Clear entire court cart (draft only)
+
+Removes **all** order line items from the authenticated user’s active **court booking** cart (`court_booking.settings` → `order_type_id`). Only **`draft`** carts are cleared (`409` otherwise). After save, `commerce_bat_sync_order_events` runs when available so court availability stays consistent.
+
+Prefer **`Content-Type: application/json`** with body `{}`. An **empty** POST body is also accepted. Avoid `Content-Type: text/plain` unless the body is valid JSON (e.g. `{}`), otherwise JSON decoding may fail with `400`.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/cart/clear" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{}'
+```
+
+**Successful response (`200`)**
+
+```json
+{
+  "status": "ok",
+  "message": "Cart cleared.",
+  "order_id": 5,
+  "removed_count": 2,
+  "remaining_items": 0
+}
+```
+
+**Errors**
+
+- `401`: not authenticated.
+- `404`: no active court cart for this user/store.
+- `409`: cart exists but is not `draft`.
+- `500`: unexpected failure while clearing.
+
+---
+
 ### 8. Get current cart
 
 ```bash
@@ -411,6 +476,12 @@ curl -X GET \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Accept: application/json"
 ```
+
+**Rental times**
+
+- `value` and `end_value` are the **raw stored** rental range (Commerce BAT / field storage in **UTC**), unchanged for backward compatibility.
+- `timezone` is the IANA id used for display (same rules as the booking UI: per-user timezone when configurable and set, otherwise site default from **Configuration » Regional and language » Regional settings**).
+- `start` and `end` are the **same instants** expressed as ISO-8601 strings **with numeric offset** in that `timezone` (use these for UI that should match local wall clock).
 
 **Successful response:**
 
@@ -427,8 +498,11 @@ curl -X GET \
       "title": "Badminton Court A",
       "quantity": "1",
       "rental": {
-        "value": "2026-05-10T09:00:00",
-        "end_value": "2026-05-10T10:00:00"
+        "value": "2026-05-10T04:30:00",
+        "end_value": "2026-05-10T05:30:00",
+        "timezone": "Asia/Kolkata",
+        "start": "2026-05-10T10:00:00+05:30",
+        "end": "2026-05-10T11:00:00+05:30"
       }
     }
   ],
@@ -437,6 +511,7 @@ curl -X GET \
 ```
 
 ---
+
 
 ### 9. Collect payment details (`example_payment` API flow)
 
@@ -624,6 +699,7 @@ curl -X POST \
 Optional / error paths:
 
 ```
+POST   /rest/v1/court-booking/cart/clear                               → clear entire draft cart (all lines)
 POST   /rest/v1/court-booking/cart/line-items/{order_item_id}           → drop a draft line (step 12)
 POST   /rest/v1/commerce/orders/{order_id}/payment/failure              → client-reported decline (step 13)
 POST   /rest/v1/commerce/payments/webhook                               → gateway callback (step 14)
@@ -636,7 +712,7 @@ POST   /rest/v1/commerce/payments/webhook                               → gate
 | Permission | Required for |
 |---|---|
 | _None_ | GET availability, slot check, slot candidates (public) |
-| `use court booking add` | POST add line, PATCH slot, POST `…/line-items/{id}` remove draft line |
+| `use court booking add` | POST add line, POST cart clear, PATCH slot, POST `…/line-items/{id}` remove draft line |
 | `access checkout` | GET cart, POST checkout complete |
 
 ## Payment gateway audit

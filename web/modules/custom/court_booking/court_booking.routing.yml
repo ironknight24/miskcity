@@ -144,6 +144,26 @@ court_booking.rest_v1_sports:
   requirements:
     _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::candidatesOrAvailability'
 
+court_booking.rest_v1_my_bookings_upcoming:
+  path: '/rest/v1/court-booking/my-bookings/upcoming'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::myBookingsUpcoming'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
+  options:
+    _auth: ['court_booking_bearer']
+
+court_booking.rest_v1_my_bookings_past:
+  path: '/rest/v1/court-booking/my-bookings/past'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::myBookingsPast'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
+  options:
+    _auth: ['court_booking_bearer']
+
 court_booking.rest_v1_add_line:
   path: '/rest/v1/court-booking/cart/line-items'
   defaults:
@@ -181,6 +201,16 @@ court_booking.rest_v1_delete_line:
     parameters:
       commerce_order_item:
         type: entity:commerce_order_item
+
+court_booking.rest_v1_clear_cart:
+  path: '/rest/v1/court-booking/cart/clear'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::clearCart'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CourtBookingOAuthAccess::addPermission'
+  options:
+    _auth: ['court_booking_bearer']
 
 court_booking.rest_v1_commerce_cart:
   path: '/rest/v1/commerce/cart'

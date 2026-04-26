@@ -42,6 +42,14 @@ class RazorpayCheckout extends OffsitePaymentGatewayBase implements RazorpayInte
   protected ?LoggerInterface $logger = NULL;
   protected ?ConfigFactoryInterface $configFactory = NULL;
 
+  protected function resolvePaymentGatewayId(OrderInterface $order): ?string {
+    $gatewayId = NULL;
+    if ($order->hasField('payment_gateway')) {
+      $gatewayId = $order->get('payment_gateway')->target_id ?: NULL;
+    }
+    return $gatewayId ?: (method_exists($this, 'getEntityId') ? $this->getEntityId() : NULL);
+  }
+
   public function defaultConfiguration(): array {
     return [
       'key_id' => '',
@@ -158,13 +166,15 @@ class RazorpayCheckout extends OffsitePaymentGatewayBase implements RazorpayInte
         $this->logger?->error($message);
         throw new PaymentGatewayException($message);
       }
+      $gatewayId = $this->resolvePaymentGatewayId($order);
+      $paymentItem = end($paymentObject['items']);
       $payment = $this->entityTypeManager->getStorage('commerce_payment')->create([
         'state' => $status,
         'amount' => $order->getTotalPrice(),
-        'payment_gateway' => $this->entityId,
+        'payment_gateway' => $gatewayId,
         'order_id' => $order->id(),
         'test' => $this->getMode() === 'test',
-        'remote_id' => end($paymentObject['items'])->id,
+        'remote_id' => $paymentItem->id,
         'remote_state' => $remoteStatus ?: $request->get('payment_status'),
         'authorized' => $requestTime,
       ]);
@@ -279,10 +289,11 @@ class RazorpayCheckout extends OffsitePaymentGatewayBase implements RazorpayInte
           'number' => ((string) (($data['payload']['payment']['entity']['amount'] ?? 0) / 100)),
           'currency_code' => $data['payload']['payment']['entity']['currency'],
         ]);
+        $gatewayId = $this->resolvePaymentGatewayId($order);
         $payment = $paymentStorage->create([
           'state' => $state,
           'amount' => $amount,
-          'payment_gateway' => $this->entityId,
+          'payment_gateway' => $gatewayId,
           'order_id' => $orderId,
           'remote_id' => $paymentId,
           'remote_state' => $data['payload']['payment']['entity']['status'],

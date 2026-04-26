@@ -80,6 +80,7 @@
         "drush/drush": "^13.6",
         "npm-asset/chart.js": "^4.4",
         "oomphinc/composer-installers-extender": "^2.0",
+        "razorpay/razorpay": "^2.9",
         "wikimedia/composer-merge-plugin": "^2.1"
     },
     "conflict": {

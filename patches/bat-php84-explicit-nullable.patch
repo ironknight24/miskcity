@@ -157,3 +157,86 @@
      parent::__construct($entity_repository, $entity_type_bundle_info, $time);
      $this->dateFormatter = $date_formatter;
    }
+--- a/modules/bat_event/src/Plugin/views/filter/BatEventHandlerBlockingFilter.php
++++ b/modules/bat_event/src/Plugin/views/filter/BatEventHandlerBlockingFilter.php
+@@ -28,7 +28,7 @@ class BatEventHandlerBlockingFilter extends BooleanOperator {
+   /**
+    * {@inheritdoc}
+    */
+-  public function init(ViewExecutable $view, DisplayPluginBase $display, array &$options = NULL) {
++  public function init(ViewExecutable $view, DisplayPluginBase $display, ?array &$options = NULL) {
+     parent::init($view, $display, $options);
+
+     // 'value_value' is out of phpcs, required by views.
+--- a/modules/bat_event_series/src/Access/EventSeriesAddAccessCheck.php
++++ b/modules/bat_event_series/src/Access/EventSeriesAddAccessCheck.php
+@@ -43,7 +43,7 @@ class EventSeriesAddAccessCheck implements AccessInterface {
+    * @return \Drupal\Core\Access\AccessResultInterface
+    *   The access result.
+    */
+-  public function access(AccountInterface $account, EventSeriesTypeInterface $event_series_type = NULL) {
++  public function access(AccountInterface $account, ?EventSeriesTypeInterface $event_series_type = NULL) {
+     $access_control_handler = $this->entityTypeManager->getAccessControlHandler('bat_event_series');
+--- a/modules/bat_event_series/src/Form/EditRepeatingRuleConfirmationModalForm.php
++++ b/modules/bat_event_series/src/Form/EditRepeatingRuleConfirmationModalForm.php
+@@ -71,7 +71,7 @@ class EditRepeatingRuleConfirmationModalForm extends ConfirmFormBase {
+   /**
+    * {@inheritdoc}
+    */
+-  public function buildForm(array $form, FormStateInterface $form_state, EventSeries $bat_event_series = NULL) {
++  public function buildForm(array $form, FormStateInterface $form_state, ?EventSeries $bat_event_series = NULL) {
+     $this->event_series = $bat_event_series;
+--- a/modules/bat_event_series/src/Form/EditRepeatingRuleModalForm.php
++++ b/modules/bat_event_series/src/Form/EditRepeatingRuleModalForm.php
+@@ -71,7 +71,7 @@ class EditRepeatingRuleModalForm extends FormBase {
+   /**
+    * {@inheritdoc}
+    */
+-  public function buildForm(array $form, FormStateInterface $form_state, EventSeries $bat_event_series = NULL) {
++  public function buildForm(array $form, FormStateInterface $form_state, ?EventSeries $bat_event_series = NULL) {
+     $this->event_series = $bat_event_series;
+--- a/modules/bat_roomify/src/Calendar/CalendarResponse.php
++++ b/modules/bat_roomify/src/Calendar/CalendarResponse.php
+@@ -120,7 +120,7 @@ class CalendarResponse {
+    *
+    * @return bool
+    */
+-  public function removeFromMatched(UnitInterface $unit, $reason = '', Constraint $constraint = NULL) {
++  public function removeFromMatched(UnitInterface $unit, $reason = '', ?Constraint $constraint = NULL) {
+     if (isset($this->included_set[$unit->getUnitId()])) {
+--- a/modules/bat_unit/src/Plugin/Action/DeleteUnit.php
++++ b/modules/bat_unit/src/Plugin/Action/DeleteUnit.php
+@@ -91,7 +91,7 @@ class DeleteUnit extends ActionBase implements ContainerFactoryPluginInterface {
+   /**
+    * {@inheritdoc}
+    */
+-  public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
++  public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
+     return $object->access('delete', $account, $return_as_object);
+--- a/modules/bat_unit/src/Plugin/Action/PublishUnit.php
++++ b/modules/bat_unit/src/Plugin/Action/PublishUnit.php
+@@ -27,7 +27,7 @@ class PublishUnit extends ActionBase {
+   /**
+    * {@inheritdoc}
+    */
+-  public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
++  public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
+     $result = $object->access('update', $account, TRUE)
+--- a/modules/bat_unit/src/Plugin/Action/SetUnitState.php
++++ b/modules/bat_unit/src/Plugin/Action/SetUnitState.php
+@@ -91,7 +91,7 @@ class SetUnitState extends ActionBase implements ContainerFactoryPluginInterface
+   /**
+    * {@inheritdoc}
+    */
+-  public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
++  public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
+     $result = $object->access('update', $account, TRUE)
+--- a/modules/bat_unit/src/Plugin/Action/UnpublishUnit.php
++++ b/modules/bat_unit/src/Plugin/Action/UnpublishUnit.php
+@@ -27,7 +27,7 @@ class UnpublishUnit extends ActionBase {
+   /**
+    * {@inheritdoc}
+    */
+-  public function access($object, AccountInterface $account = NULL, $return_as_object = FALSE) {
++  public function access($object, ?AccountInterface $account = NULL, $return_as_object = FALSE) {
+     $access = $object->access('update', $account, TRUE)

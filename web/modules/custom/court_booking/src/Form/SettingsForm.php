@@ -9,7 +9,6 @@ use Drupal\Core\Config\TypedConfigManagerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\court_booking\CourtBookingPriceResolver;
@@ -806,6 +805,15 @@ class SettingsForm extends ConfigFormBase {
    * Validates peak/weekend schedule rows (time_band + surcharge_field).
    */
   private function validatePricingRulesStructured(FormStateInterface $form_state): void {
+    $config = $this->config('court_booking.settings');
+    $default_hours = [
+      'booking_day_start' => (string) ($config->get('booking_day_start') ?: '06:00'),
+      'booking_day_end' => (string) ($config->get('booking_day_end') ?: '23:00'),
+    ];
+    $sport_overrides = $config->get('sport_booking_overrides') ?: [];
+    if (!is_array($sport_overrides)) {
+      $sport_overrides = [];
+    }
     $vars = $form_state->getValue(['pricing_rules_tab', 'variations']);
     if (!is_array($vars)) {
       return;
@@ -875,6 +883,17 @@ class SettingsForm extends ConfigFormBase {
               '@id' => (string) $vid,
               '@n' => (string) ($i + 1),
             ]));
+          }
+          else {
+            $window = $this->resolveEffectiveOperatingWindow($vid, $default_hours, $sport_overrides);
+            if ($window !== NULL && ($sm_m < $window['start_minutes'] || $em_m > $window['end_minutes'])) {
+              $form_state->setErrorByName($base_name . '][end_time', $this->t('Variation @id, rule @n: time band must be within operating hours @start - @end.', [
+                '@id' => (string) $vid,
+                '@n' => (string) ($i + 1),
+                '@start' => $window['start_hm'],
+                '@end' => $window['end_hm'],
+              ]));
+            }
           }
         }
         $sf = strtolower(trim((string) ($row['surcharge_field'] ?? 'none')));
@@ -999,23 +1018,21 @@ class SettingsForm extends ConfigFormBase {
       '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
     ];
     $ref['start_time'] = [
-      '#type' => 'datetime',
+      '#type' => 'textfield',
       '#title' => $this->t('Start time'),
-      '#date_date_element' => 'none',
-      '#date_time_element' => 'time',
-      '#date_increment' => 60,
-      '#date_timezone' => date_default_timezone_get() ?: 'UTC',
-      '#default_value' => $this->defaultDrupalDateTimeFromHm($start_hm),
+      '#default_value' => $start_hm,
+      '#size' => 8,
+      '#maxlength' => 5,
+      '#placeholder' => 'HH:MM',
       '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
     ];
     $ref['end_time'] = [
-      '#type' => 'datetime',
+      '#type' => 'textfield',
       '#title' => $this->t('End time'),
-      '#date_date_element' => 'none',
-      '#date_time_element' => 'time',
-      '#date_increment' => 60,
-      '#date_timezone' => date_default_timezone_get() ?: 'UTC',
-      '#default_value' => $this->defaultDrupalDateTimeFromHm($end_hm),
+      '#default_value' => $end_hm,
+      '#size' => 8,
+      '#maxlength' => 5,
+      '#placeholder' => 'HH:MM',
       '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
     ];
     $ref['surcharge_field'] = [
@@ -1032,39 +1049,9 @@ class SettingsForm extends ConfigFormBase {
   }
 
   /**
-   * Default value for core datetime (time-only) element from HH:MM.
-   */
-  private function defaultDrupalDateTimeFromHm(string $hm): DrupalDateTime {
-    $hm = trim($hm);
-    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $hm)) {
-      $hm = '09:00';
-    }
-    $tz_name = date_default_timezone_get() ?: 'UTC';
-    try {
-      $tz = new \DateTimeZone($tz_name);
-    }
-    catch (\Throwable) {
-      $tz = new \DateTimeZone('UTC');
-    }
-    $d = DrupalDateTime::createFromFormat('Y-m-d H:i', '2000-01-01 ' . $hm, $tz);
-    if (!$d instanceof DrupalDateTime || $d->hasErrors()) {
-      $d = new DrupalDateTime('2000-01-01 ' . $hm . ':00', $tz);
-    }
-
-    return $d;
-  }
-
-  /**
    * Normalizes datetime element value to HH:MM for config and validation.
    */
   private function timeFormValueToHm(mixed $value): ?string {
-    if ($value instanceof DrupalDateTime) {
-      if ($value->hasErrors()) {
-        return NULL;
-      }
-
-      return $value->format('H:i');
-    }
     if (is_string($value)) {
       $v = trim($value);
       if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $v)) {
@@ -1183,6 +1170,44 @@ class SettingsForm extends ConfigFormBase {
     [$h, $m] = array_map('intval', explode(':', $raw, 2));
 
     return $h * 60 + $m;
+  }
+
+  /**
+   * Resolves effective booking window for a variation (override or defaults).
+   *
+   * @param array<string, mixed> $default_hours
+   * @param array<string|int, mixed> $sport_overrides
+   *
+   * @return array{start_hm: string, end_hm: string, start_minutes: int, end_minutes: int}|null
+   */
+  private function resolveEffectiveOperatingWindow(int $variation_id, array $default_hours, array $sport_overrides): ?array {
+    $start_hm = trim((string) ($default_hours['booking_day_start'] ?? ''));
+    $end_hm = trim((string) ($default_hours['booking_day_end'] ?? ''));
+
+    $variation = ProductVariation::load($variation_id);
+    if ($variation) {
+      $sport_tid = \court_booking_sport_tid_for_variation($variation);
+      if ($sport_tid > 0) {
+        $override = $sport_overrides[(string) $sport_tid] ?? $sport_overrides[$sport_tid] ?? NULL;
+        if (is_array($override) && !empty($override['enabled'])) {
+          $start_hm = trim((string) ($override['booking_day_start'] ?? $start_hm));
+          $end_hm = trim((string) ($override['booking_day_end'] ?? $end_hm));
+        }
+      }
+    }
+
+    $start_minutes = $this->parseHm($start_hm);
+    $end_minutes = $this->parseHm($end_hm);
+    if ($start_minutes === NULL || $end_minutes === NULL || $end_minutes <= $start_minutes) {
+      return NULL;
+    }
+
+    return [
+      'start_hm' => $start_hm,
+      'end_hm' => $end_hm,
+      'start_minutes' => $start_minutes,
+      'end_minutes' => $end_minutes,
+    ];
   }
 
   /**

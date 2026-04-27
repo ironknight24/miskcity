@@ -181,12 +181,9 @@ final class CourtBookingCourtNodeDisplay {
           }
           if ($match_item instanceof OrderItemInterface) {
             $hero_slot = $this->formatSlotFromOrderItem($match_item, $account);
-            $matched = $match_item->getPurchasedEntity();
-            if ($matched instanceof ProductVariationInterface) {
-              $p = $matched->getPrice();
-              if ($p) {
-                $price_formatted = $this->currencyFormatter->format($p->getNumber(), $p->getCurrencyCode());
-              }
+            $line_price = $match_item->getUnitPrice();
+            if ($line_price) {
+              $price_formatted = $this->currencyFormatter->format($line_price->getNumber(), $line_price->getCurrencyCode());
             }
           }
         }

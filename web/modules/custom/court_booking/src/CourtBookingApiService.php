@@ -178,18 +178,17 @@ final class CourtBookingApiService {
       }
     }
 
-    $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
     $out = [
       'variation_id' => $variation_id,
       'billing_units' => $billing_units,
       'currency_code' => $total ? $total->getCurrencyCode() : ($base ? $base->getCurrencyCode() : ''),
       'total_number' => $total ? $total->getNumber() : '',
       'total_formatted' => $total
-        ? $this->currencyFormatter->format($total->getNumber(), $total->getCurrencyCode(), ['langcode' => $langcode])
+        ? $this->currencyFormatter->format($total->getNumber(), $total->getCurrencyCode())
         : '',
       'per_billing_unit_number' => $per_unit ? $per_unit->getNumber() : '',
       'per_billing_unit_formatted' => $per_unit
-        ? $this->currencyFormatter->format($per_unit->getNumber(), $per_unit->getCurrencyCode(), ['langcode' => $langcode])
+        ? $this->currencyFormatter->format($per_unit->getNumber(), $per_unit->getCurrencyCode())
         : '',
       'base_per_unit_number' => $base ? $base->getNumber() : '',
       'surcharge_per_unit_number' => $surcharge_per_unit ? $surcharge_per_unit->getNumber() : '0',

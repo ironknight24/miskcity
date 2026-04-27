@@ -59,9 +59,13 @@ final class CourtBookingCartPageSettings {
         $price_currency = '';
         $p = $purchased->getPrice();
         if ($p) {
-          $price = $currency_formatter->format($p->getNumber(), $p->getCurrencyCode());
+          $currency = strtoupper(trim($p->getCurrencyCode()));
+          if (preg_match('/^[A-Z]{3}$/', $currency) !== 1) {
+            $currency = 'USD';
+          }
+          $price = $currency_formatter->format($p->getNumber(), $currency);
           $price_amount = $p->getNumber();
-          $price_currency = $p->getCurrencyCode();
+          $price_currency = $currency;
         }
         $thumb = CourtBookingVariationThumbnail::data($purchased, $file_url_generator);
         $cache_tags = array_merge($cache_tags, $thumb['cache_tags'], $purchased->getCacheTags(), $court_node->getCacheTags());

@@ -44,7 +44,7 @@ Availability endpoints are public and do not require a bearer token.
 |--------|------|--------------|-------|
 | POST | `/rest/v1/auth/login` | JSON: `email`, `password` | Public login endpoint; returns OAuth token payload for API clients |
 | GET | `/rest/v1/court-booking/sports` | — | Full bootstrap payload for app clients (sports, variations, merged booking rules, date strip) |
-| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q`, optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is still in the future (`rows` + `pager`). |
+| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q` (or `title` alias), optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is still in the future (`rows` + `pager`). |
 | GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is before now. |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval` | Rule-aware timeslots only from `court_booking.settings` |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Same as `GET /commerce-bat/check/{id}` → `{ "available": bool }` |
@@ -272,7 +272,9 @@ Each variation’s pricing bootstrap may include **`hasTieredPricing`**, **`hasD
 
 These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is still at or after the current time; **past** means the rental **end** is before now.
 
-Query params (both endpoints): `page` (default `0`), `limit` (default `10`, max `50`), `q` (optional search on title and location), `sport_tid` (optional; same taxonomy id as `sports[].id`).
+Query params (both endpoints): `page` (default `0`), `limit` (default `10`, max `50`), `q` (optional search on title and location), `title` (backward-compatible alias for `q`), `sport_tid` (optional; same taxonomy id as `sports[].id`).
+
+`q` takes precedence. If both `q` and `title` are sent, the API applies `q` and ignores `title`.
 
 `rental` on each row includes UTC storage (`value` / `end_value`), `timezone`, and display instants `start` / `end` (ISO-8601 with offset), same semantics as `GET /rest/v1/commerce/cart`.
 
@@ -286,6 +288,13 @@ curl -s -X GET \
 ```bash
 curl -s -X GET \
   "http://localhost:8080/rest/v1/court-booking/my-bookings/past?page=0&limit=10" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Accept: application/json"
+```
+
+```bash
+curl -s -X GET \
+  "http://localhost:8080/rest/v1/court-booking/my-bookings/upcoming?page=0&limit=10&title=Padel%20Court%201" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -H "Accept: application/json"
 ```

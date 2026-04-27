@@ -82,6 +82,22 @@ final class CommerceCheckoutRestService {
         'title' => $item->getTitle(),
         'quantity' => (string) $item->getQuantity(),
       ];
+      $unit_price = $item->getUnitPrice();
+      if ($unit_price) {
+        $row['unit_price'] = [
+          'number' => $unit_price->getNumber(),
+          'currency_code' => $unit_price->getCurrencyCode(),
+          'formatted' => $unit_price->__toString(),
+        ];
+      }
+      $total_price = $item->getTotalPrice();
+      if ($total_price) {
+        $row['line_total'] = [
+          'number' => $total_price->getNumber(),
+          'currency_code' => $total_price->getCurrencyCode(),
+          'formatted' => $total_price->__toString(),
+        ];
+      }
       if ($item->hasField('field_cbat_rental_date') && !$item->get('field_cbat_rental_date')->isEmpty()) {
         $dr = $item->get('field_cbat_rental_date')->first();
         if ($dr && method_exists($dr, 'getValue')) {

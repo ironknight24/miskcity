@@ -121,9 +121,13 @@ class BookingPageController extends ControllerBase {
         $price_currency = '';
         $p = $variation->getPrice();
         if ($p) {
-          $price = $this->currencyFormatter->format($p->getNumber(), $p->getCurrencyCode());
+          $currency = strtoupper(trim($p->getCurrencyCode()));
+          if (preg_match('/^[A-Z]{3}$/', $currency) !== 1) {
+            $currency = 'USD';
+          }
+          $price = $this->currencyFormatter->format($p->getNumber(), $currency);
           $price_amount = $p->getNumber();
-          $price_currency = $p->getCurrencyCode();
+          $price_currency = $currency;
         }
         $card = CourtBookingVariationThumbnail::data($variation, $file_url_generator);
         $thumb = $card['url'];

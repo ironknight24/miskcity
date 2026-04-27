@@ -609,10 +609,19 @@
         if (!Number.isFinite(units) || units <= 0) {
           return v.price || '';
         }
-        const formatted = new Intl.NumberFormat(interfaceIntlLocale(), {
-          style: 'currency',
-          currency: v.priceCurrencyCode,
-        }).format(num * units);
+        const currency = String(v.priceCurrencyCode || '').trim().toUpperCase();
+        if (!/^[A-Z]{3}$/.test(currency)) {
+          return v.price || '';
+        }
+        let formatted = '';
+        try {
+          formatted = new Intl.NumberFormat(interfaceIntlLocale(), {
+            style: 'currency',
+            currency,
+          }).format(num * units);
+        } catch (e) {
+          return v.price || '';
+        }
         if (v.hasTieredPricing) {
           return Drupal.t('From @p', { '@p': formatted });
         }
@@ -630,19 +639,27 @@
    * @param {string} startIso
    * @param {string} endIso
    */
-  function refreshSlotPriceDisplay(priceEl, v, startIso, endIso) {
-    priceEl.textContent = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
-    if (!s.pricePreviewUrl || !s.csrfToken || !startIso || !endIso) {
+  function refreshSlotPriceDisplay(priceEl, v, startIso, endIso, options) {
+    const fallback = options && options.fallbackPrice ? String(options.fallbackPrice) : '';
+    const previewUrl = options ? options.pricePreviewUrl : '';
+    const csrfToken = options ? options.csrfToken : '';
+    const onResolved = options && typeof options.onResolved === 'function' ? options.onResolved : null;
+    const onFailed = options && typeof options.onFailed === 'function' ? options.onFailed : null;
+    priceEl.textContent = fallback;
+    if (!previewUrl || !csrfToken || !startIso || !endIso) {
+      if (onFailed) {
+        onFailed();
+      }
       return;
     }
     void (async () => {
       try {
-        const res = await fetch(s.pricePreviewUrl, {
+        const res = await fetch(previewUrl, {
           method: 'POST',
           credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
-            'X-CSRF-Token': s.csrfToken,
+            'X-CSRF-Token': csrfToken,
           },
           body: JSON.stringify({
             variation_id: v.id,
@@ -654,9 +671,18 @@
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.total_formatted) {
           priceEl.textContent = data.total_formatted;
+          if (onResolved) {
+            onResolved();
+          }
+          return;
+        }
+        if (onFailed) {
+          onFailed();
         }
       } catch {
-        /* keep fallback */
+        if (onFailed) {
+          onFailed();
+        }
       }
     })();
   }
@@ -1232,7 +1258,8 @@
           if (!sport || !selectedDay) {
             return;
           }
-          const openVariations = sport.variations.filter((v) => !isVariationClosedOnYmd(v.id, selectedDay.ymd));
+          const sportVariations = Array.isArray(sport.variations) ? sport.variations : [];
+          const openVariations = sportVariations.filter((v) => !isVariationClosedOnYmd(v.id, selectedDay.ymd));
           if (!openVariations.length) {
             calendars = {};
             bufferSlotCandidates = [];
@@ -1313,7 +1340,17 @@
               return;
             }
             let slots = bufferSlotCandidates
-              .filter((slot) => slot && slot.start && slot.end && Array.isArray(slot.variationIds) && slot.variationIds.length)
+              .filter((slot) => {
+                if (!slot || !slot.start || !slot.end) {
+                  return false;
+                }
+                const ids = Array.isArray(slot.variationIds)
+                  ? slot.variationIds
+                  : Array.isArray(slot.variation_ids)
+                    ? slot.variation_ids
+                    : [];
+                return ids.length > 0;
+              })
               .slice()
               .sort((a, b) => String(a.start).localeCompare(String(b.start)));
             slots = slots.filter((slot) => {
@@ -1655,7 +1692,14 @@
           }
           if (bufferMinutes > 0 && s.slotCandidatesUrl && bufferSlotCandidates && bufferSlotCandidates.length) {
             const slot = bufferSlotCandidates.find((c) => c.start === startIso);
-            if (!slot || !Array.isArray(slot.variationIds) || !slot.variationIds.length) {
+            const slotVariationIds = slot
+              ? Array.isArray(slot.variationIds)
+                ? slot.variationIds
+                : Array.isArray(slot.variation_ids)
+                  ? slot.variation_ids
+                  : []
+              : [];
+            if (!slot || !slotVariationIds.length) {
               const p = document.createElement('p');
               p.className = 'text-sm text-slate-500';
               p.textContent = Drupal.t('No courts available for this time and date (temporary closure or no availability).');
@@ -1663,7 +1707,7 @@
               return;
             }
             const blocks = [];
-            slot.variationIds.forEach((vidRaw) => {
+            slotVariationIds.forEach((vidRaw) => {
               const v = sport.variations.find((x) => String(x.id) === String(vidRaw));
               if (!v || isVariationClosedOnYmd(v.id, selectedYmd)) {
                 return;
@@ -1744,7 +1788,8 @@
 
               const price = document.createElement('p');
               price.className = 'text-sm font-semibold text-orange-600';
-              price.textContent = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
+              const fallbackPrice = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
+              price.textContent = Drupal.t('Final price loading…');
 
               const buffer = document.createElement('p');
               buffer.className = 'text-xs text-slate-500';
@@ -1755,6 +1800,7 @@
               bookBtn.className =
                 'cb-book mt-2 inline-flex items-center justify-center rounded-xl bg-[#02216E] px-4 py-2 text-sm font-semibold text-white hover:bg-[#011550] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02216E]';
               bookBtn.textContent = Drupal.t('Book');
+              bookBtn.disabled = true;
 
               bookBtn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -1774,7 +1820,18 @@
 
               body.appendChild(h);
               body.appendChild(price);
-              refreshSlotPriceDisplay(price, v, block.start, block.end);
+              refreshSlotPriceDisplay(price, v, block.start, block.end, {
+                fallbackPrice,
+                pricePreviewUrl: s.pricePreviewUrl,
+                csrfToken: s.csrfToken,
+                onResolved: () => {
+                  bookBtn.disabled = false;
+                },
+                onFailed: () => {
+                  price.textContent = fallbackPrice;
+                  bookBtn.disabled = false;
+                },
+              });
               if (buffer.textContent) {
                 body.appendChild(buffer);
               }
@@ -1908,7 +1965,8 @@
 
             const price = document.createElement('p');
             price.className = 'text-sm font-semibold text-orange-600';
-            price.textContent = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
+            const fallbackPrice = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
+            price.textContent = Drupal.t('Final price loading…');
 
             const buffer = document.createElement('p');
             buffer.className = 'text-xs text-slate-500';
@@ -1919,6 +1977,7 @@
             bookBtn.className =
               'cb-book mt-2 inline-flex items-center justify-center rounded-xl bg-[#02216E] px-4 py-2 text-sm font-semibold text-white hover:bg-[#011550] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02216E]';
             bookBtn.textContent = Drupal.t('Book');
+            bookBtn.disabled = true;
 
             bookBtn.addEventListener('click', (e) => {
               e.preventDefault();
@@ -1943,6 +2002,18 @@
               v,
               block.start,
               playBufferEndIso(block.start, playMinutes, bufferMinutes),
+              {
+                fallbackPrice,
+                pricePreviewUrl: s.pricePreviewUrl,
+                csrfToken: s.csrfToken,
+                onResolved: () => {
+                  bookBtn.disabled = false;
+                },
+                onFailed: () => {
+                  price.textContent = fallbackPrice;
+                  bookBtn.disabled = false;
+                },
+              },
             );
             if (buffer.textContent) {
               body.appendChild(buffer);

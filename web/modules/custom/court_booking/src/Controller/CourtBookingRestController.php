@@ -147,6 +147,10 @@ final class CourtBookingRestController extends ControllerBase {
     }
     $limit = min($limit, 50);
     $q = trim((string) $request->query->get('q', ''));
+    $title = trim((string) $request->query->get('title', ''));
+    if ($q === '' && $title !== '') {
+      $q = $title;
+    }
     $sport_tid = max(0, (int) $request->query->get('sport_tid', 0));
     return [
       'page' => $page,

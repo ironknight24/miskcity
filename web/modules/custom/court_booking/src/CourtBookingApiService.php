@@ -831,7 +831,7 @@ final class CourtBookingApiService {
           continue;
         }
         $end_ts = $rental_meta['end_ts'];
-        $is_upcoming = $end_ts >= $now;
+        $is_upcoming = $end_ts > $now;
         if (($bucket === 'upcoming' && !$is_upcoming) || ($bucket === 'past' && $is_upcoming)) {
           continue;
         }

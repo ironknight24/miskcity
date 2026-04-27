@@ -401,7 +401,7 @@ curl -s -X POST \
 
 ### 6B. My booked events (Upcoming tab)
 
-Lists events actually booked by the authenticated user from their **completed** orders, filtered to events whose schedule is upcoming relative to current server time.
+Lists events actually booked by the authenticated user from their **completed** orders, filtered to events whose schedule end is strictly in the future relative to current server time (`end > now`).
 
 Query params:
 
@@ -478,7 +478,7 @@ curl -s -X GET \
 
 ### 6C. My booked events (Completed tab)
 
-Lists events actually booked by the authenticated user from their **completed** orders, filtered to events whose schedule has ended before current server time.
+Lists events actually booked by the authenticated user from their **completed** orders, filtered to events whose schedule end is at-or-before current server time (`end <= now`).
 
 Query params are the same as Upcoming:
 - `page`, `limit`, `q`

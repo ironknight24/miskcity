@@ -44,8 +44,8 @@ Availability endpoints are public and do not require a bearer token.
 |--------|------|--------------|-------|
 | POST | `/rest/v1/auth/login` | JSON: `email`, `password` | Public login endpoint; returns OAuth token payload for API clients |
 | GET | `/rest/v1/court-booking/sports` | — | Full bootstrap payload for app clients (sports, variations, merged booking rules, date strip) |
-| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q` (or `title` alias), optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is still in the future (`rows` + `pager`). |
-| GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is before now. |
+| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q` (or `title` alias), optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is strictly in the future (`end > now`) (`rows` + `pager`). |
+| GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is at-or-before now (`end <= now`). |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval` | Rule-aware timeslots only from `court_booking.settings` |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Same as `GET /commerce-bat/check/{id}` → `{ "available": bool }` |
 | POST | `/rest/v1/court-booking/slot-candidates` | JSON: `ymd`, `duration_minutes` or `duration_hours`, `variation_ids`, `quantity` | Staggered candidates when buffer > 0 |
@@ -270,7 +270,7 @@ Each variation’s pricing bootstrap may include **`hasTieredPricing`**, **`hasD
 
 ### 2A. My court bookings — upcoming and past (authenticated)
 
-These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is still at or after the current time; **past** means the rental **end** is before now.
+These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is strictly after current server time (`end > now`); **past** means the rental **end** is at-or-before now (`end <= now`).
 
 Query params (both endpoints): `page` (default `0`), `limit` (default `10`, max `50`), `q` (optional search on title and location), `title` (backward-compatible alias for `q`), `sport_tid` (optional; same taxonomy id as `sports[].id`).
 

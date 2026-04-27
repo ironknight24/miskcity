@@ -525,7 +525,7 @@ final class EventBookingApiService {
       if ($effective_end === NULL) {
         continue;
       }
-      $is_upcoming = $effective_end >= $now;
+      $is_upcoming = $effective_end > $now;
       if (($bucket === 'upcoming' && !$is_upcoming) || ($bucket === 'completed' && $is_upcoming)) {
         continue;
       }

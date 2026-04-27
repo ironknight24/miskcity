@@ -11,9 +11,11 @@ use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_order\OrderRefreshInterface;
 use Drupal\commerce_product\Entity\ProductInterface;
+use CommerceGuys\Intl\Formatter\CurrencyFormatterInterface;
 use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\commerce_store\CurrentStoreInterface;
+use Drupal\commerce_price\Price;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
@@ -46,6 +48,8 @@ final class CourtBookingApiService {
     protected CourtBookingSportSettings $sportSettings,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected FileUrlGeneratorInterface $fileUrlGenerator,
+    protected CourtBookingPriceResolver $priceResolver,
+    protected CurrencyFormatterInterface $currencyFormatter,
   ) {}
 
   /**
@@ -115,6 +119,83 @@ final class CourtBookingApiService {
       : [];
 
     return ['status' => 200, 'data' => ['slots' => $slots]];
+  }
+
+  /**
+   * Validates a slot and returns server-computed play price (no cart writes).
+   *
+   * @param array<string, mixed> $data
+   *   Keys: variation_id, start, end, quantity (optional).
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildPricePreviewResponse(array $data, AccountInterface $account): array {
+    $variation_id = (int) ($data['variation_id'] ?? 0);
+    $start_raw = $data['start'] ?? '';
+    $end_raw = $data['end'] ?? '';
+    $quantity = max(1, (int) ($data['quantity'] ?? 1));
+
+    if (!$variation_id || $start_raw === '' || $end_raw === '') {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Missing variation or time range.')]];
+    }
+
+    $variation = ProductVariation::load($variation_id);
+    if (!$variation) {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Invalid product variation.')]];
+    }
+
+    if (!\court_booking_variation_is_configured($variation) || !\court_booking_variation_has_published_court_node($variation)) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('This court is not available for booking.')]];
+    }
+
+    $validation = $this->slotBooking->validateLessonSlot(
+      $variation,
+      (string) $start_raw,
+      (string) $end_raw,
+      $quantity,
+      $account,
+    );
+    if (!$validation['ok']) {
+      return ['status' => $validation['status'], 'data' => ['message' => $validation['message']]];
+    }
+
+    /** @var \DateTimeImmutable $start */
+    $start = $validation['start'];
+    $billing_units = (int) $validation['billing_units'];
+    $base = $variation->getPrice();
+    $per_unit = $this->priceResolver->resolvePerBillingUnitPrice($variation, $start, $account);
+    $total = $per_unit && $billing_units >= 1
+      ? $per_unit->multiply((string) $billing_units)
+      : NULL;
+
+    $surcharge_per_unit = NULL;
+    if ($per_unit instanceof Price && $base instanceof Price) {
+      try {
+        $surcharge_per_unit = $per_unit->subtract($base);
+      }
+      catch (\Throwable) {
+        $surcharge_per_unit = NULL;
+      }
+    }
+
+    $langcode = \Drupal::languageManager()->getCurrentLanguage()->getId();
+    $out = [
+      'variation_id' => $variation_id,
+      'billing_units' => $billing_units,
+      'currency_code' => $total ? $total->getCurrencyCode() : ($base ? $base->getCurrencyCode() : ''),
+      'total_number' => $total ? $total->getNumber() : '',
+      'total_formatted' => $total
+        ? $this->currencyFormatter->format($total->getNumber(), $total->getCurrencyCode(), ['langcode' => $langcode])
+        : '',
+      'per_billing_unit_number' => $per_unit ? $per_unit->getNumber() : '',
+      'per_billing_unit_formatted' => $per_unit
+        ? $this->currencyFormatter->format($per_unit->getNumber(), $per_unit->getCurrencyCode(), ['langcode' => $langcode])
+        : '',
+      'base_per_unit_number' => $base ? $base->getNumber() : '',
+      'surcharge_per_unit_number' => $surcharge_per_unit ? $surcharge_per_unit->getNumber() : '0',
+    ];
+
+    return ['status' => 200, 'data' => $out];
   }
 
   /**
@@ -226,7 +307,6 @@ final class CourtBookingApiService {
     $term_storage = $entity_type_manager->getStorage('taxonomy_term');
     $variation_storage = $entity_type_manager->getStorage('commerce_product_variation');
     $product_storage = $entity_type_manager->getStorage('commerce_product');
-    $currency_formatter = \Drupal::service('commerce_price.currency_formatter');
     $file_url_generator = \Drupal::service('file_url_generator');
     $language_manager = \Drupal::languageManager();
 
@@ -260,13 +340,13 @@ final class CourtBookingApiService {
         $price_currency = '';
         $variation_price = $variation->getPrice();
         if ($variation_price) {
-          $price = $currency_formatter->format($variation_price->getNumber(), $variation_price->getCurrencyCode());
+          $price = $this->currencyFormatter->format($variation_price->getNumber(), $variation_price->getCurrencyCode());
           $price_amount = $variation_price->getNumber();
           $price_currency = $variation_price->getCurrencyCode();
         }
         $card = CourtBookingVariationThumbnail::data($variation, $file_url_generator);
         $slot_len = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
-        $variations_out[] = [
+        $variations_out[] = array_merge([
           'id' => (int) $variation->id(),
           'title' => $court_node->getTitle(),
           'courtTitle' => $court_node->getTitle(),
@@ -279,7 +359,7 @@ final class CourtBookingApiService {
           'detailUrl' => Url::fromRoute('court_booking.court_detail', [
             'commerce_product_variation' => $variation->id(),
           ])->setAbsolute()->toString(),
-        ];
+        ], $this->priceResolver->variationPricingBootstrap($variation));
       }
       if ($variations_out === []) {
         continue;
@@ -322,6 +402,7 @@ final class CourtBookingApiService {
         'resourceClosuresByVariation' => (array) ($root_booking['resourceClosuresByVariation'] ?? []),
         'dates' => (array) ($root_booking['dates'] ?? []),
         'maxBookingHours' => (int) ($root_booking['maxBookingHours'] ?? 4),
+        'pricePreviewUrl' => Url::fromRoute('court_booking.price_preview')->setAbsolute()->toString(),
       ],
     ];
   }
@@ -472,7 +553,7 @@ final class CourtBookingApiService {
       return ['status' => 500, 'data' => ['message' => (string) $this->t('Order items are missing the rental date field.')]];
     }
 
-    $this->slotBooking->applyRentalAndPrice($order_item, $variation, $start, $end, $billing_units);
+    $this->slotBooking->applyRentalAndPrice($order_item, $variation, $start, $end, $billing_units, $account);
 
     try {
       $this->cartManager->addOrderItem($cart, $order_item, FALSE, TRUE);
@@ -559,7 +640,7 @@ final class CourtBookingApiService {
     }
 
     try {
-      $this->slotBooking->applyRentalAndPrice($commerce_order_item, $purchased, $start, $end, $billing_units);
+      $this->slotBooking->applyRentalAndPrice($commerce_order_item, $purchased, $start, $end, $billing_units, $account);
       $commerce_order_item->save();
       $order = $commerce_order_item->getOrder();
       if ($order) {

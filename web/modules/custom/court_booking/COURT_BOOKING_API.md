@@ -54,7 +54,9 @@ Availability endpoints are public and do not require a bearer token.
 | PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user's cart |
 | POST | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | Optional JSON body `{}` | Cancels/removes a draft cart booking line item (no refund automation). **POST** (not DELETE) for broader client/proxy compatibility. |
 
-Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/slot-candidates`, `/court-booking/cart/slot/{order_item}`.
+Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/slot-candidates`, `/court-booking/price-preview`, `/court-booking/cart/slot/{order_item}`.
+
+**POST `/court-booking/price-preview`** — JSON body: `variation_id`, `start`, `end`, optional `quantity` (same UTC semantics as add-to-cart). Returns `total_formatted`, `total_number`, `currency_code`, `billing_units`, etc., after the same validation as add-to-cart (no cart write). Session + `X-CSRF-Token` header. The **GET `/rest/v1/court-booking/sports`** bootstrap includes **`pricePreviewUrl`** (absolute) for the same endpoint when the app shares the session cookie.
 
 ## Commerce helpers
 
@@ -261,6 +263,8 @@ This response mirrors booking page bootstrap data for mobile:
 - `sports[]` with court variations and pricing
 - per-sport `booking` rules (hours, max duration, buffer, blackout dates, resource closures)
 - `dates[]` date strip and regional metadata (`timezone`, locale, first day of week)
+
+Each variation’s pricing bootstrap may include **`hasTieredPricing`**, **`hasDynamicPricingRules`**, and **`dynamicPricingRuleTypes`** (today only **`time_band`** — peak/weekend schedule from variation surcharge fields) so clients can adjust copy; the authoritative price for a slot remains **POST `/court-booking/price-preview`** (or cart APIs).
 
 ---
 

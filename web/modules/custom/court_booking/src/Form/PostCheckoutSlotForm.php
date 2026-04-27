@@ -254,7 +254,7 @@ final class PostCheckoutSlotForm extends FormBase {
     }
 
     try {
-      $this->slotBooking->applyRentalAndPrice($item, $purchased, $start, $end, $billing_units);
+      $this->slotBooking->applyRentalAndPrice($item, $purchased, $start, $end, $billing_units, $this->currentUser());
       $item->save();
       $order = $item->getOrder();
       if ($order) {

@@ -28,6 +28,15 @@ court_booking.slot_candidates:
     _custom_access: '\Drupal\court_booking\Access\SlotCandidatesAccess::access'
     _csrf_request_header_token: 'TRUE'
 
+court_booking.price_preview:
+  path: '/court-booking/price-preview'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\PricePreviewController::preview'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\SlotCandidatesAccess::access'
+    _csrf_request_header_token: 'TRUE'
+
 court_booking.add:
   path: '/court-booking/add'
   defaults:

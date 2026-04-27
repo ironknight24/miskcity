@@ -11,3 +11,5 @@ same_day_cutoff_hm: ''
 blackout_dates: []
 resource_closures: []
 sport_booking_overrides: {}
+variation_pricing_windows: []
+variation_pricing_rules: []

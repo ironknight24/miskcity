@@ -609,13 +609,74 @@
         if (!Number.isFinite(units) || units <= 0) {
           return v.price || '';
         }
-        return new Intl.NumberFormat(interfaceIntlLocale(), {
+        const formatted = new Intl.NumberFormat(interfaceIntlLocale(), {
           style: 'currency',
           currency: v.priceCurrencyCode,
         }).format(num * units);
+        if (v.hasTieredPricing) {
+          return Drupal.t('From @p', { '@p': formatted });
+        }
+        return formatted;
       }
     }
     return v.price || '';
+  }
+
+  /**
+   * Replaces displayed price with server-computed total for the slot (Commerce-aligned).
+   *
+   * @param {HTMLElement} priceEl
+   * @param {object} v
+   * @param {string} startIso
+   * @param {string} endIso
+   */
+  function refreshSlotPriceDisplay(priceEl, v, startIso, endIso) {
+    priceEl.textContent = formatPriceForDuration(v, playMinutes, slotMinutesDefault);
+    if (!s.pricePreviewUrl || !s.csrfToken || !startIso || !endIso) {
+      return;
+    }
+    void (async () => {
+      try {
+        const res = await fetch(s.pricePreviewUrl, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': s.csrfToken,
+          },
+          body: JSON.stringify({
+            variation_id: v.id,
+            start: startIso,
+            end: endIso,
+            quantity: 1,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.total_formatted) {
+          priceEl.textContent = data.total_formatted;
+        }
+      } catch {
+        /* keep fallback */
+      }
+    })();
+  }
+
+  /**
+   * @param {HTMLElement} container
+   * @param {object} v
+   */
+  function appendTieredPricingFootnote(container, v) {
+    if (!v || !v.hasTieredPricing) {
+      return;
+    }
+    const note = document.createElement('p');
+    note.className = 'text-xs text-slate-500';
+    if (v.hasDynamicPricingRules && v.dynamicPricingRuleTypes && v.dynamicPricingRuleTypes.length) {
+      note.textContent = Drupal.t('Final price may include peak or weekend surcharges for the time slot you choose.');
+    } else {
+      note.textContent = Drupal.t('Final price depends on the time slot you choose.');
+    }
+    container.appendChild(note);
   }
 
   /**
@@ -1561,6 +1622,7 @@
 
             body.appendChild(h);
             body.appendChild(price);
+            appendTieredPricingFootnote(body, v);
             if (buffer.textContent) {
               body.appendChild(buffer);
             }
@@ -1712,6 +1774,7 @@
 
               body.appendChild(h);
               body.appendChild(price);
+              refreshSlotPriceDisplay(price, v, block.start, block.end);
               if (buffer.textContent) {
                 body.appendChild(buffer);
               }
@@ -1875,6 +1938,12 @@
 
             body.appendChild(h);
             body.appendChild(price);
+            refreshSlotPriceDisplay(
+              price,
+              v,
+              block.start,
+              playBufferEndIso(block.start, playMinutes, bufferMinutes),
+            );
             if (buffer.textContent) {
               body.appendChild(buffer);
             }

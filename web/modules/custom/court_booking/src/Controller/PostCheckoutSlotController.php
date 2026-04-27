@@ -83,7 +83,7 @@ final class PostCheckoutSlotController extends ControllerBase {
     }
 
     try {
-      $this->slotBooking->applyRentalAndPrice($commerce_order_item, $purchased, $start, $end, $billing_units);
+      $this->slotBooking->applyRentalAndPrice($commerce_order_item, $purchased, $start, $end, $billing_units, $this->currentUser());
       $commerce_order_item->save();
       $order = $commerce_order_item->getOrder();
       if ($order) {

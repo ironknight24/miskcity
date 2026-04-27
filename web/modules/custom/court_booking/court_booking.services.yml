@@ -43,12 +43,19 @@ services:
       - '@config.factory'
       - '@date.formatter'
 
+  court_booking.price_resolver:
+    class: Drupal\court_booking\CourtBookingPriceResolver
+    arguments:
+      - '@config.factory'
+      - '@logger.factory'
+
   court_booking.slot_booking:
     class: Drupal\court_booking\CourtBookingSlotBooking
     arguments:
       - '@commerce_bat.availability_manager'
       - '@config.factory'
       - '@court_booking.sport_settings'
+      - '@court_booking.price_resolver'
 
   court_booking.slot_block_overlap_validator:
     class: Drupal\court_booking\CourtBookingSlotBlockOverlapValidator
@@ -96,6 +103,8 @@ services:
       - '@court_booking.sport_settings'
       - '@entity_type.manager'
       - '@file_url_generator'
+      - '@court_booking.price_resolver'
+      - '@commerce_price.currency_formatter'
     calls:
       - [setStringTranslation, ['@string_translation']]
 

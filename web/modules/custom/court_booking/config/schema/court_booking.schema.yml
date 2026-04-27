@@ -62,6 +62,93 @@ court_booking.settings:
     sport_booking_overrides:
       type: mapping
       label: 'Per-sport booking rule overrides (keys = sport taxonomy term ID)'
+    variation_pricing_windows:
+      type: sequence
+      label: 'Per-variation local time windows for peak/weekend surcharges'
+      sequence:
+        type: mapping
+        mapping:
+          variation_id:
+            type: integer
+            label: 'Commerce product variation ID'
+          windows:
+            type: sequence
+            label: 'Ordered windows (first wins ties after specificity sort)'
+            sequence:
+              type: mapping
+              mapping:
+                label:
+                  type: string
+                  label: 'Optional admin label'
+                days_of_week:
+                  type: sequence
+                  label: 'PHP weekday numbers 1=Mon … 7=Sun; empty means all days'
+                  sequence:
+                    type: integer
+                start_hm:
+                  type: string
+                  label: 'Window start HH:MM (inclusive)'
+                end_hm:
+                  type: string
+                  label: 'Window end HH:MM (exclusive)'
+                surcharge_source:
+                  type: string
+                  label: 'peak, weekend, or none'
+    variation_pricing_rules:
+      type: sequence
+      label: 'Per-variation peak/weekend time schedule (time_band + surcharge_field only; legacy keys ignored at runtime until removed by court_booking_update_9023)'
+      sequence:
+        type: mapping
+        mapping:
+          variation_id:
+            type: integer
+          rules:
+            type: sequence
+            sequence:
+              type: mapping
+              mapping:
+                rule_type:
+                  type: string
+                enabled:
+                  type: boolean
+                label:
+                  type: string
+                days_of_week:
+                  type: sequence
+                  sequence:
+                    type: integer
+                start_hm:
+                  type: string
+                end_hm:
+                  type: string
+                modifier_kind:
+                  type: string
+                surcharge_field:
+                  type: string
+                percent_value:
+                  type: string
+                percent_direction:
+                  type: string
+                fixed_number:
+                  type: string
+                fixed_currency:
+                  type: string
+                fixed_direction:
+                  type: string
+                start_date:
+                  type: string
+                end_date:
+                  type: string
+                promo_start_date:
+                  type: string
+                promo_end_date:
+                  type: string
+                member_role_ids:
+                  type: sequence
+                  sequence:
+                    type: string
+                percent_off:
+                  type: string
 
 field.formatter.settings.court_booking_cart_rental_slot:
   type: mapping

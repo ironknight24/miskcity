@@ -490,3 +490,102 @@ function court_booking_update_9018(): void {
     'court_booking_update_9018: commerce_cart_form field_cbat_rental_date now uses court_booking_cart_rental_slot formatter.',
   );
 }
+
+/**
+ * Add per-variation pricing time windows (peak/weekend surcharges).
+ */
+function court_booking_update_9019(): void {
+  $config = \Drupal::configFactory()->getEditable('court_booking.settings');
+  if ($config->get('variation_pricing_windows') === NULL) {
+    $config->set('variation_pricing_windows', [])->save();
+  }
+}
+
+/**
+ * Register new court_booking.js strings for tiered pricing UI.
+ */
+function court_booking_update_9020(): void {
+  \Drupal::moduleHandler()->loadInclude('court_booking', 'inc', 'court_booking.locale_register');
+  _court_booking_register_js_interface_strings();
+}
+
+/**
+ * Migrate variation_pricing_windows to variation_pricing_rules; clear legacy key.
+ */
+function court_booking_update_9021(): void {
+  $editable = \Drupal::configFactory()->getEditable('court_booking.settings');
+  if ($editable->get('variation_pricing_rules') === NULL) {
+    $editable->set('variation_pricing_rules', []);
+  }
+  $legacy = $editable->get('variation_pricing_windows');
+  if (!is_array($legacy) || $legacy === []) {
+    $editable->save();
+
+    return;
+  }
+  $converted = \Drupal\court_booking\CourtBookingPricingRulesEngine::convertLegacyWindowsToRules($legacy);
+  $editable->set('variation_pricing_rules', $converted);
+  $editable->set('variation_pricing_windows', []);
+  $editable->save();
+  \Drupal::logger('court_booking')->notice('court_booking_update_9021: migrated @n variation pricing window group(s) to variation_pricing_rules.', [
+    '@n' => (string) count($converted),
+  ]);
+}
+
+/**
+ * Register JS strings for tiered / schedule pricing footnote.
+ */
+function court_booking_update_9022(): void {
+  \Drupal::moduleHandler()->loadInclude('court_booking', 'inc', 'court_booking.locale_register');
+  _court_booking_register_js_interface_strings();
+}
+
+/**
+ * Keep only time_band rules; set modifier_kind to surcharge_field; drop legacy types.
+ */
+function court_booking_update_9023(): void {
+  $editable = \Drupal::configFactory()->getEditable('court_booking.settings');
+  $rules = $editable->get('variation_pricing_rules');
+  if (!is_array($rules) || $rules === []) {
+    return;
+  }
+  $dropped = 0;
+  $new = [];
+  foreach ($rules as $group) {
+    if (!is_array($group)) {
+      continue;
+    }
+    $vid = (int) ($group['variation_id'] ?? 0);
+    $list = $group['rules'] ?? [];
+    if (!is_array($list) || $vid <= 0) {
+      continue;
+    }
+    $kept = [];
+    foreach ($list as $r) {
+      if (!is_array($r)) {
+        continue;
+      }
+      if (trim((string) ($r['rule_type'] ?? '')) !== 'time_band') {
+        $dropped++;
+        continue;
+      }
+      $r['modifier_kind'] = 'surcharge_field';
+      $kept[] = $r;
+    }
+    if ($kept !== []) {
+      $new[] = [
+        'variation_id' => $vid,
+        'rules' => $kept,
+      ];
+    }
+  }
+  $editable->set('variation_pricing_rules', $new);
+  $editable->save();
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9023: peak/weekend schedule only — removed @dropped non–time_band rule row(s); @groups variation group(s) retained.',
+    [
+      '@dropped' => (string) $dropped,
+      '@groups' => (string) count($new),
+    ],
+  );
+}

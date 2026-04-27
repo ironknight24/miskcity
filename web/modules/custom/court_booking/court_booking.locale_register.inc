@@ -49,6 +49,9 @@ function _court_booking_register_js_interface_strings(): void {
       'Booking failed.',
       'Network error. Try again.',
       'Book @title',
+      'From @p',
+      'Final price depends on the time slot you choose.',
+      'Final price may include peak or weekend surcharges for the time slot you choose.',
     ],
     $cart => [
       $p_min,

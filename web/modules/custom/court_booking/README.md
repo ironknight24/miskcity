@@ -61,8 +61,23 @@ Grant **access court booking page** and **use court booking add** to roles that 
 ## Commerce BAT profile vs Court booking settings
 
 - **BAT availability profile** (on each variation, e.g. `field_cbat_schedule`): lesson slot length, weekly hours, allowed start times, and profile block lists. Commerce BAT uses this for availability JSON and `isAvailable()` checks.
-- **`court_booking.settings`**: site-wide defaults for the **amenities** and **cart** UIs and for server validation—date strip length (`days_ahead`), local booking window (`booking_day_start` / `booking_day_end`), `max_booking_hours`, `buffer_minutes`, `same_day_cutoff_hm`, `blackout_dates`, `resource_closures`, plus `sport_mappings` and `order_type_id`.
+- **`court_booking.settings`**: site-wide defaults for the **amenities** and **cart** UIs and for server validation—date strip length (`days_ahead`), local booking window (`booking_day_start` / `booking_day_end`), `max_booking_hours`, `buffer_minutes`, `same_day_cutoff_hm`, `blackout_dates`, `resource_closures`, plus `sport_mappings`, `order_type_id`, and **`variation_pricing_rules`** (optional **peak/weekend time schedule** only—see below). Legacy **`variation_pricing_windows`** is migrated to rules by **`court_booking_update_9021`** and then cleared.
 - **Per-sport overrides**: optional rows under **Court booking** settings (vertical tabs per mapped sport) store `sport_booking_overrides` keyed by sport term ID. When enabled for a sport, those fields replace the global defaults for that sport’s variations on the booking page, cart slot editor, and validation.
+
+## Peak / weekend time schedule (variation price fields only)
+
+- **Amounts** for peak and weekend surcharges are **only** on each **product variation** as Commerce price fields (`field_peak_hours_pricing`, `field_weekend_pricing`). Court booking **does not** store duplicate prices in config.
+- **Commerce → Configuration → Court booking** (vertical tab **Peak / weekend time schedule**) configures **when** those fields apply: per mapped variation, add rows with **weekdays** (or every day), **local start/end times** (half-open **`[start, end)`**, no overnight ranges), and **which surcharge** applies in that band: **none**, **peak** field, or **weekend** field. Use **Add another rule** for more rows (up to **16** per court). Among overlapping time bands, the **narrowest day scope** then **narrowest time span** wins (same tie-break as before).
+- **Out of scope for this module:** calendar holiday bands, promotions, member-role discounts, and config-based percent/fixed modifiers. Any legacy rows of those types in `variation_pricing_rules` are **removed** when you run **`court_booking_update_9023`** (logged).
+- **Cart, post-checkout slot edits, and POST `/court-booking/price-preview`** resolve the unit price from the base variation price plus the **scheduled** peak/weekend field amount when the slot **start** falls in a matching band. The client never sends a trusted price.
+- **Inspect config:** `drush config:get court_booking.settings` (look for `variation_pricing_rules`). Run **`drush updb`** after deploy (**`court_booking_update_9023`** prunes legacy non–`time_band` rule rows and normalizes `modifier_kind`).
+
+### QA scenarios (peak / weekend schedule)
+
+- No `variation_pricing_rules` (and no legacy windows) → **base variation price only**.
+- Weekday band with peak field + slot inside `[start, end)` → **base + peak field** amount (same currency as base or surcharge skipped with a log warning).
+- Slot at **exactly** the band **end** time → **no** surcharge (half-open interval).
+- Weekend band on Sat–Sun using **weekend** field → **base + weekend field** when matched.
 
 ## Buffer time and Commerce BAT grid
 
@@ -84,7 +99,7 @@ The **Commerce BAT** module in this project may include a small change in `Avail
 
 ### Checklist: JS strings (e.g. “View details”, buffer line, “Book”)
 
-1. After upgrading **court_booking**, run database updates so JS sources are registered: `ddev drush updb -y` (runs `court_booking_update_9014`, which inserts `Drupal.t()` strings into Locale). Then search **Translate interface** for e.g. `View details` or `Price is for play time only`.
+1. After upgrading **court_booking**, run database updates so JS sources are registered: `ddev drush updb -y` (e.g. `court_booking_update_9014` and later hooks such as `court_booking_update_9020` register `Drupal.t()` strings into Locale). Then search **Translate interface** for e.g. `View details`, `From @p`, or `Price is for play time only`.
 2. Enable the core **Locale** module: `drush en locale -y` (or **Extend** in the admin UI).
 3. **Scan for new strings** so `court_booking.js` / `cart_slot.js` are parsed and `Drupal.t()` sources exist in the database:
    - **Reports → Available translation updates** → **Check manually** (path is typically `/admin/reports/translations/check`), or  

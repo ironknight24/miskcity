@@ -6,9 +6,13 @@ use Drupal\commerce_product\Entity\Product;
 use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Config\TypedConfigManagerInterface;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\ReplaceCommand;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\court_booking\CourtBookingPriceResolver;
 use Drupal\court_booking\CourtBookingSportSettings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -16,6 +20,18 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Configure sport → product or variation mappings and booking page options.
  */
 class SettingsForm extends ConfigFormBase {
+
+  /**
+   * Max schedule rows per variation (Ajax “Add another rule” caps here).
+   */
+  private const PRICING_RULE_MAX = 16;
+
+  /**
+   * Form state: per-variation visible rule row count (after Ajax add).
+   *
+   * @var string
+   */
+  private const PRICING_RULE_COUNT_STATE = 'court_booking_pricing_rules_count';
 
   public function __construct(
     ConfigFactoryInterface $config_factory,
@@ -352,6 +368,81 @@ class SettingsForm extends ConfigFormBase {
       ];
     }
 
+    $form['pricing_rules_tab'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Peak / weekend time schedule'),
+      '#description' => $this->t('Per <strong>mapped</strong> variation, define <strong>when</strong> peak or weekend surcharge fields apply. Amounts are set only on each variation (<code>field_peak_hours_pricing</code>, <code>field_weekend_pricing</code>). Times use the booking timezone from <a href=":url">Regional settings</a>. Each band is half-open <code>[start, end)</code> (no overnight ranges).', [
+        ':url' => '/admin/config/regional/settings',
+      ]),
+      '#group' => 'sport_tabs',
+      '#tree' => TRUE,
+    ];
+    $stored_rules = $config->get('variation_pricing_rules') ?: [];
+    $by_vid = [];
+    if (is_array($stored_rules)) {
+      foreach ($stored_rules as $row) {
+        if (!is_array($row)) {
+          continue;
+        }
+        $vid = (int) ($row['variation_id'] ?? 0);
+        if ($vid > 0) {
+          $by_vid[$vid] = is_array($row['rules'] ?? NULL) ? $row['rules'] : [];
+        }
+      }
+    }
+    $form['pricing_rules_tab']['variations'] = [
+      '#type' => 'container',
+      '#tree' => TRUE,
+    ];
+    foreach (\court_booking_mapped_variation_ids() as $vid) {
+      $variation = ProductVariation::load($vid);
+      if (!$variation) {
+        continue;
+      }
+      $vlabel = $variation->getTitle();
+      $saved = $by_vid[$vid] ?? [];
+      $n = $this->pricingRuleRowCountForVariation($form_state, $vid, $saved);
+      $form['pricing_rules_tab']['variations'][$vid] = [
+        '#type' => 'details',
+        '#title' => $this->t('Variation @id — @title', ['@id' => (string) $vid, '@title' => $vlabel]),
+      ];
+      $form['pricing_rules_tab']['variations'][$vid]['rules_wrap'] = [
+        '#type' => 'container',
+        '#attributes' => [
+          'id' => 'court-booking-pricing-rules-' . $vid,
+          'class' => ['court-booking-pricing-rules-wrap'],
+        ],
+        '#tree' => TRUE,
+      ];
+      for ($i = 0; $i < $n; $i++) {
+        $w = $saved[$i] ?? [];
+        $this->buildPricingRuleRowFieldset($form, $vid, $i, $w);
+      }
+      $form['pricing_rules_tab']['variations'][$vid]['rules_actions'] = [
+        '#type' => 'actions',
+        '#weight' => 5,
+      ];
+      $form['pricing_rules_tab']['variations'][$vid]['rules_actions']['add_rule'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Add another rule'),
+        '#submit' => [[$this, 'addPricingRuleAjaxSubmit']],
+        '#ajax' => [
+          'callback' => [$this, 'ajaxReplacePricingRulesWrap'],
+          'wrapper' => 'court-booking-pricing-rules-' . $vid,
+        ],
+        '#limit_validation_errors' => [],
+        '#attributes' => ['class' => ['button', 'button--small']],
+        '#access' => $n < self::PRICING_RULE_MAX,
+      ];
+      $form['pricing_rules_tab']['variations'][$vid]['rules_add_help'] = [
+        '#type' => 'markup',
+        '#markup' => '<p class="description">' . $this->t('Overlapping bands: narrowest day scope, then narrowest time span wins. Up to @max schedule rows per court.', [
+          '@max' => (string) self::PRICING_RULE_MAX,
+        ]) . '</p>',
+        '#weight' => 6,
+      ];
+    }
+
     return parent::buildForm($form, $form_state);
   }
 
@@ -392,6 +483,8 @@ class SettingsForm extends ConfigFormBase {
         $this->validateBookingRuleValues($form_state, $nested, 'sport_override][' . $tid, TRUE);
       }
     }
+
+    $this->validatePricingRulesStructured($form_state);
 
     $text = trim((string) $form_state->getValue('sport_mapping_lines'));
     if ($text === '') {
@@ -625,6 +718,8 @@ class SettingsForm extends ConfigFormBase {
       }
     }
 
+    $variation_pricing_rules = $this->buildVariationPricingRulesFromForm($form_state);
+
     $this->config('court_booking.settings')
       ->set('sport_vocabulary', $form_state->getValue('sport_vocabulary'))
       ->set('sport_mappings', $mappings)
@@ -638,9 +733,443 @@ class SettingsForm extends ConfigFormBase {
       ->set('blackout_dates', $blackout_dates)
       ->set('resource_closures', $resource_closures)
       ->set('sport_booking_overrides', $sport_booking_overrides)
+      ->set('variation_pricing_rules', $variation_pricing_rules)
       ->save();
 
+    $form_state->set(self::PRICING_RULE_COUNT_STATE, NULL);
+
     parent::submitForm($form, $form_state);
+  }
+
+  /**
+   * Visible rule rows for one variation (saved count or Ajax-expanded count).
+   *
+   * @param list<array<string, mixed>> $savedRules
+   */
+  private function pricingRuleRowCountForVariation(FormStateInterface $form_state, int $vid, array $savedRules): int {
+    $counts = $form_state->get(self::PRICING_RULE_COUNT_STATE);
+    if (is_array($counts) && array_key_exists($vid, $counts)) {
+      return max(1, min(self::PRICING_RULE_MAX, (int) $counts[$vid]));
+    }
+
+    return max(1, min(self::PRICING_RULE_MAX, count($savedRules)));
+  }
+
+  /**
+   * Submit handler: grow rule list for one variation (Ajax).
+   */
+  public function addPricingRuleAjaxSubmit(array &$form, FormStateInterface $form_state): void {
+    $trigger = $form_state->getTriggeringElement();
+    $parents = $trigger['#array_parents'] ?? [];
+    $vidx = array_search('variations', $parents, TRUE);
+    if ($vidx === FALSE || !isset($parents[$vidx + 1])) {
+      return;
+    }
+    $vid = (int) $parents[$vidx + 1];
+    if ($vid <= 0) {
+      return;
+    }
+    $wrap = $form_state->getValue(['pricing_rules_tab', 'variations', $vid, 'rules_wrap']);
+    $cur = 1;
+    if (is_array($wrap) && $wrap !== []) {
+      $cur = count($wrap);
+    }
+    $counts = $form_state->get(self::PRICING_RULE_COUNT_STATE);
+    if (!is_array($counts)) {
+      $counts = [];
+    }
+    $counts[$vid] = min(self::PRICING_RULE_MAX, $cur + 1);
+    $form_state->set(self::PRICING_RULE_COUNT_STATE, $counts);
+    $form_state->setRebuild();
+  }
+
+  /**
+   * Ajax callback: replace the rule list container for one variation.
+   */
+  public function ajaxReplacePricingRulesWrap(array &$form, FormStateInterface $form_state): AjaxResponse {
+    $trigger = $form_state->getTriggeringElement();
+    $parents = $trigger['#array_parents'] ?? [];
+    $vidx = array_search('variations', $parents, TRUE);
+    $vid = ($vidx !== FALSE && isset($parents[$vidx + 1])) ? (int) $parents[$vidx + 1] : 0;
+    $response = new AjaxResponse();
+    if ($vid <= 0 || empty($form['pricing_rules_tab']['variations'][$vid]['rules_wrap'])) {
+      return $response;
+    }
+    $build = $form['pricing_rules_tab']['variations'][$vid]['rules_wrap'];
+    $html = (string) \Drupal::service('renderer')->renderRoot($build);
+    $response->addCommand(new ReplaceCommand('#court-booking-pricing-rules-' . $vid, $html));
+
+    return $response;
+  }
+
+  /**
+   * Validates peak/weekend schedule rows (time_band + surcharge_field).
+   */
+  private function validatePricingRulesStructured(FormStateInterface $form_state): void {
+    $vars = $form_state->getValue(['pricing_rules_tab', 'variations']);
+    if (!is_array($vars)) {
+      return;
+    }
+    $mapped = array_flip(\court_booking_mapped_variation_ids());
+    foreach ($vars as $vid => $group) {
+      $vid = (int) $vid;
+      if ($vid <= 0 || !isset($mapped[$vid]) || !is_array($group)) {
+        continue;
+      }
+      $wrap = $group['rules_wrap'] ?? [];
+      if (!is_array($wrap)) {
+        continue;
+      }
+      ksort($wrap);
+      foreach ($wrap as $i => $row) {
+        if (!is_array($row) || !is_numeric($i)) {
+          continue;
+        }
+        $i = (int) $i;
+        $base_name = 'pricing_rules_tab][variations][' . $vid . '][rules_wrap][' . $i . ']';
+        $type = trim((string) ($row['rule_type'] ?? ''));
+        if ($type === '' || $type === '_skip') {
+          continue;
+        }
+        if ($type !== 'time_band') {
+          $form_state->setErrorByName($base_name . '][rule_type', $this->t('Variation @id, rule @n: choose “Use this row” or skip.', [
+            '@id' => (string) $vid,
+            '@n' => (string) ($i + 1),
+          ]));
+          continue;
+        }
+        $all_days = !empty($row['all_days']);
+        if (!$all_days) {
+          $picked = [];
+          $wd = $row['weekdays'] ?? [];
+          if (is_array($wd)) {
+            foreach ($wd as $k => $on) {
+              if (!empty($on) && ctype_digit((string) $k)) {
+                $d = (int) $k;
+                if ($d >= 1 && $d <= 7) {
+                  $picked[$d] = TRUE;
+                }
+              }
+            }
+          }
+          if ($picked === []) {
+            $form_state->setErrorByName($base_name . '][weekdays', $this->t('Variation @id, rule @n: select weekdays or “every day”.', [
+              '@id' => (string) $vid,
+              '@n' => (string) ($i + 1),
+            ]));
+          }
+        }
+        $start_hm = $this->timeFormValueToHm($row['start_time'] ?? NULL);
+        $end_hm = $this->timeFormValueToHm($row['end_time'] ?? NULL);
+        if ($start_hm === NULL || $end_hm === NULL) {
+          $form_state->setErrorByName($base_name . '][start_time', $this->t('Variation @id, rule @n: enter valid start and end times.', [
+            '@id' => (string) $vid,
+            '@n' => (string) ($i + 1),
+          ]));
+        }
+        else {
+          $sm_m = CourtBookingPriceResolver::hmToMinutes($start_hm);
+          $em_m = CourtBookingPriceResolver::hmToMinutes($end_hm);
+          if ($sm_m === NULL || $em_m === NULL || $em_m <= $sm_m) {
+            $form_state->setErrorByName($base_name . '][end_time', $this->t('Variation @id, rule @n: end time must be after start (no overnight).', [
+              '@id' => (string) $vid,
+              '@n' => (string) ($i + 1),
+            ]));
+          }
+        }
+        $sf = strtolower(trim((string) ($row['surcharge_field'] ?? 'none')));
+        if (!in_array($sf, ['peak', 'weekend', 'none'], TRUE)) {
+          $form_state->setErrorByName($base_name . '][surcharge_field', $this->t('Variation @id, rule @n: invalid surcharge field.', [
+            '@id' => (string) $vid,
+            '@n' => (string) ($i + 1),
+          ]));
+        }
+      }
+    }
+  }
+
+  /**
+   * @return list<array{variation_id: int, rules: list<array<string, mixed>>}>
+   */
+  private function buildVariationPricingRulesFromForm(FormStateInterface $form_state): array {
+    $out = [];
+    $vars = $form_state->getValue(['pricing_rules_tab', 'variations']);
+    if (!is_array($vars)) {
+      return [];
+    }
+    foreach ($vars as $vid => $group) {
+      $vid = (int) $vid;
+      if ($vid <= 0 || !is_array($group)) {
+        continue;
+      }
+      $wrap = $group['rules_wrap'] ?? [];
+      if (!is_array($wrap)) {
+        continue;
+      }
+      ksort($wrap);
+      $rules = [];
+      foreach ($wrap as $i => $row) {
+        if (!is_array($row) || !is_numeric($i)) {
+          continue;
+        }
+        $parsed = $this->parsePricingRuleRowFromValues($row);
+        if ($parsed !== NULL) {
+          $rules[] = $parsed;
+        }
+      }
+      if ($rules !== []) {
+        $out[] = [
+          'variation_id' => $vid,
+          'rules' => $rules,
+        ];
+      }
+    }
+
+    return $out;
+  }
+
+  /**
+   * @param array<string, mixed> $w
+   *   Saved rule row from config.
+   */
+  private function buildPricingRuleRowFieldset(array &$form, int $vid, int $i, array $w): void {
+    $stored_type = trim((string) ($w['rule_type'] ?? 'time_band'));
+    $rule_type = ($stored_type === 'time_band') ? 'time_band' : '_skip';
+    $name_rt = 'pricing_rules_tab[variations][' . $vid . '][rules_wrap][' . $i . '][rule_type]';
+    $days = isset($w['days_of_week']) && is_array($w['days_of_week'])
+      ? array_values(array_unique(array_filter(array_map('intval', $w['days_of_week']), static fn (int $d): bool => $d >= 1 && $d <= 7)))
+      : [];
+    $all_days = $days === [] || count($days) >= 7;
+    $start_hm = trim((string) ($w['start_hm'] ?? '09:00'));
+    $end_hm = trim((string) ($w['end_hm'] ?? '17:00'));
+    $surcharge_field = strtolower(trim((string) ($w['surcharge_field'] ?? $w['surcharge_source'] ?? 'none')));
+    if (!in_array($surcharge_field, ['peak', 'weekend', 'none'], TRUE)) {
+      $surcharge_field = 'none';
+    }
+    $weekday_defaults = [];
+    foreach ($days as $d) {
+      $weekday_defaults[$d] = $d;
+    }
+    $form['pricing_rules_tab']['variations'][$vid]['rules_wrap'][$i] = [
+      '#type' => 'fieldset',
+      '#title' => $this->t('Schedule row @n', ['@n' => (string) ($i + 1)]),
+      '#tree' => TRUE,
+      '#attributes' => [
+        'class' => ['court-booking-pricing-rule-fieldset'],
+      ],
+    ];
+    $ref = &$form['pricing_rules_tab']['variations'][$vid]['rules_wrap'][$i];
+    $ref['rule_type'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Row'),
+      '#options' => [
+        '_skip' => $this->t('Skip this row'),
+        'time_band' => $this->t('Use this row (weekdays + local time)'),
+      ],
+      '#default_value' => $rule_type,
+    ];
+    $ref['enabled'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Enabled'),
+      '#default_value' => !isset($w['enabled']) || !empty($w['enabled']),
+    ];
+    $ref['label'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Label (optional)'),
+      '#maxlength' => 255,
+      '#default_value' => trim((string) ($w['label'] ?? '')),
+    ];
+    $ref['all_days'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Applies every day of the week'),
+      '#default_value' => $all_days ? 1 : 0,
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+    $ref['weekdays'] = [
+      '#type' => 'checkboxes',
+      '#title' => $this->t('Weekdays (when not “every day”)'),
+      '#options' => $this->weekdayCheckboxOptions(),
+      '#default_value' => $all_days ? [] : $weekday_defaults,
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+    $ref['time_help'] = [
+      '#type' => 'item',
+      '#title' => $this->t('Local time (24h)'),
+      '#description' => $this->t('Band uses [start, end) — end is excluded.'),
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+    $ref['start_time'] = [
+      '#type' => 'datetime',
+      '#title' => $this->t('Start time'),
+      '#date_date_element' => 'none',
+      '#date_time_element' => 'time',
+      '#date_increment' => 60,
+      '#date_timezone' => date_default_timezone_get() ?: 'UTC',
+      '#default_value' => $this->defaultDrupalDateTimeFromHm($start_hm),
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+    $ref['end_time'] = [
+      '#type' => 'datetime',
+      '#title' => $this->t('End time'),
+      '#date_date_element' => 'none',
+      '#date_time_element' => 'time',
+      '#date_increment' => 60,
+      '#date_timezone' => date_default_timezone_get() ?: 'UTC',
+      '#default_value' => $this->defaultDrupalDateTimeFromHm($end_hm),
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+    $ref['surcharge_field'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Surcharge in this band'),
+      '#options' => [
+        'none' => $this->t('None'),
+        'peak' => $this->t('Peak (@f)', ['@f' => 'field_peak_hours_pricing']),
+        'weekend' => $this->t('Weekend (@f)', ['@f' => 'field_weekend_pricing']),
+      ],
+      '#default_value' => $surcharge_field,
+      '#states' => ['visible' => [':input[name="' . $name_rt . '"]' => ['value' => 'time_band']]],
+    ];
+  }
+
+  /**
+   * Default value for core datetime (time-only) element from HH:MM.
+   */
+  private function defaultDrupalDateTimeFromHm(string $hm): DrupalDateTime {
+    $hm = trim($hm);
+    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $hm)) {
+      $hm = '09:00';
+    }
+    $tz_name = date_default_timezone_get() ?: 'UTC';
+    try {
+      $tz = new \DateTimeZone($tz_name);
+    }
+    catch (\Throwable) {
+      $tz = new \DateTimeZone('UTC');
+    }
+    $d = DrupalDateTime::createFromFormat('Y-m-d H:i', '2000-01-01 ' . $hm, $tz);
+    if (!$d instanceof DrupalDateTime || $d->hasErrors()) {
+      $d = new DrupalDateTime('2000-01-01 ' . $hm . ':00', $tz);
+    }
+
+    return $d;
+  }
+
+  /**
+   * Normalizes datetime element value to HH:MM for config and validation.
+   */
+  private function timeFormValueToHm(mixed $value): ?string {
+    if ($value instanceof DrupalDateTime) {
+      if ($value->hasErrors()) {
+        return NULL;
+      }
+
+      return $value->format('H:i');
+    }
+    if (is_string($value)) {
+      $v = trim($value);
+      if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $v)) {
+        return $v;
+      }
+      if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/', $v)) {
+        return substr($v, 0, 5);
+      }
+
+      return NULL;
+    }
+    if (is_array($value) && !empty($value['time'])) {
+      return $this->timeFormValueToHm($value['time']);
+    }
+
+    return NULL;
+  }
+
+  /**
+   * @return array<int|string, string>
+   */
+  private function weekdayCheckboxOptions(): array {
+    return [
+      1 => $this->t('Monday'),
+      2 => $this->t('Tuesday'),
+      3 => $this->t('Wednesday'),
+      4 => $this->t('Thursday'),
+      5 => $this->t('Friday'),
+      6 => $this->t('Saturday'),
+      7 => $this->t('Sunday'),
+    ];
+  }
+
+  /**
+   * @param array<string, mixed> $row
+   *
+   * @return array<string, mixed>|null
+   */
+  private function parsePricingRuleRowFromValues(array $row): ?array {
+    $type = trim((string) ($row['rule_type'] ?? ''));
+    if ($type === '' || $type === '_skip') {
+      return NULL;
+    }
+    if ($type !== 'time_band') {
+      return NULL;
+    }
+    if (array_key_exists('enabled', $row) && empty($row['enabled'])) {
+      return NULL;
+    }
+    $label = trim((string) ($row['label'] ?? ''));
+    $surcharge_field = strtolower(trim((string) ($row['surcharge_field'] ?? 'none')));
+    if (!in_array($surcharge_field, ['peak', 'weekend', 'none'], TRUE)) {
+      $surcharge_field = 'none';
+    }
+    $start_hm = $this->timeFormValueToHm($row['start_time'] ?? NULL);
+    $end_hm = $this->timeFormValueToHm($row['end_time'] ?? NULL);
+    if ($start_hm === NULL || $end_hm === NULL) {
+      return NULL;
+    }
+    $sm_m = CourtBookingPriceResolver::hmToMinutes($start_hm);
+    $em_m = CourtBookingPriceResolver::hmToMinutes($end_hm);
+    if ($sm_m === NULL || $em_m === NULL || $em_m <= $sm_m) {
+      return NULL;
+    }
+    $all_days = !empty($row['all_days']);
+    $days_of_week = [];
+    if (!$all_days) {
+      $wd = $row['weekdays'] ?? [];
+      if (is_array($wd)) {
+        foreach ($wd as $k => $on) {
+          if (!empty($on) && ctype_digit((string) $k)) {
+            $d = (int) $k;
+            if ($d >= 1 && $d <= 7) {
+              $days_of_week[] = $d;
+            }
+          }
+        }
+      }
+      $days_of_week = array_values(array_unique($days_of_week));
+      if ($days_of_week === []) {
+        return NULL;
+      }
+    }
+
+    return [
+      'rule_type' => 'time_band',
+      'enabled' => TRUE,
+      'label' => $label,
+      'modifier_kind' => 'surcharge_field',
+      'surcharge_field' => $surcharge_field,
+      'percent_value' => '',
+      'percent_direction' => 'add',
+      'fixed_number' => '',
+      'fixed_currency' => '',
+      'fixed_direction' => 'add',
+      'start_date' => '',
+      'end_date' => '',
+      'promo_start_date' => '',
+      'promo_end_date' => '',
+      'member_role_ids' => [],
+      'percent_off' => '',
+      'days_of_week' => $days_of_week,
+      'start_hm' => $start_hm,
+      'end_hm' => $end_hm,
+    ];
   }
 
   /**

@@ -21,6 +21,7 @@ final class CourtBookingSlotBooking {
     protected AvailabilityManagerInterface $availabilityManager,
     protected ConfigFactoryInterface $configFactory,
     protected CourtBookingSportSettings $sportSettings,
+    protected CourtBookingPriceResolver $priceResolver,
   ) {}
 
   /**
@@ -285,6 +286,7 @@ final class CourtBookingSlotBooking {
     \DateTimeImmutable $start,
     \DateTimeImmutable $end,
     int $billing_units,
+    AccountInterface $account,
   ): void {
     if ($order_item->hasField('field_cbat_rental_date')) {
       $order_item->set('field_cbat_rental_date', [
@@ -292,10 +294,11 @@ final class CourtBookingSlotBooking {
         'end_value' => DateTimeHelper::formatUtc($end),
       ]);
     }
-    $base_price = $variation->getPrice();
-    if ($base_price && $billing_units >= 1) {
-      $scaled = $base_price->multiply((string) $billing_units);
-      $order_item->setUnitPrice($scaled, TRUE);
+    if ($billing_units >= 1) {
+      $scaled = $this->priceResolver->resolveScaledLinePrice($variation, $start, $billing_units, $account);
+      if ($scaled) {
+        $order_item->setUnitPrice($scaled, TRUE);
+      }
     }
   }
 

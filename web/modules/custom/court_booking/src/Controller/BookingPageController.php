@@ -7,6 +7,7 @@ use Drupal\commerce_bat\Availability\AvailabilityManagerInterface;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\court_booking\BookingTimezoneTrait;
 use Drupal\court_booking\CourtBookingPlayDurationGrid;
+use Drupal\court_booking\CourtBookingPriceResolver;
 use Drupal\court_booking\CourtBookingRegional;
 use Drupal\court_booking\CourtBookingSportSettings;
 use Drupal\court_booking\CourtBookingVariationThumbnail;
@@ -28,6 +29,7 @@ class BookingPageController extends ControllerBase {
     protected AvailabilityManagerInterface $availabilityManager,
     protected CurrencyFormatterInterface $currencyFormatter,
     protected CourtBookingSportSettings $sportSettings,
+    protected CourtBookingPriceResolver $priceResolver,
   ) {}
 
   /**
@@ -38,6 +40,7 @@ class BookingPageController extends ControllerBase {
       $container->get('commerce_bat.availability_manager'),
       $container->get('commerce_price.currency_formatter'),
       $container->get('court_booking.sport_settings'),
+      $container->get('court_booking.price_resolver'),
     );
   }
 
@@ -127,7 +130,7 @@ class BookingPageController extends ControllerBase {
         $booking_page_cache_tags = array_merge($booking_page_cache_tags, $card['cache_tags']);
         $booking_page_cache_tags = array_merge($booking_page_cache_tags, $variation->getCacheTags());
         $slot_len = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
-        $variations_out[] = [
+        $variations_out[] = array_merge([
           'id' => (int) $variation->id(),
           // Card label: linked court node (field_content_ref), not Commerce variation title.
           'title' => $court_node->getTitle(),
@@ -141,7 +144,7 @@ class BookingPageController extends ControllerBase {
           'detailUrl' => Url::fromRoute('court_booking.court_detail', [
             'commerce_product_variation' => $variation->id(),
           ])->setAbsolute()->toString(),
-        ];
+        ], $this->priceResolver->variationPricingBootstrap($variation));
       }
       if ($variations_out) {
         $merged = $this->sportSettings->getMergedForSport($tid);
@@ -231,6 +234,7 @@ class BookingPageController extends ControllerBase {
             'dates' => $dates_bootstrap,
             'addUrl' => Url::fromRoute('court_booking.add')->toString(),
             'slotCandidatesUrl' => Url::fromRoute('court_booking.slot_candidates')->toString(),
+            'pricePreviewUrl' => Url::fromRoute('court_booking.price_preview')->toString(),
             'csrfToken' => $csrf_token,
             'initialSportId' => (string) $default_tid,
             'initialVariationId' => $initial_variation !== NULL && $initial_variation !== '' ? (string) $initial_variation : '',

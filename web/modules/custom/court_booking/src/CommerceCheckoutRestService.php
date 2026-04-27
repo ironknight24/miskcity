@@ -469,6 +469,60 @@ final class CommerceCheckoutRestService {
   }
 
   /**
+   * Cancels an authenticated user's placed/completed order.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function cancelOrder(OrderInterface $order, AccountInterface $account, array $data): array {
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+
+    $storage = $this->entityTypeManager->getStorage('commerce_order');
+    /** @var \Drupal\commerce_order\Entity\OrderInterface|null $fresh */
+    $fresh = $storage->load($order->id());
+    if (!$fresh instanceof OrderInterface) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found.')]];
+    }
+    $this->orderRefresh->refresh($fresh);
+
+    $state = $fresh->getState()->getId();
+    if ($state === 'canceled') {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Order is already canceled.'),
+        'state' => $state,
+      ]];
+    }
+    if (!in_array($state, ['placed', 'completed'], TRUE)) {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Only placed/completed orders can be canceled.'),
+        'state' => $state,
+      ]];
+    }
+
+    $reason = trim((string) ($data['reason'] ?? ''));
+    $fresh->setData('court_booking_user_cancellation', [
+      'reason' => $reason,
+      'canceled_by_uid' => (int) $account->id(),
+      'canceled_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(DATE_ATOM),
+      'previous_state' => $state,
+    ]);
+    $this->applyCancelTransitionIfPossible($fresh);
+    $fresh->save();
+    if (function_exists('commerce_bat_sync_order_events')) {
+      \commerce_bat_sync_order_events($fresh);
+    }
+
+    return ['status' => 200, 'data' => [
+      'status' => 'ok',
+      'message' => (string) $this->t('Order canceled.'),
+      'order_id' => (int) $fresh->id(),
+      'state' => $fresh->getState()->getId(),
+      'refund' => 'not_automated',
+    ]];
+  }
+
+  /**
    * Processes asynchronous payment status callback.
    *
    * @return array{status: int, data: array}

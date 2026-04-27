@@ -53,6 +53,7 @@ Availability endpoints are public and do not require a bearer token.
 | POST | `/rest/v1/court-booking/cart/clear` | Optional JSON body `{}` | Clears **all** lines from current user's **draft** court cart; triggers BAT sync. Use `Content-Type: application/json` (or send empty body). |
 | PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user's cart |
 | POST | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | Optional JSON body `{}` | Cancels/removes a draft cart booking line item (no refund automation). **POST** (not DELETE) for broader client/proxy compatibility. |
+| POST | `/rest/v1/court-booking/orders/{order_id}/cancel` | Optional JSON body `{ "reason": "..." }` | Cancels authenticated user's **placed/completed** order, restores slot availability, refund is not automated |
 
 Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/slot-candidates`, `/court-booking/price-preview`, `/court-booking/cart/slot/{order_item}`.
 
@@ -122,6 +123,38 @@ curl -X POST \
 ```
 
 This endpoint records failure details and may move the order to canceled if the cancel transition is available.
+
+### Cancel a placed/completed order (authenticated)
+
+Use this endpoint when a user cannot attend after booking. It applies the cancel transition when allowed for the current order state.
+
+```bash
+curl -X POST \
+  "http://localhost:8080/rest/v1/court-booking/orders/5/cancel" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "reason": "Unable to attend"
+  }'
+```
+
+**Example success (`200`)**
+
+```json
+{
+  "status": "ok",
+  "message": "Order canceled.",
+  "order_id": 5,
+  "state": "canceled",
+  "refund": "not_automated"
+}
+```
+
+Notes:
+- Allowed for authenticated user-owned orders in `placed`/`completed` state.
+- For court bookings, cancellation triggers BAT sync (`commerce_bat_sync_order_events`) so the slot becomes available again.
+- Refunds are out of scope and not automated.
 
 ### Payment webhook callback
 

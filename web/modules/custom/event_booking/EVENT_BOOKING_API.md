@@ -82,6 +82,7 @@ Adjust in admin if your site differs.
 | Unified my bookings (court + event segments) | GET | `/rest/v1/bookings/my` | Bearer |
 | Payment details | POST | `/rest/v1/event-booking/orders/{order_id}/payment/details` | Bearer |
 | Payment confirm | POST | `/rest/v1/event-booking/orders/{order_id}/payment/confirm` | Bearer |
+| Cancel order | POST | `/rest/v1/event-booking/orders/{order_id}/cancel` | Bearer |
 | Receipt | GET | `/rest/v1/event-booking/orders/{order_id}/receipt` | Bearer |
 
 Payment **details** / **confirm** URLs live under `event-booking` for convenience; they **delegate** to `court_booking`’s `CommerceCheckoutRestService` (same body and behaviour as `/rest/v1/commerce/orders/...`).
@@ -628,6 +629,40 @@ curl -s -X POST \
 Copy **`payment_session_id`** into the next step.
 
 **Errors:** `400` invalid payment JSON, `403` not your order, `404` order missing.
+
+---
+
+### 8A. Cancel event order (placed/completed)
+
+Cancels an authenticated user's own event order when the current state is `placed` or `completed`. Refunds are not automated.
+
+```bash
+curl -s -X POST \
+  "http://localhost:8080/rest/v1/event-booking/orders/ORDER_ID/cancel" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{
+    "reason": "Unable to attend"
+  }'
+```
+
+**Example success**
+
+```json
+{
+  "status": "ok",
+  "message": "Order canceled.",
+  "order_id": 12,
+  "state": "canceled",
+  "refund": "not_automated"
+}
+```
+
+Notes:
+- Ownership is enforced; users can cancel only their own order.
+- For ticketed event items managed by `commerce_stock`, order cancellation triggers stock return via Commerce Stock order cancel event subscribers (when enabled in stock config), making tickets available again.
+- Refunds remain manual/out-of-band.
 
 ---
 

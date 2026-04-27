@@ -287,6 +287,20 @@ court_booking.rest_v1_commerce_payment_failure:
       commerce_order:
         type: entity:commerce_order
 
+court_booking.rest_v1_order_cancel:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/cancel'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::cancelOrder'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
 court_booking.rest_v1_commerce_payment_webhook:
   path: '/rest/v1/commerce/payments/webhook'
   defaults:

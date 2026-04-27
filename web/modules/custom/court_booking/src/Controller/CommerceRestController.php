@@ -91,4 +91,17 @@ final class CommerceRestController extends ControllerBase {
     return new JsonResponse($result['data'], $result['status']);
   }
 
+  /**
+   * Cancels user's own placed/completed order (no auto-refund).
+   */
+  public function cancelOrder(OrderInterface $commerce_order, Request $request): JsonResponse {
+    $raw = $request->getContent();
+    $data = $raw ? json_decode($raw, TRUE) : [];
+    if (!is_array($data)) {
+      throw new BadRequestHttpException('Invalid JSON body.');
+    }
+    $result = $this->commerceCheckoutRest->cancelOrder($commerce_order, $this->currentUser(), $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
 }

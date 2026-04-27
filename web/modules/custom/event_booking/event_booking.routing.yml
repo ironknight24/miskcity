@@ -111,6 +111,20 @@ event_booking.rest_v1_receipt:
       commerce_order:
         type: entity:commerce_order
 
+event_booking.rest_v1_order_cancel:
+  path: '/rest/v1/event-booking/orders/{commerce_order}/cancel'
+  defaults:
+    _controller: '\Drupal\event_booking\Controller\EventBookingRestController::cancelOrder'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
 event_booking.rest_v1_my_events_upcoming:
   path: '/rest/v1/event-booking/my-events/upcoming'
   defaults:

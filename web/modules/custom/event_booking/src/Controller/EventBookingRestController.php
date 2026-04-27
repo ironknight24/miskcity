@@ -113,6 +113,15 @@ final class EventBookingRestController extends ControllerBase {
   }
 
   /**
+   * Cancels user's own placed/completed event order (no auto-refund).
+   */
+  public function cancelOrder(OrderInterface $commerce_order, Request $request): JsonResponse {
+    $data = $this->decodeJson($request);
+    $result = $this->commerceCheckoutRest->cancelOrder($commerce_order, $this->currentUser(), $data);
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
    * Returns authenticated user's upcoming booked events list.
    */
   public function myBookedUpcomingEvents(Request $request): JsonResponse {

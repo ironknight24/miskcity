@@ -483,7 +483,7 @@ class SettingsForm extends ConfigFormBase {
       }
     }
 
-    $this->validatePricingRulesStructured($form_state);
+    $this->validatePricingRulesStructured($form, $form_state);
 
     $text = trim((string) $form_state->getValue('sport_mapping_lines'));
     if ($text === '') {
@@ -804,7 +804,7 @@ class SettingsForm extends ConfigFormBase {
   /**
    * Validates peak/weekend schedule rows (time_band + surcharge_field).
    */
-  private function validatePricingRulesStructured(FormStateInterface $form_state): void {
+  private function validatePricingRulesStructured(array &$form, FormStateInterface $form_state): void {
     $config = $this->config('court_booking.settings');
     $default_hours = [
       'booking_day_start' => (string) ($config->get('booking_day_start') ?: '06:00'),
@@ -840,7 +840,7 @@ class SettingsForm extends ConfigFormBase {
           continue;
         }
         if ($type !== 'time_band') {
-          $form_state->setErrorByName($base_name . '][rule_type', $this->t('Variation @id, rule @n: choose “Use this row” or skip.', [
+          $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'rule_type', $base_name . '][rule_type'), $this->t('Variation @id, rule @n: choose “Use this row” or skip.', [
             '@id' => (string) $vid,
             '@n' => (string) ($i + 1),
           ]));
@@ -861,7 +861,7 @@ class SettingsForm extends ConfigFormBase {
             }
           }
           if ($picked === []) {
-            $form_state->setErrorByName($base_name . '][weekdays', $this->t('Variation @id, rule @n: select weekdays or “every day”.', [
+            $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'weekdays', $base_name . '][weekdays'), $this->t('Variation @id, rule @n: select weekdays or “every day”.', [
               '@id' => (string) $vid,
               '@n' => (string) ($i + 1),
             ]));
@@ -870,7 +870,7 @@ class SettingsForm extends ConfigFormBase {
         $start_hm = $this->timeFormValueToHm($row['start_time'] ?? NULL);
         $end_hm = $this->timeFormValueToHm($row['end_time'] ?? NULL);
         if ($start_hm === NULL || $end_hm === NULL) {
-          $form_state->setErrorByName($base_name . '][start_time', $this->t('Variation @id, rule @n: enter valid start and end times.', [
+          $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'start_time', $base_name . '][start_time'), $this->t('Variation @id, rule @n: enter valid start and end times.', [
             '@id' => (string) $vid,
             '@n' => (string) ($i + 1),
           ]));
@@ -879,7 +879,7 @@ class SettingsForm extends ConfigFormBase {
           $sm_m = CourtBookingPriceResolver::hmToMinutes($start_hm);
           $em_m = CourtBookingPriceResolver::hmToMinutes($end_hm);
           if ($sm_m === NULL || $em_m === NULL || $em_m <= $sm_m) {
-            $form_state->setErrorByName($base_name . '][end_time', $this->t('Variation @id, rule @n: end time must be after start (no overnight).', [
+            $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'end_time', $base_name . '][end_time'), $this->t('Variation @id, rule @n: end time must be after start (no overnight).', [
               '@id' => (string) $vid,
               '@n' => (string) ($i + 1),
             ]));
@@ -887,7 +887,7 @@ class SettingsForm extends ConfigFormBase {
           else {
             $window = $this->resolveEffectiveOperatingWindow($vid, $default_hours, $sport_overrides);
             if ($window !== NULL && ($sm_m < $window['start_minutes'] || $em_m > $window['end_minutes'])) {
-              $form_state->setErrorByName($base_name . '][end_time', $this->t('Variation @id, rule @n: time band must be within operating hours @start - @end.', [
+              $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'end_time', $base_name . '][end_time'), $this->t('Variation @id, rule @n: time band must be within operating hours @start - @end.', [
                 '@id' => (string) $vid,
                 '@n' => (string) ($i + 1),
                 '@start' => $window['start_hm'],
@@ -898,13 +898,25 @@ class SettingsForm extends ConfigFormBase {
         }
         $sf = strtolower(trim((string) ($row['surcharge_field'] ?? 'none')));
         if (!in_array($sf, ['peak', 'weekend', 'none'], TRUE)) {
-          $form_state->setErrorByName($base_name . '][surcharge_field', $this->t('Variation @id, rule @n: invalid surcharge field.', [
+          $form_state->setErrorByName($this->pricingRuleErrorName($form, $vid, $i, 'surcharge_field', $base_name . '][surcharge_field'), $this->t('Variation @id, rule @n: invalid surcharge field.', [
             '@id' => (string) $vid,
             '@n' => (string) ($i + 1),
           ]));
         }
       }
     }
+  }
+
+  /**
+   * Builds a reliable error key from the real field #parents.
+   */
+  private function pricingRuleErrorName(array $form, int $variation_id, int $row_index, string $field, string $fallback): string {
+    $parents = $form['pricing_rules_tab']['variations'][$variation_id]['rules_wrap'][$row_index][$field]['#parents'] ?? NULL;
+    if (is_array($parents) && $parents !== []) {
+      return implode('][', $parents);
+    }
+
+    return $fallback;
   }
 
   /**

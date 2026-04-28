@@ -17,6 +17,7 @@
 use Drupal\commerce_product\Entity\ProductInterface;
 use Drupal\commerce_product\Entity\ProductVariationInterface;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Access\CsrfRequestHeaderAccessCheck;
 use Drupal\Core\Cache\Cache;
 use Drupal\Core\Entity\Display\EntityViewDisplayInterface;
 use Drupal\Core\Entity\EntityInterface;
@@ -351,7 +352,9 @@ function court_booking_mapped_variation_ids(): array {
 function _court_booking_court_full_display_data(NodeInterface $node): array {
   $static = &drupal_static(__FUNCTION__, []);
   $account = \Drupal::currentUser();
-  $key = $node->id() . ':' . $account->id();
+  $request = \Drupal::request();
+  $query_fingerprint = ($request->query->get('variation') ?? '') . '|' . ($request->query->get('start') ?? '') . '|' . ($request->query->get('end') ?? '');
+  $key = $node->id() . ':' . $account->id() . ':' . hash('sha256', (string) $query_fingerprint);
   if (!isset($static[$key])) {
     $static[$key] = \Drupal::service('court_booking.court_node_display')->buildPreprocessData($node, $account);
   }
@@ -399,6 +402,19 @@ function court_booking_preprocess_node(array &$variables): void {
   $variables['court_booking_price_formatted'] = $data['price_formatted'];
   $variables['court_booking_cart_url'] = $data['cart_url'];
   $variables['court_booking_booking_back_url'] = $data['booking_back_url'];
+  $variables['court_booking_pending_error'] = (string) ($data['pending_error'] ?? '');
+  $variables['court_booking_pending_proceed'] = !empty($data['pending_proceed']);
+
+  if (!empty($data['pending_proceed'])) {
+    $variables['#attached']['library'][] = 'court_booking/court_proceed';
+    $variables['#attached']['drupalSettings']['courtBookingCourtProceed'] = [
+      'addUrl' => Url::fromRoute('court_booking.add')->toString(),
+      'csrfToken' => \Drupal::csrfToken()->get(CsrfRequestHeaderAccessCheck::TOKEN_KEY),
+      'variation_id' => (int) ($data['pending_variation_id'] ?? 0),
+      'start' => (string) ($data['pending_start'] ?? ''),
+      'end' => (string) ($data['pending_end'] ?? ''),
+    ];
+  }
 }
 
 /**

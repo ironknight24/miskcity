@@ -575,10 +575,13 @@ final class CourtBookingApiService {
       'status' => 'ok',
     ];
     if ($include_legacy_redirect) {
+      $redirect_to = isset($data['redirect_to']) ? (string) $data['redirect_to'] : 'cart';
       $redirect_url = Url::fromRoute('commerce_cart.page')->setAbsolute()->toString();
-      $court_node = CourtBookingVariationThumbnail::courtNode($variation);
-      if ($court_node && $court_node->access('view', $account)) {
-        $redirect_url = $court_node->toUrl('canonical', ['absolute' => TRUE])->toString();
+      if ($redirect_to === 'court') {
+        $court_node = CourtBookingVariationThumbnail::courtNode($variation);
+        if ($court_node && $court_node->access('view', $account)) {
+          $redirect_url = $court_node->toUrl('canonical', ['absolute' => TRUE])->toString();
+        }
       }
       $response['redirect'] = $redirect_url;
     }

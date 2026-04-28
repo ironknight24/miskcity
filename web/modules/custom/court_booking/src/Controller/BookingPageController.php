@@ -134,21 +134,30 @@ class BookingPageController extends ControllerBase {
         $booking_page_cache_tags = array_merge($booking_page_cache_tags, $card['cache_tags']);
         $booking_page_cache_tags = array_merge($booking_page_cache_tags, $variation->getCacheTags());
         $slot_len = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
-        $variations_out[] = array_merge([
-          'id' => (int) $variation->id(),
-          // Card label: linked court node (field_content_ref), not Commerce variation title.
-          'title' => $court_node->getTitle(),
-          'courtTitle' => $court_node->getTitle(),
-          'variationTitle' => $variation->getTitle(),
-          'price' => $price,
-          'priceAmount' => $price_amount,
-          'priceCurrencyCode' => $price_currency,
-          'image' => $thumb,
-          'slotMinutes' => $slot_len,
-          'detailUrl' => Url::fromRoute('court_booking.court_detail', [
-            'commerce_product_variation' => $variation->id(),
-          ])->setAbsolute()->toString(),
-        ], $this->priceResolver->variationPricingBootstrap($variation));
+        $variations_out[] = array_merge(
+          $this->priceResolver->variationPricingBootstrap($variation),
+          [
+            'id' => (int) $variation->id(),
+            // Card label: linked court node (field_content_ref), not Commerce variation title.
+            'title' => $court_node->getTitle(),
+            'courtTitle' => $court_node->getTitle(),
+            'variationTitle' => $variation->getTitle(),
+            'price' => $price,
+            'priceAmount' => $price_amount,
+            'priceCurrencyCode' => $price_currency,
+            'image' => $thumb,
+            'slotMinutes' => $slot_len,
+            'detailUrl' => Url::fromRoute('court_booking.court_detail', [
+              'commerce_product_variation' => $variation->id(),
+            ])->setAbsolute()->toString(),
+            // Explicit node route + nid fallback so amenities navigation always targets the court node
+            // on the current browser origin (avoids base_url mismatches sending users off-site).
+            'courtNodeUrl' => Url::fromRoute('entity.node.canonical', ['node' => $court_node->id()])
+              ->setAbsolute()
+              ->toString(),
+            'courtNodeId' => (int) $court_node->id(),
+          ],
+        );
       }
       if ($variations_out) {
         $merged = $this->sportSettings->getMergedForSport($tid);

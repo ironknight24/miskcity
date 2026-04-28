@@ -36,6 +36,10 @@ services:
       - '@config.factory'
       - '@date.formatter'
       - '@file_url_generator'
+      - '@request_stack'
+      - '@court_booking.slot_booking'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
 
   court_booking.sport_settings:
     class: Drupal\court_booking\CourtBookingSportSettings

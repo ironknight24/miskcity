@@ -1681,6 +1681,48 @@
           }
         }
 
+        function navigateToCourtBookingDetail(v, startIso, endIso) {
+          if (!startIso || !endIso) {
+            return;
+          }
+          const pathFromUrl = (urlStr) => {
+            if (!urlStr) {
+              return '';
+            }
+            try {
+              const parsed = new URL(String(urlStr), window.location.href);
+              return parsed.pathname + (parsed.search || '');
+            } catch (e) {
+              return '';
+            }
+          };
+          // Prefer stable /node/{nid} from bootstrap (matches server); avoids relying on
+          // courtNodeUrl string when aliases/base_url differ from the browser origin.
+          let pathQuery = '';
+          const nid = v.courtNodeId != null && v.courtNodeId !== '' ? parseInt(String(v.courtNodeId), 10) : 0;
+          if (Number.isFinite(nid) && nid > 0) {
+            pathQuery = `/node/${nid}`;
+          }
+          if (!pathQuery) {
+            pathQuery = pathFromUrl(v.courtNodeUrl);
+          }
+          if (!pathQuery) {
+            pathQuery = pathFromUrl(v.detailUrl);
+          }
+          if (!pathQuery) {
+            setStatus(Drupal.t('Court page link is missing. Refresh the page and try again.'));
+            return;
+          }
+          const params = new URLSearchParams();
+          params.set('variation', String(v.id));
+          params.set('start', String(startIso));
+          params.set('end', String(endIso));
+          const joiner = pathQuery.includes('?') ? '&' : '?';
+          const finalAssign = `${pathQuery}${joiner}${params.toString()}`;
+          // Same-origin relative navigation so a wrong absolute base_url cannot send users to another host/path (e.g. cart).
+          window.location.assign(finalAssign);
+        }
+
         function renderCourts(startIso) {
           elCourts.innerHTML = '';
           if (!startIso || !selectedYmd) {
@@ -1722,45 +1764,9 @@
               return;
             }
             blocks.forEach(({ v, block }) => {
-              const addVariationToCart = async (triggerEl) => {
+              const goToCourtDetail = () => {
                 setStatus('');
-                if (triggerEl) {
-                  triggerEl.disabled = true;
-                }
-                try {
-                  const res = await fetch(s.addUrl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'X-CSRF-Token': s.csrfToken,
-                    },
-                    body: JSON.stringify({
-                      variation_id: v.id,
-                      start: block.start,
-                      end: block.end,
-                      quantity: 1,
-                    }),
-                  });
-                  const data = await res.json().catch(() => ({}));
-                  if (!res.ok) {
-                    setStatus(data.message || Drupal.t('Booking failed.'));
-                    if (triggerEl) {
-                      triggerEl.disabled = false;
-                    }
-                    return;
-                  }
-                  if (data.redirect) {
-                    window.location.href = data.redirect;
-                  }
-                } catch (err) {
-                  setStatus(Drupal.t('Network error. Try again.'));
-                  if (triggerEl) {
-                    triggerEl.disabled = false;
-                  }
-                  // eslint-disable-next-line no-console
-                  console.error(err);
-                }
+                navigateToCourtBookingDetail(v, block.start, block.end);
               };
 
               const card = document.createElement('div');
@@ -1805,16 +1811,16 @@
               bookBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                addVariationToCart(bookBtn);
+                goToCourtDetail();
               });
 
               card.addEventListener('click', () => {
-                addVariationToCart(bookBtn);
+                goToCourtDetail();
               });
               card.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
-                  addVariationToCart(bookBtn);
+                  goToCourtDetail();
                 }
               });
 
@@ -1899,45 +1905,10 @@
           }
 
           blocks.forEach(({ v, block }) => {
-            const addVariationToCart = async (triggerEl) => {
+            const endIso = playBufferEndIso(block.start, playMinutes, bufferMinutes);
+            const goToCourtDetail = () => {
               setStatus('');
-              if (triggerEl) {
-                triggerEl.disabled = true;
-              }
-              try {
-                const res = await fetch(s.addUrl, {
-                  method: 'POST',
-                  credentials: 'same-origin',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-Token': s.csrfToken,
-                  },
-                  body: JSON.stringify({
-                    variation_id: v.id,
-                    start: block.start,
-                    end: playBufferEndIso(block.start, playMinutes, bufferMinutes),
-                    quantity: 1,
-                  }),
-                });
-                const data = await res.json().catch(() => ({}));
-                if (!res.ok) {
-                  setStatus(data.message || Drupal.t('Booking failed.'));
-                  if (triggerEl) {
-                    triggerEl.disabled = false;
-                  }
-                  return;
-                }
-                if (data.redirect) {
-                  window.location.href = data.redirect;
-                }
-              } catch (err) {
-                setStatus(Drupal.t('Network error. Try again.'));
-                if (triggerEl) {
-                  triggerEl.disabled = false;
-                }
-                // eslint-disable-next-line no-console
-                console.error(err);
-              }
+              navigateToCourtBookingDetail(v, block.start, endIso);
             };
 
             const card = document.createElement('div');
@@ -1982,16 +1953,16 @@
             bookBtn.addEventListener('click', (e) => {
               e.preventDefault();
               e.stopPropagation();
-              addVariationToCart(bookBtn);
+              goToCourtDetail();
             });
 
             card.addEventListener('click', () => {
-              addVariationToCart(bookBtn);
+              goToCourtDetail();
             });
             card.addEventListener('keydown', (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                addVariationToCart(bookBtn);
+                goToCourtDetail();
               }
             });
 
@@ -2001,7 +1972,7 @@
               price,
               v,
               block.start,
-              playBufferEndIso(block.start, playMinutes, bufferMinutes),
+              endIso,
               {
                 fallbackPrice,
                 pricePreviewUrl: s.pricePreviewUrl,

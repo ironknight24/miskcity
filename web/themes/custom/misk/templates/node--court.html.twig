@@ -24,7 +24,9 @@
 				{{ 'Go back'|t }}
 			</a>
 			<div class="mx-auto flex max-w-3xl flex-1 flex-col items-center justify-center text-center text-white">
-				{% if court_booking_hero_slot %}
+				{% if court_booking_pending_error %}
+					<p class="max-w-lg rounded-xl border border-amber-300/80 bg-black/40 px-4 py-3 text-sm text-amber-100 md:text-base" role="alert">{{ court_booking_pending_error }}</p>
+				{% elseif court_booking_hero_slot %}
 					<p class="font-display text-2xl font-bold leading-tight tracking-tight md:text-4xl">{{ court_booking_hero_slot }}</p>
 				{% else %}
 					<p class="max-w-md text-base text-white/85 md:text-lg">{{ court_booking_hero_hint }}</p>
@@ -120,9 +122,15 @@
 					</dl>
 				</section>
 
-				<a href="{{ court_booking_cart_url }}" class="block w-full rounded-xl bg-[#02216E] py-4 text-center text-base font-semibold text-white hover:bg-[#011550] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02216E]">
-					{{ 'Proceed to cart'|t }}
-				</a>
+				{% if court_booking_pending_proceed %}
+					<button type="button" id="court-booking-proceed-to-cart" class="block w-full rounded-xl bg-[#02216E] py-4 text-center text-base font-semibold text-white hover:bg-[#011550] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02216E]">
+						{{ 'Proceed to cart'|t }}
+					</button>
+				{% else %}
+					<a href="{{ court_booking_cart_url }}" class="block w-full rounded-xl bg-[#02216E] py-4 text-center text-base font-semibold text-white hover:bg-[#011550] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#02216E]">
+						{{ 'Proceed to cart'|t }}
+					</a>
+				{% endif %}
 			</div>
 		</div>
 

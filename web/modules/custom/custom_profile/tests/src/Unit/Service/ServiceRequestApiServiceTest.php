@@ -54,6 +54,11 @@ class ServiceRequestApiServiceTest extends UnitTestCase {
           'apiVersion' => 'v1/',
         ],
       ],
+      'applicationConfig' => [
+        'config' => [
+          'tenantCode' => 'fireppr',
+        ],
+      ],
     ]);
 
     $this->apimanTokenService->method('getApimanAccessToken')->willReturn('token');

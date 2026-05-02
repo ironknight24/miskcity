@@ -122,10 +122,16 @@ class UserInfoCheckSubscriberTest extends UnitTestCase {
     $event = $this->createMock(RequestEvent::class);
     $event->method('isMainRequest')->willReturn(TRUE);
     $this->currentPath->method('getPath')->willReturn('/node/1');
-    
+
     $this->currentUser->method('isAnonymous')->willReturn(FALSE);
     $this->currentUser->method('hasPermission')->willReturn(FALSE);
-    
+
+    $headers = $this->createMock(\Symfony\Component\HttpFoundation\HeaderBag::class);
+    $headers->method('get')->with('Authorization', '')->willReturn('');
+    $request = $this->createMock(Request::class);
+    $request->headers = $headers;
+    $event->method('getRequest')->willReturn($request);
+
     $this->validator->method('validate')->willReturn(['uid' => 1]);
     $this->sessionManager->expects($this->never())->method('delete');
 

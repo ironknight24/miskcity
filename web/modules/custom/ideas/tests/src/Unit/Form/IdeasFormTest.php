@@ -124,7 +124,9 @@ class IdeasFormTest extends UnitTestCase {
   public function testSubmitFormMissingFile() {
     $form = [];
     $form_state = $this->createMock(FormStateInterface::class);
-    $form_state->method('getValue')->with('upload_file_hidden')->willReturn('');
+    $form_state->method('getValue')->willReturnMap([
+      ['upload_file_hidden', NULL, ''],
+    ]);
 
     $this->messenger->expects($this->once())->method('addError');
 

@@ -108,9 +108,16 @@ class CityMapControllerTest extends UnitTestCase {
       return $field_mock;
     });
 
-    $storage = $this->createMock(EntityStorageInterface::class);
-    $storage->method('loadByProperties')->with(['field_pois_category' => $tid])->willReturn([$node]);
-    $this->entityTypeManager->method('getStorage')->with('node')->willReturn($storage);
+    $term_storage = $this->createMock(EntityStorageInterface::class);
+    $term_storage->method('load')->willReturn(NULL);
+
+    $node_storage = $this->createMock(EntityStorageInterface::class);
+    $node_storage->method('loadByProperties')->with(['field_pois_category' => $tid])->willReturn([$node]);
+
+    $this->entityTypeManager->method('getStorage')->willReturnMap([
+      ['taxonomy_term', $term_storage],
+      ['node', $node_storage],
+    ]);
 
     $this->fileUrlGenerator->method('generateAbsoluteString')->willReturn('http://example.com/image.jpg');
 

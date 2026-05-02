@@ -138,10 +138,23 @@ class ReportGrievanceFormTest extends UnitTestCase {
     $container = \Drupal::getContainer();
     $container->set('request_stack', $this->createMock(\Symfony\Component\HttpFoundation\RequestStack::class));
     $container->get('request_stack')->method('getCurrentRequest')->willReturn($request);
-    
+
     // Add path.validator for Url::fromUri
     $path_validator = $this->createMock(\Drupal\Core\Path\PathValidatorInterface::class);
     $container->set('path.validator', $path_validator);
+
+    // Add vault config service used by submitForm
+    $vaultConfigService = $this->createMock(\Drupal\global_module\Service\VaultConfigService::class);
+    $vaultConfigService->method('getGlobalVariables')->willReturn([
+      'applicationConfig' => ['config' => ['tenantCode' => 'test']],
+    ]);
+    $container->set('global_module.vault_config_service', $vaultConfigService);
+
+    // Add logger factory for \Drupal::logger() calls
+    $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
+    $loggerFactory = $this->createMock(\Drupal\Core\Logger\LoggerChannelFactoryInterface::class);
+    $loggerFactory->method('get')->willReturn($logger);
+    $container->set('logger.factory', $loggerFactory);
 
     // Mock API Service
     $this->apiService->method('sendGrievance')->willReturn([

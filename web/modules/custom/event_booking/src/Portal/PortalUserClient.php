@@ -11,16 +11,32 @@ use GuzzleHttp\ClientInterface;
  */
 final class PortalUserClient implements PortalUserClientInterface {
 
+  /**
+   * Constructs a PortalUserClient.
+   *
+   * @param \Drupal\global_module\Service\ApimanTokenService $apimanTokenService
+   *   Provides the Bearer token for API Manager authentication.
+   * @param \Drupal\global_module\Service\VaultConfigService $vaultConfigService
+   *   Vault-backed configuration supplying the API base URL and version.
+   * @param \GuzzleHttp\ClientInterface $httpClient
+   *   HTTP client for making requests to the portal user details API.
+   */
   public function __construct(
     private readonly ApimanTokenService $apimanTokenService,
     private readonly VaultConfigService $vaultConfigService,
     private readonly ClientInterface $httpClient,
   ) {}
 
+  /**
+   * {@inheritdoc}
+   */
   public function isConfigured(): bool {
     return $this->buildUrl() !== NULL;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public function fetchByIdentifier(string $identifier): ?array {
     $url = $this->buildUrl();
     if ($url === NULL) {
@@ -46,6 +62,12 @@ final class PortalUserClient implements PortalUserClientInterface {
 
   /**
    * Builds the portal user details URL from vault configuration.
+   *
+   * Returns NULL when the required apiUrl or apiVersion settings are absent,
+   * which causes isConfigured() to return FALSE and prevents API calls.
+   *
+   * @return string|null
+   *   Fully qualified endpoint URL, or NULL when configuration is incomplete.
    */
   private function buildUrl(): ?string {
     $globals = $this->vaultConfigService->getGlobalVariables();

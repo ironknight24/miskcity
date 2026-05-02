@@ -52,16 +52,16 @@ final class CourtBookingPlayDurationGrid {
    */
   public static function playMinutesValidForSlots(int $play_minutes, array $slot_minutes_list): bool {
     if ($play_minutes <= 0) {
-      return FALSE;
+      return false;
     }
     foreach ($slot_minutes_list as $len) {
       $len = max(1, (int) $len);
       if ($play_minutes % $len !== 0) {
-        return FALSE;
+        return false;
       }
     }
 
-    return TRUE;
+    return true;
   }
 
 }

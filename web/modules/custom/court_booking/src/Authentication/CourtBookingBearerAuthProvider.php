@@ -138,7 +138,7 @@ final class CourtBookingBearerAuthProvider implements AuthenticationProviderInte
         ],
         'verify' => FALSE,
       ]);
-      $statusCode = $response->getStatusCode();
+
       $userinfo = json_decode((string) $response->getBody(), TRUE) ?? [];
 
       if (!empty($userinfo['sub'])) {

@@ -17,6 +17,14 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
  */
 final class EventBookingRestController extends ControllerBase {
 
+  /**
+   * Constructs an EventBookingRestController.
+   *
+   * @param \Drupal\event_booking\EventBookingApiService $api
+   *   Event booking API service containing the business logic.
+   * @param \Drupal\court_booking\CommerceCheckoutRestService $commerceCheckoutRest
+   *   Commerce checkout REST service proxied for payment and cancel endpoints.
+   */
   public function __construct(
     protected EventBookingApiService $api,
     protected CommerceCheckoutRestService $commerceCheckoutRest,
@@ -146,7 +154,16 @@ final class EventBookingRestController extends ControllerBase {
   }
 
   /**
+   * Decodes a JSON request body into an associative array.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The incoming HTTP request.
+   *
    * @return array<string, mixed>
+   *   Decoded body as an associative array; empty array for an empty body.
+   *
+   * @throws \Symfony\Component\HttpKernel\Exception\BadRequestHttpException
+   *   When the body is non-empty but not valid JSON, or not an object/array.
    */
   private function decodeJson(Request $request): array {
     $raw = $request->getContent();
@@ -158,21 +175,32 @@ final class EventBookingRestController extends ControllerBase {
   }
 
   /**
-   * @return array{page:int,limit:int,q:string}
+   * Extracts standard list pagination parameters from a request query string.
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The incoming HTTP request.
+   *
+   * @return array{page: int, limit: int, q: string}
+   *   Normalised pagination parameters with a clamped limit (1–50).
    */
   private function extractListParams(Request $request): array {
     $page = max(0, (int) $request->query->get('page', 0));
-    $limit = (int) $request->query->get('limit', 10);
-    if ($limit <= 0) {
-      $limit = 10;
-    }
-    $limit = min($limit, 50);
+    $limit = $this->clampPaginationLimit((int) $request->query->get('limit', 10), 10, 50);
     $q = trim((string) $request->query->get('q', ''));
     return ['page' => $page, 'limit' => $limit, 'q' => $q];
   }
 
   /**
+   * Extracts unified bookings list parameters from a request query string.
+   *
+   * Reads per-segment page and limit values for court and event bookings,
+   * along with shared filters (bucket, kind, q, sport_tid).
+   *
+   * @param \Symfony\Component\HttpFoundation\Request $request
+   *   The incoming HTTP request.
+   *
    * @return array<string, int|string>
+   *   Normalised parameters for getUnifiedBookings().
    */
   private function extractUnifiedListParams(Request $request): array {
     $bucket = mb_strtolower(trim((string) $request->query->get('bucket', 'upcoming')));
@@ -187,18 +215,10 @@ final class EventBookingRestController extends ControllerBase {
     $sport_tid = max(0, (int) $request->query->get('sport_tid', 0));
 
     $court_page = max(0, (int) $request->query->get('court_page', 0));
-    $court_limit = (int) $request->query->get('court_limit', 10);
-    if ($court_limit <= 0) {
-      $court_limit = 10;
-    }
-    $court_limit = min($court_limit, 50);
+    $court_limit = $this->clampPaginationLimit((int) $request->query->get('court_limit', 10), 10, 50);
 
     $event_page = max(0, (int) $request->query->get('event_page', 0));
-    $event_limit = (int) $request->query->get('event_limit', 10);
-    if ($event_limit <= 0) {
-      $event_limit = 10;
-    }
-    $event_limit = min($event_limit, 50);
+    $event_limit = $this->clampPaginationLimit((int) $request->query->get('event_limit', 10), 10, 50);
 
     return [
       'bucket' => $bucket,
@@ -210,6 +230,23 @@ final class EventBookingRestController extends ControllerBase {
       'event_page' => $event_page,
       'event_limit' => $event_limit,
     ];
+  }
+
+  /**
+   * Clamps a raw pagination limit to a valid range, using a default fallback.
+   *
+   * @param int $raw
+   *   The raw integer value from the query string.
+   * @param int $default
+   *   Value to use when $raw is ≤ 0.
+   * @param int $max
+   *   Maximum permitted value.
+   *
+   * @return int
+   *   A limit value in the range [1, $max].
+   */
+  private function clampPaginationLimit(int $raw, int $default, int $max): int {
+    return min($max, max(1, $raw > 0 ? $raw : $default));
   }
 
 }

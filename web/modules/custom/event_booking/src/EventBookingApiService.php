@@ -38,6 +38,34 @@ class EventBookingApiService {
 
   use StringTranslationTrait;
 
+  /**
+   * Constructs an EventBookingApiService.
+   *
+   * @param \Drupal\commerce_cart\CartManagerInterface $cartManager
+   *   Commerce cart manager for creating and updating order items.
+   * @param \Drupal\commerce_cart\CartProviderInterface $cartProvider
+   *   Commerce cart provider for loading or creating draft orders.
+   * @param \Drupal\commerce_order\OrderRefreshInterface $orderRefresh
+   *   Refreshes order totals and availability after item changes.
+   * @param \Drupal\Core\Entity\EntityTypeManagerInterface $entityTypeManager
+   *   Entity type manager for loading nodes, orders, and commerce entities.
+   * @param \Drupal\Core\Entity\EntityFieldManagerInterface $entityFieldManager
+   *   Field manager for resolving bundle–field relationships.
+   * @param \Drupal\Core\Config\ConfigFactoryInterface $configFactory
+   *   Config factory for reading event_booking.settings and system.date.
+   * @param \Drupal\global_module\Service\GlobalVariablesService $globalVariables
+   *   Global variables service used for encryption/decryption of portal data.
+   * @param \Drupal\Core\File\FileUrlGeneratorInterface $fileUrlGenerator
+   *   Generates absolute URLs for file entities (event images).
+   * @param \Drupal\commerce_stock\StockServiceManagerInterface $stockServiceManager
+   *   Stock service manager for per-variation stock level resolution.
+   * @param \Psr\Log\LoggerInterface $logger
+   *   Logger for the event_booking channel.
+   * @param \Drupal\court_booking\CourtBookingApiService $courtBookingApi
+   *   Court booking API service for the unified bookings endpoint.
+   * @param \Drupal\event_booking\Portal\PortalUserClientInterface $portalUserClient
+   *   HTTP client abstraction for the portal user details API.
+   */
   public function __construct(
     protected CartManagerInterface $cartManager,
     protected CartProviderInterface $cartProvider,
@@ -53,12 +81,20 @@ class EventBookingApiService {
     protected PortalUserClientInterface $portalUserClient,
   ) {}
 
-  // ---------------------------------------------------------------------------
-  // Public API methods
-  // ---------------------------------------------------------------------------
-
   /**
+   * Verifies a portal user ID against the portal API and the Drupal identity.
+   *
+   * Loads the portal user record identified by $portal_user_id and confirms
+   * that the returned email address matches the email of the currently
+   * authenticated Drupal account.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The currently authenticated Drupal account.
+   * @param string $portal_user_id
+   *   The portal-side user identifier submitted by the client.
+   *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function verifyPortalUser(AccountInterface $account, string $portal_user_id): array {
     if (!$account->isAuthenticated()) {
@@ -102,9 +138,16 @@ class EventBookingApiService {
   }
 
   /**
-   * Resolves portal userId for the authenticated user.
+   * Resolves the portal userId for the authenticated Drupal account.
+   *
+   * Looks up the portal user by the account's email address and verifies
+   * that the portal record matches before returning the portal userId.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The currently authenticated Drupal account.
    *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function resolvePortalUserContext(AccountInterface $account): array {
     if (!$account->isAuthenticated()) {
@@ -156,10 +199,21 @@ class EventBookingApiService {
   }
 
   /**
+   * Adds event tickets to the authenticated user's active event cart.
+   *
+   * Validates the variation against configured settings and stock levels,
+   * then creates a cart if none exists and appends the order item.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated user who is adding tickets.
    * @param array<string, mixed> $data
-   *   Keys: variation_id (optional), quantity.
+   *   Request payload. Recognised keys:
+   *   - variation_id: (int, optional) Ticket product variation to add;
+   *     falls back to configured default_variation_id.
+   *   - quantity: (int, optional) Number of tickets; defaults to 1.
    *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function addTickets(AccountInterface $account, array $data): array {
     $settings = $this->configFactory->get('event_booking.settings');
@@ -231,7 +285,13 @@ class EventBookingApiService {
   }
 
   /**
+   * Returns the serialised event cart summary for the current user.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated user whose active event cart should be loaded.
+   *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function getCartPayload(AccountInterface $account): array {
     $store = $this->loadEventStore();
@@ -307,7 +367,19 @@ class EventBookingApiService {
   }
 
   /**
+   * Builds a receipt payload for a completed order.
+   *
+   * Serialises line items and resolves linked event node details for each
+   * purchased ticket variation. Only completed orders return a receipt;
+   * draft/cancelled orders respond with a 409 status.
+   *
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
+   *   The order for which to build the receipt.
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The account requesting the receipt; must match the order customer.
+   *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function buildReceipt(OrderInterface $order, AccountInterface $account): array {
     if ((int) $order->getCustomerId() !== (int) $account->id()) {
@@ -389,10 +461,21 @@ class EventBookingApiService {
   }
 
   /**
-   * Returns paginated upcoming/completed booked events for current user.
+   * Returns paginated upcoming or completed booked events for the current user.
    *
-   * @param array{page?:int,limit?:int,q?:string} $params
+   * Queries completed Commerce orders for the account, resolves the linked
+   * event nodes, and returns a paginated, bucket-filtered list.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated account whose orders are queried.
+   * @param string $bucket
+   *   'upcoming' returns events with a future end time; 'completed' returns
+   *   events whose end time is in the past.
+   * @param array{page?: int, limit?: int, q?: string} $params
+   *   Pagination and search parameters. All keys are optional.
+   *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function getMyBookedEvents(AccountInterface $account, string $bucket, array $params): array {
     if (!$account->isAuthenticated()) {
@@ -437,22 +520,15 @@ class EventBookingApiService {
     }
 
     $nodes = $this->entityTypeManager->getStorage('node')->loadMultiple(array_values($node_ids));
+    $field_map = [
+      'date' => $date_field,
+      'image' => $image_field,
+      'location' => $location_field,
+    ];
     $items = $this->buildBookedEventRows(
-      $nodes, $account, $bucket,
-      $date_field, $image_field, $location_field,
-      $field, $booking_map['variation_orders'], $q
+      $nodes, $account, $bucket, $field_map, $field, $booking_map['variation_orders'], $q
     );
-
-    usort($items, static function (array $a, array $b) use ($bucket): int {
-      $a_start = (int) ($a['_sort_start'] ?? 0);
-      $b_start = (int) ($b['_sort_start'] ?? 0);
-      return $bucket === 'upcoming' ? ($a_start <=> $b_start) : ($b_start <=> $a_start);
-    });
-
-    foreach ($items as &$item) {
-      unset($item['_sort_start'], $item['_sort_end']);
-    }
-    unset($item);
+    $items = $this->sortAndStripBookedEventItems($items, $bucket);
 
     return ['status' => 200, 'data' => $this->buildPagerResponse($items, $page, $limit)];
   }
@@ -460,8 +536,19 @@ class EventBookingApiService {
   /**
    * Returns a unified segmented bookings payload for mobile clients.
    *
+   * Combines court and event bookings into a single response with separate
+   * per-type pagination segments. The 'kind' parameter controls which
+   * segments are populated ('all', 'court', or 'event').
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated account whose bookings are fetched.
    * @param array<string, int|string> $params
+   *   Accepted keys: bucket (upcoming|past), kind (all|court|event), q
+   *   (search string), sport_tid (taxonomy term ID), court_page, court_limit,
+   *   event_page, event_limit.
+   *
    * @return array{status: int, data: array}
+   *   A status/data envelope; status mirrors HTTP response codes.
    */
   public function getUnifiedBookings(AccountInterface $account, array $params): array {
     if (!$account->isAuthenticated()) {
@@ -498,38 +585,17 @@ class EventBookingApiService {
     ];
 
     if ($kind === 'all' || $kind === 'court') {
-      $court_result = $this->courtBookingApi->buildMyBookingsResponse($account, $bucket, $court_params);
-      if ($court_result['status'] !== 200) {
-        return $court_result;
+      $error = $this->appendCourtSegment($account, $bucket, $court_params, $segments);
+      if ($error !== NULL) {
+        return $error;
       }
-      $court_rows = [];
-      foreach ((array) ($court_result['data']['rows'] ?? []) as $row) {
-        if (is_array($row)) {
-          $court_rows[] = ['kind' => 'court'] + $row;
-        }
-      }
-      $segments['court'] = [
-        'rows' => $court_rows,
-        'pager' => (array) ($court_result['data']['pager'] ?? $segments['court']['pager']),
-      ];
     }
 
     if ($kind === 'all' || $kind === 'event') {
-      $event_bucket = $bucket === 'past' ? 'completed' : 'upcoming';
-      $event_result = $this->getMyBookedEvents($account, $event_bucket, $event_params);
-      if ($event_result['status'] !== 200) {
-        return $event_result;
+      $error = $this->appendEventSegment($account, $bucket, $event_params, $segments);
+      if ($error !== NULL) {
+        return $error;
       }
-      $event_rows = [];
-      foreach ((array) ($event_result['data']['rows'] ?? []) as $row) {
-        if (is_array($row)) {
-          $event_rows[] = ['kind' => 'event'] + $row;
-        }
-      }
-      $segments['event'] = [
-        'rows' => $event_rows,
-        'pager' => (array) ($event_result['data']['pager'] ?? $segments['event']['pager']),
-      ];
     }
 
     return ['status' => 200, 'data' => [
@@ -538,10 +604,6 @@ class EventBookingApiService {
       'segments' => $segments,
     ]];
   }
-
-  // ---------------------------------------------------------------------------
-  // Protected helpers — overridable in tests
-  // ---------------------------------------------------------------------------
 
   /**
    * Returns the current Unix timestamp; override in tests for determinism.
@@ -553,23 +615,37 @@ class EventBookingApiService {
   /**
    * Iterates loaded nodes and returns the serialized, filtered, sortable rows.
    *
-   * Extracted from getMyBookedEvents to reduce cognitive complexity.
-   *
    * @param \Drupal\node\NodeInterface[] $nodes
+   *   Candidate event nodes to process.
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The account used for access checks.
+   * @param string $bucket
+   *   Either 'upcoming' or 'completed'.
+   * @param array<string, string> $field_map
+   *   Keys: 'date', 'image', 'location' — machine names of the relevant node
+   *   fields used for serialisation and timestamp extraction.
+   * @param string $variation_field
+   *   Field name on the event node referencing the ticket product variation.
    * @param array<int, int[]> $variation_orders
+   *   Map of variation ID → completed order IDs for the current account.
+   * @param string $q
+   *   Normalised (lowercase, trimmed) search string; empty string to skip.
+   *
    * @return array<int, array<string, mixed>>
+   *   Serialised rows ready for sorting and pagination.
    */
   protected function buildBookedEventRows(
     array $nodes,
     AccountInterface $account,
     string $bucket,
-    string $date_field,
-    string $image_field,
-    string $location_field,
+    array $field_map,
     string $variation_field,
     array $variation_orders,
     string $q,
   ): array {
+    $date_field = $field_map['date'];
+    $image_field = $field_map['image'];
+    $location_field = $field_map['location'];
     $now = $this->getCurrentTime();
     $seen = [];
     $items = [];
@@ -584,16 +660,11 @@ class EventBookingApiService {
       }
       $seen[$nid] = TRUE;
 
-      [$start_ts, $end_ts] = $this->extractEventTimestamps($node, $date_field);
-      $effective_end = $end_ts ?? $start_ts;
-      if ($effective_end === NULL) {
+      $timestamps = $this->extractBucketTimestamps($node, $bucket, $date_field, $now);
+      if ($timestamps === NULL) {
         continue;
       }
-
-      $is_upcoming = $effective_end > $now;
-      if (($bucket === 'upcoming' && !$is_upcoming) || ($bucket === 'completed' && $is_upcoming)) {
-        continue;
-      }
+      [$start_ts, $effective_end] = $timestamps;
 
       $order_ids = $this->orderIdsForEventNode($node, $variation_field, $variation_orders);
       if ($order_ids === []) {
@@ -615,6 +686,138 @@ class EventBookingApiService {
     }
 
     return $items;
+  }
+
+  /**
+   * Validates node timestamps against the requested bucket and returns them.
+   *
+   * Returns NULL when the node has no parseable dates or does not belong to
+   * the requested bucket (upcoming / completed).
+   *
+   * @param \Drupal\node\NodeInterface $node
+   *   The event node to inspect.
+   * @param string $bucket
+   *   'upcoming' or 'completed'.
+   * @param string $date_field
+   *   Machine name of the date-range field on the node.
+   * @param int $now
+   *   Current Unix timestamp used for upcoming/completed comparison.
+   *
+   * @return array{0: int|null, 1: int}|null
+   *   [start_ts, effective_end_ts] when the node should be included,
+   *   or NULL to skip.
+   */
+  protected function extractBucketTimestamps(NodeInterface $node, string $bucket, string $date_field, int $now): ?array {
+    [$start_ts, $end_ts] = $this->extractEventTimestamps($node, $date_field);
+    $effective_end = $end_ts ?? $start_ts;
+    if ($effective_end === NULL) {
+      return NULL;
+    }
+    $is_upcoming = $effective_end > $now;
+    if (($bucket === 'upcoming' && !$is_upcoming) || ($bucket === 'completed' && $is_upcoming)) {
+      return NULL;
+    }
+    return [$start_ts, $effective_end];
+  }
+
+  /**
+   * Sorts booked-event item rows and strips internal sort keys.
+   *
+   * Upcoming events are sorted ascending by start time; completed events
+   * are sorted descending (most recent first).
+   *
+   * @param array<int, array<string, mixed>> $items
+   *   Unsorted rows as produced by buildBookedEventRows().
+   * @param string $bucket
+   *   'upcoming' or 'completed'.
+   *
+   * @return array<int, array<string, mixed>>
+   *   Sorted rows with '_sort_start' and '_sort_end' keys removed.
+   */
+  protected function sortAndStripBookedEventItems(array $items, string $bucket): array {
+    usort($items, static function (array $a, array $b) use ($bucket): int {
+      $a_start = (int) ($a['_sort_start'] ?? 0);
+      $b_start = (int) ($b['_sort_start'] ?? 0);
+      return $bucket === 'upcoming' ? ($a_start <=> $b_start) : ($b_start <=> $a_start);
+    });
+    foreach ($items as &$item) {
+      unset($item['_sort_start'], $item['_sort_end']);
+    }
+    unset($item);
+    return $items;
+  }
+
+  /**
+   * Fetches and normalises the court bookings segment for getUnifiedBookings().
+   *
+   * Updates $segments['court'] in place on success. Returns NULL on success
+   * or an error response array when the downstream API call fails.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated account.
+   * @param string $bucket
+   *   'upcoming' or 'past'.
+   * @param array<string, mixed> $court_params
+   *   Parameters forwarded to courtBookingApi->buildMyBookingsResponse().
+   * @param array<string, array<string, mixed>> $segments
+   *   Segments array mutated in place on success.
+   *
+   * @return array{status: int, data: array}|null
+   *   NULL on success; error envelope on failure.
+   */
+  protected function appendCourtSegment(AccountInterface $account, string $bucket, array $court_params, array &$segments): ?array {
+    $result = $this->courtBookingApi->buildMyBookingsResponse($account, $bucket, $court_params);
+    if ($result['status'] !== 200) {
+      return $result;
+    }
+    $rows = [];
+    foreach ((array) ($result['data']['rows'] ?? []) as $row) {
+      if (is_array($row)) {
+        $rows[] = ['kind' => 'court'] + $row;
+      }
+    }
+    $segments['court'] = [
+      'rows' => $rows,
+      'pager' => (array) ($result['data']['pager'] ?? $segments['court']['pager']),
+    ];
+    return NULL;
+  }
+
+  /**
+   * Fetches and normalises the event bookings segment for getUnifiedBookings().
+   *
+   * Updates $segments['event'] in place on success. Returns NULL on success
+   * or an error response array when the downstream API call fails.
+   *
+   * @param \Drupal\Core\Session\AccountInterface $account
+   *   The authenticated account.
+   * @param string $bucket
+   *   'upcoming' or 'past' (mapped to 'upcoming'/'completed' for events).
+   * @param array<string, mixed> $event_params
+   *   Parameters forwarded to getMyBookedEvents().
+   * @param array<string, array<string, mixed>> $segments
+   *   Segments array mutated in place on success.
+   *
+   * @return array{status: int, data: array}|null
+   *   NULL on success; error envelope on failure.
+   */
+  protected function appendEventSegment(AccountInterface $account, string $bucket, array $event_params, array &$segments): ?array {
+    $event_bucket = $bucket === 'past' ? 'completed' : 'upcoming';
+    $result = $this->getMyBookedEvents($account, $event_bucket, $event_params);
+    if ($result['status'] !== 200) {
+      return $result;
+    }
+    $rows = [];
+    foreach ((array) ($result['data']['rows'] ?? []) as $row) {
+      if (is_array($row)) {
+        $rows[] = ['kind' => 'event'] + $row;
+      }
+    }
+    $segments['event'] = [
+      'rows' => $rows,
+      'pager' => (array) ($result['data']['pager'] ?? $segments['event']['pager']),
+    ];
+    return NULL;
   }
 
   /**
@@ -654,6 +857,15 @@ class EventBookingApiService {
     return [$start, $end];
   }
 
+  /**
+   * Converts a UTC datetime string to a Unix timestamp.
+   *
+   * @param string $value
+   *   A UTC datetime string compatible with DrupalDateTime.
+   *
+   * @return int|null
+   *   Unix timestamp, or NULL when the value cannot be parsed.
+   */
   protected function toTimestamp(string $value): ?int {
     $value = trim($value);
     if ($value === '') {
@@ -695,6 +907,17 @@ class EventBookingApiService {
     return FALSE;
   }
 
+  /**
+   * Sums the quantity of a specific variation already present in an order.
+   *
+   * @param \Drupal\commerce_order\Entity\OrderInterface $order
+   *   The order (cart) to inspect.
+   * @param int $variation_id
+   *   The product variation ID to count.
+   *
+   * @return float
+   *   Total quantity of that variation across all order items.
+   */
   protected function countVariationQuantityInCart(OrderInterface $order, int $variation_id): float {
     $sum = 0.0;
     foreach ($order->getItems() as $item) {
@@ -706,6 +929,17 @@ class EventBookingApiService {
     return $sum;
   }
 
+  /**
+   * Formats a float quantity as a human-readable string for user messages.
+   *
+   * Integer-valued floats are rendered without decimal places.
+   *
+   * @param float $quantity
+   *   The quantity to format.
+   *
+   * @return string
+   *   A trimmed decimal representation.
+   */
   protected function formatQuantityForMessage(float $quantity): string {
     if (abs($quantity - round($quantity)) < 1e-6) {
       return (string) (int) round($quantity);
@@ -713,6 +947,18 @@ class EventBookingApiService {
     return rtrim(rtrim(sprintf('%.4f', $quantity), '0'), '.') ?: '0';
   }
 
+  /**
+   * Returns TRUE for node base fields and known system fields to skip.
+   *
+   * Used by serializeNodeFields() to omit fields that are redundant or
+   * irrelevant in an API response (e.g. nid, uid, revision_*).
+   *
+   * @param string $field_name
+   *   The field machine name to check.
+   *
+   * @return bool
+   *   TRUE if the field should be omitted from the serialised output.
+   */
   protected function isSkippedNodeField(string $field_name): bool {
     static $skipped = [
       'nid', 'uuid', 'vid', 'type',
@@ -741,11 +987,28 @@ class EventBookingApiService {
     return $value;
   }
 
+  /**
+   * Returns the site's default timezone identifier string.
+   *
+   * Falls back to 'UTC' when the system.date configuration is absent.
+   *
+   * @return string
+   *   A PHP timezone identifier (e.g. 'Asia/Dubai', 'UTC').
+   */
   protected function siteTimezoneId(): string {
     $tz = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
     return $tz !== '' ? $tz : 'UTC';
   }
 
+  /**
+   * Converts a UTC datetime string to an ISO 8601 string in the site timezone.
+   *
+   * @param string $raw
+   *   A UTC datetime string (e.g. from a Drupal datetime field value).
+   *
+   * @return string|null
+   *   An ISO 8601 string in the site timezone, or NULL on parse failure.
+   */
   protected function formatUtcStringToSiteIso(string $raw): ?string {
     $raw = trim($raw);
     if ($raw === '') {
@@ -759,10 +1022,6 @@ class EventBookingApiService {
       return NULL;
     }
   }
-
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
 
   /**
    * Builds receipt line items and event map for buildReceipt().

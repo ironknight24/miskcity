@@ -1,0 +1,9 @@
+name: 'Office Space Enquiry API'
+type: module
+description: 'REST API for submitting and retrieving office space enquiries. Requires an authenticated user (Bearer token); the submitter email is auto-populated from their Drupal account.'
+package: Custom
+core_version_requirement: ^10 || ^11
+dependencies:
+  - drupal:node
+  - drupal:user
+  

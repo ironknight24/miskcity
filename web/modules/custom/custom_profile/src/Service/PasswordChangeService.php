@@ -51,19 +51,16 @@ class PasswordChangeService
             $mismatchMessage = $this->getPasswordMismatchMessage($newPass, $confirmPass);
             if ($mismatchMessage !== NULL) {
                 $result['message'] = $mismatchMessage;
-            }
-            else {
+            } else {
                 $email = $this->currentUser->getEmail();
                 $idamconfig = $this->getIdamConfig();
                 $idamUserId = $this->getScimUserId($email, $idamconfig);
 
                 if ($idamUserId === NULL) {
                     $result['message'] = 'User not found in SCIM.';
-                }
-                elseif (!$this->isOldPasswordValid($email, $oldPass, $idamconfig)) {
+                } elseif (!$this->isOldPasswordValid($email, $oldPass, $idamconfig)) {
                     $result['message'] = 'Old password not matching!';
-                }
-                else {
+                } else {
                     $resPass = $this->apiHttpClientService->postIdamAuth(
                         self::SECURE_LINK . $idamconfig . '/scim2/Users/' . $idamUserId,
                         $this->buildPasswordUpdatePayload($newPass),
@@ -71,9 +68,11 @@ class PasswordChangeService
                     );
 
                     $result['message'] = $this->resolvePasswordChangeMessage($resPass, $email, $result['message']);
-                    if (empty($resPass['error'])
+                    if (
+                        empty($resPass['error'])
                         && !empty($resPass['emails'][0])
-                        && $resPass['emails'][0] === $email) {
+                        && $resPass['emails'][0] === $email
+                    ) {
                         $result['status'] = TRUE;
                     }
                 }
@@ -153,14 +152,11 @@ class PasswordChangeService
 
         if (!empty($resPass['error'])) {
             $message = $resPass['details']['detail'] ?? 'Password update failed';
-        }
-        elseif (!empty($resPass['emails'][0]) && $resPass['emails'][0] === $email) {
+        } elseif (!empty($resPass['emails'][0]) && $resPass['emails'][0] === $email) {
             $message = 'Password changed successfully. Please log in again.';
-        }
-        elseif (!empty($resPass['detail']) && str_contains(strtolower($resPass['detail']), 'password history')) {
+        } elseif (!empty($resPass['detail']) && str_contains(strtolower($resPass['detail']), 'password history')) {
             $message = 'The password you are trying to use was already used in your last 3 password changes. Please choose a completely new password.';
-        }
-        elseif (!empty($resPass['detail'])) {
+        } elseif (!empty($resPass['detail'])) {
             $message = $resPass['detail'];
         }
 

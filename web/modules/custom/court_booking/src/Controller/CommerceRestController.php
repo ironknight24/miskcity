@@ -36,7 +36,7 @@ final class CommerceRestController extends ControllerBase {
     if (!$order instanceof OrderInterface) {
       return new JsonResponse(['message' => (string) $this->t('No active cart.')], 404);
     }
-    return new JsonResponse($this->commerceCheckoutRest->buildCartPayload($order, $this->currentUser()));
+    return new JsonResponse($this->commerceCheckoutRest->buildCartPayload($order));
   }
 
   /**

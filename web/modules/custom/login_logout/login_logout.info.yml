@@ -1,8 +1,8 @@
 name: 'Custom Login Logout'
 type: module
 description: 'Provides custom login/logout functionality.'
-version: '1.0.0'
 core_version_requirement: ^11
+version: 1.0.0
 package: Custom
 dependencies:
   - user

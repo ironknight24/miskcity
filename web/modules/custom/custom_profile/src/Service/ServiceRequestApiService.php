@@ -102,9 +102,10 @@ class ServiceRequestApiService
      */
     public function getServiceRequests(int $userId, int $page = 1, int $itemsPerPage = 10, string $searchTerm = ''): array
     {
+        $globalVariables = $this->vaultConfigService->getGlobalVariables();
         $url = $this->getApiUrl('common/service-request');
         $body = [
-            'tenantCode' => 'fireppr',
+            'tenantCode' => $globalVariables['applicationConfig']['config']['tenantCode'] ?? '',
             'search' => $searchTerm,
             'pageNumber' => $page,
             'itemsPerPage' => $itemsPerPage,

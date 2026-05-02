@@ -30,7 +30,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Shared JSON logic for session-based and OAuth REST court booking endpoints.
  */
-final class CourtBookingApiService {
+class CourtBookingApiService {
 
   use StringTranslationTrait;
 
@@ -114,9 +114,30 @@ final class CourtBookingApiService {
       }
     }
 
-    $slots = $filtered_ids
-      ? $this->slotBooking->buildBufferSlotCandidatesForDay($filtered_ids, $ymd, $play_minutes, $quantity, $account)
-      : [];
+    $slots = [];
+    if ($filtered_ids) {
+      $first_vid = (int) reset($filtered_ids);
+      $first_variation = $variations[$first_vid] ?? NULL;
+      $rules = $first_variation instanceof ProductVariationInterface
+        ? $this->sportSettings->getMergedForVariation($first_variation)
+        : $this->sportSettings->getGlobalBookingRules();
+      $buffer_minutes = max(0, min(180, (int) ($rules['buffer_minutes'] ?? 0)));
+      $slots = $buffer_minutes > 0
+        ? $this->slotBooking->buildBufferSlotCandidatesForDay($filtered_ids, $ymd, $play_minutes, $quantity, $account)
+        : $this->slotBooking->buildNonBufferSlotCandidatesForDay($filtered_ids, $ymd, $play_minutes, $quantity, $account);
+    }
+    foreach ($slots as &$slot) {
+      if (!is_array($slot)) {
+        continue;
+      }
+      if (isset($slot['start']) && is_string($slot['start'])) {
+        $slot['start'] = $this->formatUtcStringToSiteIso($slot['start']) ?? $slot['start'];
+      }
+      if (isset($slot['end']) && is_string($slot['end'])) {
+        $slot['end'] = $this->formatUtcStringToSiteIso($slot['end']) ?? $slot['end'];
+      }
+    }
+    unset($slot);
 
     return ['status' => 200, 'data' => ['slots' => $slots]];
   }
@@ -198,6 +219,51 @@ final class CourtBookingApiService {
   }
 
   /**
+   * Single-range availability check using the same validator as booking flows.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildSlotCheckResponse(ProductVariationInterface $variation, Request $request, AccountInterface $account): array {
+    $start_raw = trim((string) $request->query->get('start', ''));
+    $end_raw = trim((string) $request->query->get('end', ''));
+    $quantity = max(1, (int) $request->query->get('quantity', 1));
+
+    if ($start_raw === '' || $end_raw === '') {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Missing required query params: start, end')]];
+    }
+
+    $start_utc = $this->normalizeApiDateTimeInputToUtc($start_raw);
+    $end_utc = $this->normalizeApiDateTimeInputToUtc($end_raw);
+    if ($start_utc === NULL || $end_utc === NULL) {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Invalid date format.')]];
+    }
+
+    $validation = $this->slotBooking->validateLessonSlot(
+      $variation,
+      $start_utc,
+      $end_utc,
+      $quantity,
+      $account,
+      FALSE,
+    );
+
+    $available = !empty($validation['ok']);
+    $data = [
+      'available' => $available,
+      'quantity' => $quantity,
+      'timezone' => $this->siteTimezoneId(),
+      'start' => $this->formatUtcStringToSiteIso($start_utc) ?? $start_raw,
+      'end' => $this->formatUtcStringToSiteIso($end_utc) ?? $end_raw,
+    ];
+    if (!$available) {
+      $data['message'] = (string) ($validation['message'] ?? $this->t('That slot is not available.'));
+      $data['reason_status'] = (int) ($validation['status'] ?? 409);
+    }
+
+    return ['status' => 200, 'data' => $data];
+  }
+
+  /**
    * Builds rule-aware availability slots for a variation and date range.
    *
    * @return array{status: int, data: array}
@@ -221,7 +287,7 @@ final class CourtBookingApiService {
     $buffer_minutes = max(0, min(180, (int) ($merged_rules['buffer_minutes'] ?? 0)));
     $block_minutes = $interval_minutes + $buffer_minutes;
 
-    $site_tz = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $site_tz = $this->siteTimezoneId();
     try {
       $tz = new \DateTimeZone($site_tz);
     }
@@ -265,8 +331,8 @@ final class CourtBookingApiService {
         );
         if (!empty($validation['ok'])) {
           $slots[] = [
-            'start' => DateTimeHelper::formatUtc($start_utc),
-            'end' => DateTimeHelper::formatUtc($end_utc),
+            'start' => $this->formatUtcToSiteIso($start_utc),
+            'end' => $this->formatUtcToSiteIso($end_utc),
             'ymd' => $ymd,
           ];
         }
@@ -294,7 +360,7 @@ final class CourtBookingApiService {
    *
    * @return array{status: int, data: array}
    */
-  public function buildSportsBootstrapResponse(AccountInterface $account): array {
+  public function buildSportsBootstrapResponse(): array {
     $config = $this->configFactory->get('court_booking.settings');
     $commerce_bat = $this->configFactory->get('commerce_bat.settings');
     $mappings = $config->get('sport_mappings') ?: [];
@@ -310,7 +376,7 @@ final class CourtBookingApiService {
     $language_manager = \Drupal::languageManager();
 
     $slot_minutes = max(1, (int) ($commerce_bat->get('lesson_slot_length_minutes') ?: 60));
-    $site_tz = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $site_tz = $this->siteTimezoneId();
     $langcode = $language_manager->getCurrentLanguage()->getId();
 
     $sports = [];
@@ -491,6 +557,8 @@ final class CourtBookingApiService {
     $start_raw = $data['start'] ?? '';
     $end_raw = $data['end'] ?? '';
     $quantity = max(1, (int) ($data['quantity'] ?? 1));
+    $start_utc_probe = $this->normalizeApiDateTimeInputToUtc((string) $start_raw);
+    $end_utc_probe = $this->normalizeApiDateTimeInputToUtc((string) $end_raw);
 
     if (!$variation_id || $start_raw === '' || $end_raw === '') {
       return ['status' => 400, 'data' => ['message' => (string) $this->t('Missing variation or time range.')]];
@@ -511,10 +579,15 @@ final class CourtBookingApiService {
       return ['status' => 403, 'data' => ['message' => (string) $this->t('This court is not available for booking.')]];
     }
 
+    $start_for_validation = $start_utc_probe ?? (string) $start_raw;
+    $end_for_validation = $end_utc_probe ?? (string) $end_raw;
+    if ($start_utc_probe === NULL || $end_utc_probe === NULL) {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Invalid date format.')]];
+    }
     $validation = $this->slotBooking->validateLessonSlot(
       $variation,
-      (string) $start_raw,
-      (string) $end_raw,
+      $start_for_validation,
+      $end_for_validation,
       $quantity,
       $account,
     );
@@ -575,13 +648,10 @@ final class CourtBookingApiService {
       'status' => 'ok',
     ];
     if ($include_legacy_redirect) {
-      $redirect_to = isset($data['redirect_to']) ? (string) $data['redirect_to'] : 'cart';
       $redirect_url = Url::fromRoute('commerce_cart.page')->setAbsolute()->toString();
-      if ($redirect_to === 'court') {
-        $court_node = CourtBookingVariationThumbnail::courtNode($variation);
-        if ($court_node && $court_node->access('view', $account)) {
-          $redirect_url = $court_node->toUrl('canonical', ['absolute' => TRUE])->toString();
-        }
+      $court_node = CourtBookingVariationThumbnail::courtNode($variation);
+      if ($court_node && $court_node->access('view', $account)) {
+        $redirect_url = $court_node->toUrl('canonical', ['absolute' => TRUE])->toString();
       }
       $response['redirect'] = $redirect_url;
     }
@@ -610,6 +680,8 @@ final class CourtBookingApiService {
   public function updateCartLineSlot(AccountInterface $account, OrderItemInterface $commerce_order_item, array $data): array {
     $start_raw = $data['start'] ?? '';
     $end_raw = $data['end'] ?? '';
+    $start_utc_probe = $this->normalizeApiDateTimeInputToUtc((string) $start_raw);
+    $end_utc_probe = $this->normalizeApiDateTimeInputToUtc((string) $end_raw);
     if ($start_raw === '' || $end_raw === '') {
       return ['status' => 400, 'data' => ['message' => (string) $this->t('Missing start or end time.')]];
     }
@@ -619,11 +691,16 @@ final class CourtBookingApiService {
       return ['status' => 400, 'data' => ['message' => (string) $this->t('This line item has no product variation.')]];
     }
 
+    $start_for_validation = $start_utc_probe ?? (string) $start_raw;
+    $end_for_validation = $end_utc_probe ?? (string) $end_raw;
+    if ($start_utc_probe === NULL || $end_utc_probe === NULL) {
+      return ['status' => 400, 'data' => ['message' => (string) $this->t('Invalid date format.')]];
+    }
     $quantity = max(1, (int) $commerce_order_item->getQuantity());
     $validation = $this->slotBooking->validateLessonSlot(
       $purchased,
-      (string) $start_raw,
-      (string) $end_raw,
+      $start_for_validation,
+      $end_for_validation,
       $quantity,
       $account,
     );
@@ -775,6 +852,113 @@ final class CourtBookingApiService {
   }
 
   /**
+   * Completed-order receipt for the configured court booking order type and store.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function buildCourtOrderReceipt(OrderInterface $order, AccountInterface $account): array {
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+    $storage = $this->entityTypeManager->getStorage('commerce_order');
+    /** @var \Drupal\commerce_order\Entity\OrderInterface|null $fresh */
+    $fresh = $storage->load($order->id());
+    if (!$fresh instanceof OrderInterface) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found.')]];
+    }
+    $this->orderRefresh->refresh($fresh);
+
+    $cb_config = $this->configFactory->get('court_booking.settings');
+    $order_type_id = (string) ($cb_config->get('order_type_id') ?: 'default');
+    if ($fresh->bundle() !== $order_type_id) {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('This order is not a court booking order.'),
+        'order_type' => $fresh->bundle(),
+      ]];
+    }
+
+    $store = $this->currentStore->getStore();
+    if ($store && (int) $fresh->getStoreId() !== (int) $store->id()) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found.')]];
+    }
+
+    if ($fresh->getState()->getId() !== 'completed') {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Receipt is only available for completed orders.'),
+        'state' => $fresh->getState()->getId(),
+      ]];
+    }
+
+    $tz_id = $this->siteTimezoneId();
+    $lines = [];
+    $courts = [];
+
+    foreach ($fresh->getItems() as $item) {
+      $purchased = $item->getPurchasedEntity();
+      $variation_id = $purchased instanceof ProductVariationInterface ? (int) $purchased->id() : NULL;
+
+      $line = [
+        'order_item_id' => (int) $item->id(),
+        'title' => $item->getTitle(),
+        'quantity' => (string) $item->getQuantity(),
+        'variation_id' => $variation_id,
+      ];
+      $unit = $item->getUnitPrice();
+      $adjusted = $item->getAdjustedTotalPrice();
+      $line['unit_price'] = $unit ? $unit->__toString() : NULL;
+      $line['total_price'] = $adjusted ? $adjusted->__toString() : NULL;
+
+      $rental_meta = $this->bookingRentalTimestamps($item);
+      if ($rental_meta !== NULL) {
+        $line['rental'] = [
+          'timezone' => $tz_id,
+        ] + $this->rentalUtcStringsToDisplayIso(
+          $rental_meta['start_raw'],
+          $rental_meta['end_raw'],
+          $tz_id,
+          (int) $item->id()
+        );
+      }
+      else {
+        $line['rental'] = NULL;
+      }
+
+      $line['court'] = NULL;
+      if ($purchased instanceof ProductVariationInterface) {
+        $court_node = \court_booking_variation_published_court_node($purchased);
+        if ($court_node instanceof NodeInterface && !$court_node->access('view', $account)) {
+          $court_node = NULL;
+        }
+        if ($court_node instanceof NodeInterface) {
+          $nid = (int) $court_node->id();
+          $thumb = CourtBookingVariationThumbnail::data($purchased, $this->fileUrlGenerator);
+          $image = $thumb['url'] ?? NULL;
+          $location = \court_booking_court_location_label($court_node);
+          $court_payload = [
+            'nid' => $nid,
+            'title' => $court_node->getTitle(),
+            'location' => $location !== '' ? $location : NULL,
+            'image' => $image,
+            'fields' => $this->serializeCourtNodeFields($court_node),
+          ];
+          $line['court'] = $court_payload;
+          $courts[$nid] = $court_payload;
+        }
+      }
+
+      $lines[] = $line;
+    }
+
+    return ['status' => 200, 'data' => [
+      'order_id' => (int) $fresh->id(),
+      'state' => $fresh->getState()->getId(),
+      'total' => $fresh->getTotalPrice() ? $fresh->getTotalPrice()->__toString() : NULL,
+      'line_items' => $lines,
+      'courts' => array_values($courts),
+    ]];
+  }
+
+  /**
    * Lists authenticated user's completed court bookings (upcoming or past).
    *
    * @param array<string, int|string> $params
@@ -821,7 +1005,7 @@ final class CourtBookingApiService {
     $orders = $order_storage->loadMultiple($order_ids);
     $variation_orders = $this->completedOrderIdsByVariation($orders);
     $now = \Drupal::time()->getRequestTime();
-    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $tz_id = $this->siteTimezoneId();
     $candidates = [];
 
     foreach ($orders as $order) {
@@ -860,8 +1044,6 @@ final class CourtBookingApiService {
         $start_raw = $rental_meta['start_raw'];
         $end_raw = $rental_meta['end_raw'];
         $rental = [
-          'value' => $start_raw,
-          'end_value' => $end_raw,
           'timezone' => $tz_id,
         ];
         $rental += $this->rentalUtcStringsToDisplayIso($start_raw, $end_raw, $tz_id, (int) $item->id());
@@ -1011,6 +1193,47 @@ final class CourtBookingApiService {
       }
     }
     return $out;
+  }
+
+  private function siteTimezoneId(): string {
+    $tz = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
+    return $tz !== '' ? $tz : 'UTC';
+  }
+
+  private function formatUtcToSiteIso(\DateTimeImmutable $utc): string {
+    return $utc->setTimezone(new \DateTimeZone($this->siteTimezoneId()))->format(DATE_ATOM);
+  }
+
+  private function formatUtcStringToSiteIso(string $raw): ?string {
+    $raw = trim($raw);
+    if ($raw === '') {
+      return NULL;
+    }
+    try {
+      $utc = DateTimeHelper::normalizeUtc(DateTimeHelper::parseUtc($raw, FALSE));
+      return $this->formatUtcToSiteIso($utc);
+    }
+    catch (\Throwable) {
+      return NULL;
+    }
+  }
+
+  private function normalizeApiDateTimeInputToUtc(string $raw): ?string {
+    $raw = trim($raw);
+    if ($raw === '') {
+      return NULL;
+    }
+    try {
+      if (!preg_match('/(?:Z|[+\-]\d{2}:\d{2})$/', $raw)) {
+        $local = new \DateTimeImmutable($raw, new \DateTimeZone($this->siteTimezoneId()));
+        return $local->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s');
+      }
+      $dt = new \DateTimeImmutable($raw);
+      return $dt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s');
+    }
+    catch (\Throwable) {
+      return NULL;
+    }
   }
 
   /**

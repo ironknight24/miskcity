@@ -34,6 +34,7 @@ Drupal does **not** invent this value offline. To obtain it for the **current Be
 
 - Prefer **no `Cookie` header** on API-only calls (session is not required when Bearer is valid).
 - Send `Content-Type: application/json` and `Accept: application/json` on JSON endpoints.
+- All API response datetime values are returned in Drupal site timezone (`system.date`).
 
 ---
 
@@ -428,8 +429,8 @@ curl -s -X GET \
       "order_ids": [12],
       "title": "Chennai Music Fest 2026",
       "event_schedule": {
-        "start": "2026-06-26T12:24:57",
-        "end": "2026-06-28T17:25:06"
+        "start": "2026-06-26T17:54:57+05:30",
+        "end": "2026-06-28T22:55:06+05:30"
       },
       "location": "Nandanam",
       "image": {
@@ -439,8 +440,8 @@ curl -s -X GET \
       "fields": {
         "field_event_date_time": [
           {
-            "value": "2026-06-26T12:24:57",
-            "end_value": "2026-06-28T17:25:06"
+            "value": "2026-06-26T17:54:57+05:30",
+            "end_value": "2026-06-28T22:55:06+05:30"
           }
         ],
         "field_event_location": [
@@ -511,6 +512,7 @@ Notes:
 - `order_id` is the primary completed order id for the authenticated user's booked event row.
 - `order_ids` contains all completed order ids for the authenticated user that reference the event's booked variation(s).
 - `fields` is dynamic. It contains current configurable field values from the booked event node, and newly added fields on the `events` content type will appear automatically once populated.
+- Event schedule and date/daterange field values are serialized in Drupal site timezone (`system.date`) with offset.
 - Detail-on-click can continue using your Views REST endpoint.
 
 ---
@@ -661,7 +663,7 @@ curl -s -X POST \
 
 Notes:
 - Ownership is enforced; users can cancel only their own order.
-- For ticketed event items managed by `commerce_stock`, order cancellation triggers stock return via Commerce Stock order cancel event subscribers (when enabled in stock config), making tickets available again.
+- For ticketed event items managed by `commerce_stock`, cancellation returns ticket stock. If the Commerce workflow cannot transition a `completed` order to `canceled`, the API performs the state update and stock return explicitly.
 - Refunds remain manual/out-of-band.
 
 ---
@@ -729,8 +731,8 @@ curl -s -X GET \
         "nid": 4990,
         "title": "Food Festival Bangalore",
         "event_schedule": {
-          "start": "2026-06-01T10:00:00",
-          "end": "2026-06-01T18:00:00"
+          "start": "2026-06-01T15:30:00+05:30",
+          "end": "2026-06-01T23:30:00+05:30"
         },
         "location": "Example venue text",
         "image": {

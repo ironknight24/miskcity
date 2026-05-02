@@ -72,7 +72,7 @@ class ProfilePictureForm extends FormBase
     $form['edit_label'] = [
       '#type' => 'html_tag',
       '#tag' => 'label',
-      '#value' => 'Edit Profile Picture',
+      '#value' => $this->t('Edit Profile Picture'),
       '#attributes' => [
         'for' => 'profilePic',
         'class' => ['text-sm', 'font-bold', 'font-[Open_Sans]', 'border-2', 'px-4', 'cursor-pointer', 'translateLabel'],
@@ -123,7 +123,9 @@ class ProfilePictureForm extends FormBase
 
     $form['note'] = [
       '#type' => 'markup',
-      '#markup' => '<p class="flex justify-center text-[#a0a0a0] supportP text-sm font-[Open_Sans] font-bold my-4">(Supported file types: JPEG, PNG & file size limit is 2MB)</p>',
+      '#markup' => '<p class="flex justify-center text-[#a0a0a0] supportP text-sm font-[Open_Sans] font-bold my-4">' . 
+                $this->t('Supported file types: JPEG, PNG & file size limit is 2MB') . 
+               '</p>',
     ];
 
     return $form;

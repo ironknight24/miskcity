@@ -4,7 +4,6 @@ namespace Drupal\city_map\Controller;
 
 use Drupal\Core\Controller\ControllerBase;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 
 /**
  * CityMapController class.
@@ -19,18 +18,13 @@ class CityMapController extends ControllerBase
   /**
    * Renders the city map page.
    *
-   * Returns a render array with the city map theme template and attaches
-   * the required JavaScript/CSS library for map functionality.
-   *
    * @return array
    *   A render array containing theme and library attachments.
    */
   public function cityMap()
   {
     return [
-      // Specify the theme template for rendering the city map
       '#theme' => 'city_map',
-      // Attach the city map library containing JS and CSS assets
       '#attached' => [
         'library' => [
           'city_map/city-map-library',
@@ -42,10 +36,6 @@ class CityMapController extends ControllerBase
   /**
    * Retrieves POI content filtered by taxonomy term ID.
    *
-   * Loads nodes that have the specified POI category term, extracts
-   * relevant field data (address, coordinates, images, etc.), and returns
-   * as JSON response for map marker display.
-   *
    * @param int $tid
    *   The taxonomy term ID for filtering POI categories.
    *
@@ -54,46 +44,51 @@ class CityMapController extends ControllerBase
    */
   public function getContentByTerm($tid)
   {
-    // Get file URL generator service for generating absolute image URLs
     $file_url_generator = \Drupal::service('file_url_generator');
+    $entity_type_manager = \Drupal::entityTypeManager();
 
-    // Load nodes that have the specified POI category term
-    $nodes = \Drupal::entityTypeManager()
+    // Load taxonomy term and extract POI image
+    // field_poi_icon_image is a direct Image field (simpler)
+    $poi_image_url = NULL;
+    $term = $entity_type_manager->getStorage('taxonomy_term')->load($tid);
+    if ($term && !$term->get('field_poi_icon_image')->isEmpty()) {
+      $file_uri = $term->get('field_poi_icon_image')->entity->getFileUri();
+      $poi_image_url = $file_url_generator->generateAbsoluteString($file_uri);
+    }
+
+    // Load nodes filtered by taxonomy term
+    $nodes = $entity_type_manager
       ->getStorage('node')
       ->loadByProperties(['field_pois_category' => $tid]);
 
-    // Initialize empty array for POI data
     $data = [];
 
-    // Process each node to extract POI information
     foreach ($nodes as $node) {
-      // Get Image URL with safe check for empty field
+      // Get node image URL
       $image_url = NULL;
       if (!$node->get('field_image_1')->isEmpty()) {
-        // Get file URI and generate absolute URL
         $file_uri = $node->get('field_image_1')->entity->getFileUri();
         $image_url = $file_url_generator->generateAbsoluteString($file_uri);
       }
 
-      // Build POI data array with all relevant fields
       $data[] = [
-        'id' => $node->id(),
-        'title' => $node->label(),
-        'address' => $node->get('field_address')->value ?? '',
-        'contact_number' => $node->get('field_contact_number')->value ?? '',
-        'description' => $node->get('field_desc')->value ?? '',
-        'latitude' => $node->get('field_latitude')->value ?? '',
-        'longitude' => $node->get('field_longitude')->value ?? '',
-        'price' => $node->get('field_price')->value ?? '',
-        'timings' => $node->get('field_timings')->value ?? '',
-        'website_url' => $node->get('field_website_url')->value ?? '',
-        'image_url' => $image_url,
-        'created' => $node->getCreatedTime(),
-        'node_url' => $node->toUrl()->toString(),
+        'id'             => (int) $node->id(),
+        'title'          => (string) $node->label(),
+        'address'        => (string) ($node->get('field_address')->value ?? ''),
+        'contact_number' => (string) ($node->get('field_contact_number')->value ?? ''),
+        'description'    => (string) ($node->get('field_desc')->value ?? ''),
+        'latitude'       => (string) ($node->get('field_latitude')->value ?? ''),
+        'longitude'      => (string) ($node->get('field_longitude')->value ?? ''),
+        'price'          => (string) ($node->get('field_price')->value ?? ''),
+        'timings'        => (string) ($node->get('field_timings')->value ?? ''),
+        'website_url'    => (string) ($node->get('field_website_url')->value ?? ''),
+        'image_url'      => $image_url,
+        'created'        => (int) $node->getCreatedTime(),
+        'node_url'       => (string) $node->toUrl()->toString(),
+        'poi_icon'       => $poi_image_url,
       ];
     }
 
-    // Return JSON response with count and POI data array
     return new JsonResponse([
       'count' => count($data),
       'items' => $data,

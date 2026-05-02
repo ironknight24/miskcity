@@ -60,10 +60,10 @@ add_address_form:
     - core/drupal
     - core/drupalSettings
 
-ai_modal_fix:
-  css:
-    theme:
-      css/aickeditor.css: {}
+# ai_modal_fix:
+#   css:
+#     theme:
+#       css/aickeditor.css: {}
 
 ai_media_modal_fix:
   js:

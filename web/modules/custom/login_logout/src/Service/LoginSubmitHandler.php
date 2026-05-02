@@ -123,7 +123,7 @@ class LoginSubmitHandler {
    */
   public function handleFormSubmission(array &$form, FormStateInterface $form_state) {
     unset($form);
-    $email = mb_strtolower(trim((string) $form_state->getValue('email')));
+    $email = trim((string) $form_state->getValue('email'));
     if ($form_state->get('email_validated')) {
       $this->handlePasswordStep($email, $form_state);
     } else {
@@ -207,13 +207,15 @@ class LoginSubmitHandler {
       $apiUrl = $globals['apiManConfig']['config']['apiUrl'] ?? '';
       $apiVersion = $globals['apiManConfig']['config']['apiVersion'] ?? '';
 
-      if ($this->oauthLoginService->checkEmailExists($email, $accessToken, $apiUrl, $apiVersion)) {
-        $form_state->set('email_validated', TRUE)->setRebuild();
-      } else {
-        $tempstore = $this->tempStoreFactory->get('login_logout');
-        $tempstore->set('registration_email', $email);
-        $form_state->setRedirect('login_logout.user_register_form');
-      }
+      $email = mb_strtolower(trim($email));
+
+        if ($this->oauthLoginService->checkEmailExists($email, $accessToken, $apiUrl, $apiVersion)) {
+            $form_state->set('email_validated', TRUE)->setRebuild();
+        } else {
+            $tempstore = $this->tempStoreFactory->get('login_logout');
+            $tempstore->set('registration_email', $email);
+            $form_state->setRedirect('login_logout.user_register_form');
+        }
     } catch (\Exception $e) {
       $this->messenger->addError($this->t('Error checking email: @msg', ['@msg' => $e->getMessage()]));
     }

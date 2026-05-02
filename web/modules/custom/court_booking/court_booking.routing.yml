@@ -221,6 +221,77 @@ court_booking.rest_v1_clear_cart:
   options:
     _auth: ['court_booking_bearer']
 
+# Order API prefix parity: same controller methods as /rest/v1/commerce/orders/... (legacy alias).
+court_booking.rest_v1_court_order_complete:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/checkout/complete'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::completeCheckout'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_court_order_payment_details:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/payment/details'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentDetails'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_court_order_payment_confirm:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/payment/confirm'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentConfirm'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_court_order_payment_failure:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/payment/failure'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CommerceRestController::paymentFailure'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
+court_booking.rest_v1_court_order_receipt:
+  path: '/rest/v1/court-booking/orders/{commerce_order}/receipt'
+  defaults:
+    _controller: '\Drupal\court_booking\Controller\CourtBookingRestController::orderReceipt'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\court_booking\Access\CommerceRestAccess::ownDraftOrder'
+    commerce_order: '\d+'
+  options:
+    _auth: ['court_booking_bearer']
+    parameters:
+      commerce_order:
+        type: entity:commerce_order
+
 court_booking.rest_v1_commerce_cart:
   path: '/rest/v1/commerce/cart'
   defaults:

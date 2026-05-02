@@ -12,13 +12,18 @@ services:
       - '@entity_type.manager'
       - '@entity_field.manager'
       - '@config.factory'
-      - '@http_client'
-      - '@global_module.apiman_token_service'
-      - '@global_module.vault_config_service'
       - '@global_module.global_variables'
       - '@file_url_generator'
       - '@commerce_stock.service_manager'
       - '@logger.channel.event_booking'
       - '@court_booking.api'
+      - '@event_booking.portal_user_client'
     calls:
       - [setStringTranslation, ['@string_translation']]
+
+  event_booking.portal_user_client:
+    class: Drupal\event_booking\Portal\PortalUserClient
+    arguments:
+      - '@global_module.apiman_token_service'
+      - '@global_module.vault_config_service'
+      - '@http_client'

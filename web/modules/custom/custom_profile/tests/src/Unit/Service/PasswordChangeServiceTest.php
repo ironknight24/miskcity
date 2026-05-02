@@ -16,7 +16,8 @@ use Symfony\Component\HttpFoundation\Session\SessionInterface;
  * @coversDefaultClass \Drupal\custom_profile\Service\PasswordChangeService
  * @group custom_profile
  */
-class PasswordChangeServiceTest extends UnitTestCase {
+class PasswordChangeServiceTest extends UnitTestCase
+{
 
   protected $globalVariables;
   protected $loggerFactory;
@@ -27,14 +28,15 @@ class PasswordChangeServiceTest extends UnitTestCase {
   protected $apiHttpClientService;
   protected $service;
 
-  protected function setUp(): void {
+  protected function setUp(): void
+  {
     parent::setUp();
 
     $this->globalVariables = $this->createMock(GlobalVariablesService::class);
     $this->loggerFactory = $this->createMock(LoggerChannelFactoryInterface::class);
     $this->logger = $this->createMock(LoggerChannelInterface::class);
     $this->loggerFactory->method('get')->willReturn($this->logger);
-    
+
     $this->currentUser = $this->createMock(AccountProxyInterface::class);
     $this->session = $this->createMock(SessionInterface::class);
     $this->vaultConfigService = $this->createMock(VaultConfigService::class);
@@ -48,27 +50,33 @@ class PasswordChangeServiceTest extends UnitTestCase {
       $this->vaultConfigService,
       $this->apiHttpClientService
     ) extends PasswordChangeService {
-      public function mismatchMessage(string $newPass, string $confirmPass): ?string {
+      public function mismatchMessage(string $newPass, string $confirmPass): ?string
+      {
         return $this->getPasswordMismatchMessage($newPass, $confirmPass);
       }
 
-      public function idamConfig(): string {
+      public function idamConfig(): string
+      {
         return $this->getIdamConfig();
       }
 
-      public function scimUserId(string $email, string $idamconfig): ?string {
+      public function scimUserId(string $email, string $idamconfig): ?string
+      {
         return $this->getScimUserId($email, $idamconfig);
       }
 
-      public function oldPasswordValid(string $email, string $oldPass, string $idamconfig): bool {
+      public function oldPasswordValid(string $email, string $oldPass, string $idamconfig): bool
+      {
         return $this->isOldPasswordValid($email, $oldPass, $idamconfig);
       }
 
-      public function passwordPayload(string $newPass): array {
+      public function passwordPayload(string $newPass): array
+      {
         return $this->buildPasswordUpdatePayload($newPass);
       }
 
-      public function changeMessage(array $response, string $email, string $defaultMessage): string {
+      public function changeMessage(array $response, string $email, string $defaultMessage): string
+      {
         return $this->resolvePasswordChangeMessage($response, $email, $defaultMessage);
       }
     };
@@ -85,7 +93,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordMismatch() {
+  public function testChangePasswordMismatch()
+  {
     $result = $this->service->changePassword('old', 'new', 'different');
     $this->assertFalse($result['status']);
     $this->assertEquals('New password and confirm password do not match.', $result['message']);
@@ -94,7 +103,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordUserNotFound() {
+  public function testChangePasswordUserNotFound()
+  {
     $this->currentUser->method('getEmail')->willReturn('test@example.com');
     $this->apiHttpClientService->method('getApi')->willReturn(['Resources' => []]);
 
@@ -106,7 +116,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordOldMismatch() {
+  public function testChangePasswordOldMismatch()
+  {
     $this->currentUser->method('getEmail')->willReturn('test@example.com');
     $this->apiHttpClientService->method('getApi')->willReturn(['Resources' => [['id' => 'user123']]]);
     $this->apiHttpClientService->method('postIdam')->willReturn([]);
@@ -119,7 +130,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordUpdateError() {
+  public function testChangePasswordUpdateError()
+  {
     $this->currentUser->method('getEmail')->willReturn('test@example.com');
     $this->apiHttpClientService->method('getApi')->willReturn(['Resources' => [['id' => 'user123']]]);
     $this->apiHttpClientService->method('postIdam')->willReturn(['access_token' => 'token']);
@@ -133,7 +145,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordHistoryError() {
+  public function testChangePasswordHistoryError()
+  {
     $this->currentUser->method('getEmail')->willReturn('test@example.com');
     $this->apiHttpClientService->method('getApi')->willReturn(['Resources' => [['id' => 'user123']]]);
     $this->apiHttpClientService->method('postIdam')->willReturn(['access_token' => 'token']);
@@ -147,7 +160,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordSuccess() {
+  public function testChangePasswordSuccess()
+  {
     $this->currentUser->method('getEmail')->willReturn('test@example.com');
     $this->apiHttpClientService->method('getApi')->willReturn(['Resources' => [['id' => 'user123']]]);
     $this->apiHttpClientService->method('postIdam')->willReturn(['access_token' => 'token']);
@@ -161,7 +175,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::changePassword
    */
-  public function testChangePasswordException() {
+  public function testChangePasswordException()
+  {
     $this->currentUser->method('getEmail')->willThrowException(new \Exception('Fatal Error'));
     $result = $this->service->changePassword('old', 'new', 'new');
     $this->assertFalse($result['status']);
@@ -173,7 +188,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
    * @covers ::getIdamConfig
    * @covers ::buildPasswordUpdatePayload
    */
-  public function testPasswordChangeHelpers(): void {
+  public function testPasswordChangeHelpers(): void
+  {
     $this->assertSame('New password and confirm password do not match.', $this->service->mismatchMessage('new', 'different'));
     $this->assertNull($this->service->mismatchMessage('same', 'same'));
     $this->assertSame('idam.example.com', $this->service->idamConfig());
@@ -188,7 +204,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
    * @covers ::getScimUserId
    * @covers ::isOldPasswordValid
    */
-  public function testScimAndOldPasswordHelpers(): void {
+  public function testScimAndOldPasswordHelpers(): void
+  {
     $this->apiHttpClientService->expects($this->once())
       ->method('getApi')
       ->willReturn(['Resources' => [['id' => 'abc123']]]);
@@ -203,7 +220,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
       $this->vaultConfigService,
       $this->apiHttpClientService
     ) extends PasswordChangeService {
-      public function oldPasswordValid(string $email, string $oldPass, string $idamconfig): bool {
+      public function oldPasswordValid(string $email, string $oldPass, string $idamconfig): bool
+      {
         return $this->isOldPasswordValid($email, $oldPass, $idamconfig);
       }
     };
@@ -215,7 +233,8 @@ class PasswordChangeServiceTest extends UnitTestCase {
   /**
    * @covers ::resolvePasswordChangeMessage
    */
-  public function testResolvePasswordChangeMessageBranches(): void {
+  public function testResolvePasswordChangeMessageBranches(): void
+  {
     $this->assertSame(
       'Password update failed',
       $this->service->changeMessage(['error' => 'fail'], 'test@example.com', 'default')

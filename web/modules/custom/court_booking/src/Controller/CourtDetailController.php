@@ -13,7 +13,6 @@ use Drupal\Core\Session\AccountInterface;
 use Drupal\Core\Url;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Per-court information page linked from the amenities UI.
@@ -23,7 +22,6 @@ class CourtDetailController extends ControllerBase {
   public function __construct(
     protected AvailabilityManagerInterface $availabilityManager,
     protected CurrencyFormatterInterface $currencyFormatter,
-    protected RequestStack $requestStack,
   ) {}
 
   /**
@@ -33,7 +31,6 @@ class CourtDetailController extends ControllerBase {
     return new static(
       $container->get('commerce_bat.availability_manager'),
       $container->get('commerce_price.currency_formatter'),
-      $container->get('request_stack'),
     );
   }
 
@@ -57,20 +54,7 @@ class CourtDetailController extends ControllerBase {
     $variation = $commerce_product_variation;
     $court_node = CourtBookingVariationThumbnail::courtNode($variation);
     if ($court_node && $court_node->access('view')) {
-      $url = $court_node->toUrl()->setAbsolute();
-      $request = $this->requestStack->getCurrentRequest();
-      $forward = [];
-      if ($request) {
-        foreach (['variation', 'start', 'end'] as $key) {
-          if ($request->query->has($key)) {
-            $forward[$key] = $request->query->get($key);
-          }
-        }
-      }
-      if ($forward !== []) {
-        $url->mergeOptions(['query' => $forward]);
-      }
-      return new RedirectResponse($url->toString(), 302);
+      return new RedirectResponse($court_node->toUrl()->setAbsolute()->toString(), 302);
     }
     $price_str = '';
     $p = $variation->getPrice();

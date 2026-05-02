@@ -60,3 +60,6 @@
   border: 1px solid #cecece !important;
   background-color: #FFF !important;
 }
+.ajax-progress{
+  display: none !important;
+}

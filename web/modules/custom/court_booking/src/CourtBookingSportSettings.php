@@ -94,8 +94,8 @@ final class CourtBookingSportSettings {
       $start = new \DateTimeImmutable('today', $tz);
       for ($i = 0; $i < $days_ahead; $i++) {
         $day_local = $start->modify('+' . $i . ' days');
-        $day_start_utc = $day_local->setTime(0, 0)->setTimezone(new \DateTimeZone('UTC'));
-        $day_end_utc = $day_local->modify('+1 day')->setTime(0, 0)->setTimezone(new \DateTimeZone('UTC'));
+        $day_start_local = $day_local->setTime(0, 0);
+        $day_end_local = $day_local->modify('+1 day')->setTime(0, 0);
         $noon_ts = $day_local->setTime(12, 0, 0)->getTimestamp();
         $weekday = $this->dateFormatter->format($noon_ts, 'custom', 'D', $site_tz, $langcode);
         $dayNum = $this->dateFormatter->format($noon_ts, 'custom', 'j', $site_tz, $langcode);
@@ -103,8 +103,8 @@ final class CourtBookingSportSettings {
           'ymd' => $day_local->format('Y-m-d'),
           'dayNum' => $dayNum,
           'weekday' => $weekday,
-          'from' => $day_start_utc->format('Y-m-d\TH:i:s\Z'),
-          'to' => $day_end_utc->format('Y-m-d\TH:i:s\Z'),
+          'from' => $day_start_local->format(DATE_ATOM),
+          'to' => $day_end_local->format(DATE_ATOM),
         ];
       }
     }

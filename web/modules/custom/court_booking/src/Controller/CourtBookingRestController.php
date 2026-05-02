@@ -2,7 +2,7 @@
 
 namespace Drupal\court_booking\Controller;
 
-use Drupal\commerce_bat\Controller\AvailabilityController;
+use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_product\Entity\ProductVariation;
 use Drupal\court_booking\CourtBookingApiService;
@@ -21,7 +21,6 @@ final class CourtBookingRestController extends ControllerBase {
 
   public function __construct(
     protected CourtBookingApiService $courtBookingApi,
-    protected AvailabilityController $availabilityController,
   ) {}
 
   /**
@@ -30,7 +29,6 @@ final class CourtBookingRestController extends ControllerBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('court_booking.api'),
-      $container->get('class_resolver')->getInstanceFromDefinition(AvailabilityController::class),
     );
   }
 
@@ -43,10 +41,11 @@ final class CourtBookingRestController extends ControllerBase {
   }
 
   /**
-   * Single-range availability check (same as commerce_bat.availability_check).
+   * Single-range availability check aligned with booking flow validation.
    */
   public function slotCheck(ProductVariation $commerce_product_variation, Request $request): JsonResponse {
-    return $this->availabilityController->checkRange($commerce_product_variation, $request);
+    $result = $this->courtBookingApi->buildSlotCheckResponse($commerce_product_variation, $request, $this->currentUser());
+    return new JsonResponse($result['data'], $result['status']);
   }
 
   /**
@@ -66,7 +65,7 @@ final class CourtBookingRestController extends ControllerBase {
    * Sports bootstrap payload for mobile clients.
    */
   public function sports(): JsonResponse {
-    $result = $this->courtBookingApi->buildSportsBootstrapResponse($this->currentUser());
+    $result = $this->courtBookingApi->buildSportsBootstrapResponse();
     return new JsonResponse($result['data'], $result['status']);
   }
 
@@ -133,6 +132,14 @@ final class CourtBookingRestController extends ControllerBase {
       throw new BadRequestHttpException(self::INVALID_JSON_BODY);
     }
     $result = $this->courtBookingApi->clearCart($this->currentUser());
+    return new JsonResponse($result['data'], $result['status']);
+  }
+
+  /**
+   * GET receipt for a completed court-booking order (order type from court_booking.settings).
+   */
+  public function orderReceipt(OrderInterface $commerce_order): JsonResponse {
+    $result = $this->courtBookingApi->buildCourtOrderReceipt($commerce_order, $this->currentUser());
     return new JsonResponse($result['data'], $result['status']);
   }
 

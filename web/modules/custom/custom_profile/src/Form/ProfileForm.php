@@ -134,7 +134,7 @@ class ProfileForm extends FormBase
       '#required' => TRUE,
       '#default_value' => isset($user_data['dob']) ? substr($user_data['dob'], 0, 10) : '',
       '#attributes' => [
-        'placeholder' => 'Date of Birth',
+        'placeholder' => $this->t('Date of Birth'),
         'class' => ['custom-input', 'peer'],
       ],
       '#prefix' => '<div class="relative">',

@@ -1,0 +1,26 @@
+services:
+  logger.channel.office_space_enquiry_api:
+    parent: logger.channel_base
+    arguments: ['office_space_enquiry_api']
+
+  office_space_enquiry_api.service:
+    class: Drupal\office_space_enquiry_api\OfficeSpaceEnquiryService
+    arguments:
+      - '@entity_type.manager'
+      - '@file_url_generator'
+      - '@account_switcher'
+      - '@logger.channel.office_space_enquiry_api'
+
+  office_space_enquiry_api.bearer_auth_provider:
+    class: Drupal\office_space_enquiry_api\Authentication\OfficeSpaceBearerAuthProvider
+    arguments:
+      - '@login_logout.oauth_login_service'
+      - '@http_client'
+      - '@global_module.vault_config_service'
+      - '@global_module.apiman_token_service'
+      - '@entity_type.manager'
+      - '@logger.channel.office_space_enquiry_api'
+      - '@cache.default'
+    tags:
+      - { name: authentication_provider, provider_id: office_space_bearer, priority: 100 }
+      

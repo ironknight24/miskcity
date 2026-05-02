@@ -91,7 +91,7 @@ class ActiveSessionServiceTest extends UnitTestCase
 
         $this->httpClient->expects($this->once())
             ->method('request')
-            ->with('GET', 'https://idam.example.com/api/users/v1/me/sessions', [
+            ->with('GET', 'https://idam.example.com:9443/api/users/v1/me/sessions', [
                 'headers' => [
                     'Accept' => '*/*',
                     'Authorization' => 'Bearer ' . $accessToken,
@@ -156,7 +156,7 @@ class ActiveSessionServiceTest extends UnitTestCase
     {
         $this->httpClient->expects($this->once())
             ->method('request')
-            ->with('DELETE', 'https://idam.example.com/api/users/v1/me/sessions')
+            ->with('DELETE', 'https://idam.example.com:9443/api/users/v1/me/sessions')
             ->willReturn($this->createMock(ResponseInterface::class));
 
         $result = $this->service->terminateAllOtherSessions('token');

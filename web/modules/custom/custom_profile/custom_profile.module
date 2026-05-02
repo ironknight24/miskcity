@@ -43,6 +43,7 @@ function custom_profile_theme($existing, $type, $theme, $path)
     //   'template' => 'add-address-form',
     //   'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
     // ],
+    
     'add_address_form' => [
       'render element' => 'form',
       'template' => 'add-address-form', // Corresponds to add-address-form.html.twig
@@ -89,9 +90,9 @@ function custom_profile_preprocess_page(array &$variables)
 function custom_profile_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id)
 {
   // Target the AI CKEditor modal form
-  if ($form_id === 'ckeditor5_ai_ckeditor_dialog_form') {
-    $form['#attached']['library'][] = 'custom_profile/ai_modal_fix';
-  }
+  // if ($form_id === 'ckeditor5_ai_ckeditor_dialog_form') {
+  //   $form['#attached']['library'][] = 'custom_profile/ai_modal_fix';
+  // }
 }
 
 function custom_profile_page_attachments(array &$attachments) {

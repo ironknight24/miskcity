@@ -147,7 +147,7 @@ class UserLoginForm extends FormBase {
     $ip = $headers['x-real-ip'][0] ?? 'UNKNOWN';
 
     $uid = $this->currentUser->id();
-    $email = mb_strtolower(trim((string) $form_state->getValue('email')));
+    $email = trim((string) $form_state->getValue('email'));
     $form_state->setValue('email', $email);
     $username = $email;
 

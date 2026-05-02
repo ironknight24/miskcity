@@ -216,7 +216,7 @@ class CareerApplyForm extends FormBase
             self::TITLE_KEY => $this->t($title),
             self::ATTRIBUTES_KEY => [
                 // Placeholder text displayed in the field
-                'placeholder' => $this->t($title),
+                // 'placeholder' => $this->t($title),
                 // CSS classes for Tailwind styling
                 'class' => self::INPUT_CLASSES,
             ],

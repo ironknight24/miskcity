@@ -1,3 +1,4 @@
+
 /* ======================================================
  * IDEAS SUCCESS POPUP
  * ====================================================== */
@@ -35,10 +36,10 @@
         <p class="font-bold text-3xl font-['nevis'] mb-5">
           Your idea has been submitted successfully.
         </p>
-        <button id="popup-close"
+        <a href="ideas" id="popup-close"
           class="mt-2 bg-yellow-500 hover:bg-yellow-600 text-white py-2 px-4 rounded">
           Close
-        </button>
+        </a>
       </div>
     `;
     return overlay;
@@ -48,10 +49,10 @@
     const closeBtn = overlay.querySelector('#popup-close');
     if (!closeBtn) return;
 
-    closeBtn.addEventListener('click', () => {
-      overlay.classList.add('fade-out');
-      setTimeout(() => overlay.remove(), 300);
-    });
+    // closeBtn.addEventListener('click', () => {
+    //   overlay.classList.add('fade-out');
+    //   setTimeout(() => overlay.remove(), 300);
+    // });
   }
 })(Drupal, drupalSettings);
 
@@ -121,7 +122,7 @@
         idea_content: { required: true, minlength: 5 },
         'files[upload_file]': {
           required: true,
-          extensionFile: 'jpg|jpeg|png|pdf',
+          extensionFile: 'jpg|jpeg|png',
           filesize: 2097152
         },
         terms: { required: true }
@@ -152,7 +153,19 @@
           : error.insertAfter(element);
       },
       highlight: el => $(el).addClass('border-red-500'),
-      unhighlight: el => $(el).removeClass('border-red-500')
+      unhighlight: el => $(el).removeClass('border-red-500'),
+
+      // ✅ FIX 1: Use submitHandler to fully control valid form submission
+      submitHandler(form) {
+        $(form).removeData('validated');
+        form.submit();
+      },
+
+      // ✅ FIX 2: Use invalidHandler to cleanly handle failed validation
+      invalidHandler(event, validator) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
     });
   }
 
@@ -168,12 +181,17 @@
 
       if (
         $form &&
-        !$form.hasClass('ajax-submit-prevented') &&
         $(this.element).attr('formnovalidate') === undefined
       ) {
-        if (!$form.valid()) {
+        const isValid = $form.valid();
+
+        if (!isValid) {
+          // ✅ FIX 3: Reset ajaxing flag so user can try again
           this.ajaxing = false;
-          $form.addClass('ajax-submit-prevented');
+
+          // ✅ FIX 4: Remove the stuck class so next submit works
+          $form.removeClass('ajax-submit-prevented');
+
           return false;
         }
       }
@@ -211,7 +229,7 @@
 
   function createStatusElement($fileInput) {
     const $status = $(
-      '<div class="text-sm text-gray-500 mt-1 hidden">Uploading...</div>'
+      '<div class="text-sm text-gray-500 mt-1 hidden"></div>'
     );
     $fileInput.after($status);
     return $status;
@@ -227,7 +245,7 @@
   }
 
   function uploadFile(file, $hiddenField, $status) {
-    $status.text('Uploading...').removeClass('hidden');
+    // $status.text('Uploading...').removeClass('hidden');
 
     const formData = new FormData();
     formData.append('files[upload_file]', file);
@@ -250,7 +268,7 @@
     }
 
     $hiddenField.val(response.fileUrl).attr('data-uploaded', 'true');
-    $status.text('File uploaded successfully');
+    // $status.text('File uploaded successfully');
   }
 
   function handleUploadFailure($hiddenField, $status) {

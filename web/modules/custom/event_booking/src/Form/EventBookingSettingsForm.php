@@ -108,6 +108,20 @@ final class EventBookingSettingsForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    parent::validateForm($form, $form_state);
+
+    foreach (['commerce_store_id', 'max_quantity_per_request'] as $field) {
+      $value = $form_state->getValue($field);
+      if (!is_numeric($value) || (int) $value <= 0) {
+        $form_state->setErrorByName($field, $this->t('@field must be a positive number.', ['@field' => $form[$field]['#title']]));
+      }
+    }
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $allowed_raw = $form_state->getValue('allowed_variation_ids');
     $allowed = [];

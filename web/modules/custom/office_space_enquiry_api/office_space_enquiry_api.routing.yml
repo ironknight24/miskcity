@@ -1,0 +1,39 @@
+# Bearer token JSON API — Authorization: Bearer <access_token>
+# All routes require an authenticated user with 'use office space enquiry api' permission.
+# The submitter email is automatically derived from the authenticated account — it is
+# never taken from the request body.
+
+office_space_enquiry_api.rest_v1_submit:
+  path: '/rest/v1/office-space-enquiry'
+  defaults:
+    _controller: '\Drupal\office_space_enquiry_api\Controller\OfficeSpaceEnquiryRestController::submit'
+  methods: [POST]
+  requirements:
+    _custom_access: '\Drupal\office_space_enquiry_api\Access\OfficeSpaceOAuthAccess::enquiryApi'
+  options:
+    _auth: ['office_space_bearer', 'court_booking_bearer', 'cookie']
+
+office_space_enquiry_api.rest_v1_my_enquiries:
+  path: '/rest/v1/office-space-enquiry/my-enquiries'
+  defaults:
+    _controller: '\Drupal\office_space_enquiry_api\Controller\OfficeSpaceEnquiryRestController::myEnquiries'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\office_space_enquiry_api\Access\OfficeSpaceOAuthAccess::enquiryApi'
+  options:
+    _auth: ['office_space_bearer', 'court_booking_bearer', 'cookie']
+
+office_space_enquiry_api.rest_v1_get_enquiry:
+  path: '/rest/v1/office-space-enquiry/{node}'
+  defaults:
+    _controller: '\Drupal\office_space_enquiry_api\Controller\OfficeSpaceEnquiryRestController::getEnquiry'
+  methods: [GET]
+  requirements:
+    _custom_access: '\Drupal\office_space_enquiry_api\Access\OfficeSpaceOAuthAccess::ownEnquiry'
+    node: '\d+'
+  options:
+    _auth: ['office_space_bearer', 'court_booking_bearer', 'cookie']
+    parameters:
+      node:
+        type: entity:node
+        

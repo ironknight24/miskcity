@@ -213,7 +213,10 @@ final class CourtBookingSlotBooking {
     $close_hm = (string) ($rules['booking_day_end'] ?: '23:00');
     $open_m = $this->parseHmToMinutes($open_hm);
     $close_m = $this->parseHmToMinutes($close_hm);
-    $site_tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
+    $site_tz_id = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
+    if ($site_tz_id === '') {
+      $site_tz_id = 'UTC';
+    }
     try {
       $tz = new \DateTimeZone($site_tz_id);
     }
@@ -250,6 +253,102 @@ final class CourtBookingSlotBooking {
         }
       }
 
+      if ($ok_ids !== []) {
+        $slots_out[] = [
+          'start' => $start_raw,
+          'end' => $end_raw,
+          'variationIds' => array_values(array_unique($ok_ids)),
+        ];
+      }
+    }
+
+    return $slots_out;
+  }
+
+  /**
+   * Non-buffer slot candidates at standard interval cadence.
+   *
+   * @param int[] $variation_ids
+   * @param int $play_minutes
+   *   Billable play length in minutes.
+   *
+   * @return list<array{start: string, end: string, variationIds: int[]}>
+   */
+  public function buildNonBufferSlotCandidatesForDay(
+    array $variation_ids,
+    string $ymd,
+    int $play_minutes,
+    int $quantity,
+    AccountInterface $account,
+  ): array {
+    if ($variation_ids === []) {
+      return [];
+    }
+    $first_vid = (int) reset($variation_ids);
+    $first_variation = $first_vid > 0 ? \Drupal\commerce_product\Entity\ProductVariation::load($first_vid) : NULL;
+    $rules = $first_variation instanceof ProductVariationInterface
+      ? $this->sportSettings->getMergedForVariation($first_variation)
+      : $this->sportSettings->getGlobalBookingRules();
+    $max_hours = max(1, min(24, (int) ($rules['max_booking_hours'] ?? 4)));
+    $max_play_cap = $max_hours * 60;
+    $play_minutes = max(1, min($max_play_cap, $play_minutes));
+
+    $slot_lens = [];
+    foreach ($variation_ids as $vid) {
+      $vid = (int) $vid;
+      if ($vid <= 0) {
+        continue;
+      }
+      $variation = \Drupal\commerce_product\Entity\ProductVariation::load($vid);
+      if ($variation instanceof ProductVariationInterface) {
+        $slot_lens[] = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
+      }
+    }
+    if ($slot_lens === [] || !CourtBookingPlayDurationGrid::playMinutesValidForSlots($play_minutes, $slot_lens)) {
+      return [];
+    }
+
+    $open_hm = (string) ($rules['booking_day_start'] ?: '06:00');
+    $close_hm = (string) ($rules['booking_day_end'] ?: '23:00');
+    $open_m = $this->parseHmToMinutes($open_hm);
+    $close_m = $this->parseHmToMinutes($close_hm);
+    if ($open_m === NULL || $close_m === NULL || $close_m <= $open_m) {
+      $open_m = 0;
+      $close_m = 24 * 60;
+    }
+
+    $site_tz_id = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
+    if ($site_tz_id === '') {
+      $site_tz_id = 'UTC';
+    }
+    try {
+      $tz = new \DateTimeZone($site_tz_id);
+    }
+    catch (\Throwable $e) {
+      $tz = new \DateTimeZone('UTC');
+    }
+
+    $slots_out = [];
+    $variation_ids = array_values(array_unique(array_filter(array_map('intval', $variation_ids))));
+    $step = min($slot_lens);
+    for ($t = $open_m; $t + $play_minutes <= $close_m; $t += $step) {
+      $local_start = new \DateTimeImmutable($ymd . sprintf(' %02d:%02d:00', intdiv($t, 60), $t % 60), $tz);
+      $start_utc = DateTimeHelper::normalizeUtc($local_start->setTimezone(new \DateTimeZone('UTC')));
+      $end_utc = $start_utc->add(new \DateInterval('PT' . $play_minutes . 'M'));
+      $start_raw = DateTimeHelper::formatUtc($start_utc);
+      $end_raw = DateTimeHelper::formatUtc($end_utc);
+
+      $ok_ids = [];
+      foreach ($variation_ids as $vid) {
+        $variation = \Drupal\commerce_product\Entity\ProductVariation::load($vid);
+        if (!$variation instanceof ProductVariationInterface) {
+          continue;
+        }
+        $validation = $this->validateLessonSlot($variation, $start_raw, $end_raw, $quantity, $account, FALSE);
+        if (!empty($validation['ok'])) {
+          $ok_ids[] = $vid;
+        }
+      }
       if ($ok_ids !== []) {
         $slots_out[] = [
           'start' => $start_raw,

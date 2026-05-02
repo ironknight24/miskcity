@@ -1,0 +1,4 @@
+use office space enquiry api:
+  title: 'Submit and view own office space enquiries via API'
+  description: 'Required to POST a new enquiry or retrieve own enquiry records through the REST endpoints.'
+

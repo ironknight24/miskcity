@@ -26,7 +26,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 /**
  * REST helpers for Commerce cart and checkout (OAuth clients).
  */
-final class CommerceCheckoutRestService {
+class CommerceCheckoutRestService {
 
   use StringTranslationTrait;
   private const API_GATEWAY_ID = 'example_payment';
@@ -65,16 +65,10 @@ final class CommerceCheckoutRestService {
   /**
    * Serializes cart for JSON.
    *
-   * Rental `value` / `end_value` remain stored UTC strings (Commerce BAT).
-   * `start` / `end` are the same instants in the effective display timezone
-   * (see \Drupal\court_booking\CourtBookingRegional::effectiveTimeZoneId).
+   * Rental `start` / `end` are returned in Drupal site timezone.
    */
-  public function buildCartPayload(OrderInterface $order, ?AccountInterface $account = NULL): array {
-    $tz_account = $account ?? $order->getCustomer();
-    if (!$tz_account instanceof AccountInterface) {
-      $tz_account = \Drupal::currentUser();
-    }
-    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $tz_account);
+  public function buildCartPayload(OrderInterface $order): array {
+    $tz_id = $this->siteTimezoneId();
     $items = [];
     foreach ($order->getItems() as $item) {
       $row = [
@@ -103,8 +97,6 @@ final class CommerceCheckoutRestService {
         if ($dr && method_exists($dr, 'getValue')) {
           $val = $dr->getValue();
           $row['rental'] = [
-            'value' => $val['value'] ?? NULL,
-            'end_value' => $val['end_value'] ?? NULL,
             'timezone' => $tz_id,
           ];
           $row['rental'] += $this->rentalUtcStringsToDisplayIso(
@@ -168,6 +160,11 @@ final class CommerceCheckoutRestService {
       }
     }
     return $out;
+  }
+
+  private function siteTimezoneId(): string {
+    $tz = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
+    return $tz !== '' ? $tz : 'UTC';
   }
 
   /**

@@ -249,6 +249,8 @@ class ReportGrievanceForm extends FormBase
     $image_url = NULL;
     $response_data = [];
     $request = \Drupal::request();
+    $vault = \Drupal::service('global_module.vault_config_service');
+    $globalVariables = $vault->getGlobalVariables();
 
     // Handle optional file upload
     if (isset($_FILES['files']['full_path']['upload_file']) && is_uploaded_file($_FILES['files']['tmp_name']['upload_file'])) {
@@ -279,7 +281,7 @@ class ReportGrievanceForm extends FormBase
       'longitude' => (float)($values['longitude'] ?? ''),
       'grievanceTypeId' => (int)$values['grievance_type'],
       'grievanceSubTypeId' => (int)$values['grievance_subtype'],
-      'tenantCode' => 'fireppr',
+      'tenantCode' => $globalVariables['applicationConfig']['config']['tenantCode'] ?? '',
       'userId' => (int)$userId,
       'files' => [
         [
@@ -297,7 +299,7 @@ class ReportGrievanceForm extends FormBase
 
     // Submit grievance to API service
     $response = $this->apiService->sendGrievance($payload);
-
+    \Drupal::logger('reportgrievance')->debug('Grievance submission response: @response', ['@response' => print_r($response, TRUE)]);
     // Handle successful submission
     if (!empty($response['success']) && !empty($response['data']['status'])) {
       $grievance_id = $response['data']['data']; // GV-20251009-371833

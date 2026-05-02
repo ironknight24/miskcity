@@ -26,6 +26,7 @@
   }
 
   function handleTermClick(link) {
+    Drupal.city_map?.removeMap();
     const linkText =
       link.querySelector('.linktoDet')?.textContent.trim() || '';
 
@@ -55,6 +56,7 @@
     }
 
     poiItems = data.items;
+    Drupal.city_map?.removeMap();
     renderPOICards(poiItems);
   }
 
@@ -105,6 +107,9 @@
 
     for (const item of items) {
       container.insertAdjacentHTML('beforeend', buildPOICard(item));
+      setTimeout(() => {  
+      addMarker(createMarker(item))
+      }, 500);
     }
 
     const poiCards = container.querySelectorAll('.poiDetl');
@@ -133,38 +138,98 @@
 
   function buildPOICard(item) {
     return `
-      <div class="lists poiDetl cursor-pointer" data-poiid="${item.id}">
-        <div class="grid card card-side border border-gray-300 mb-6 rounded-xl bg-white">
-          <img src="${item.image_url}" alt="${item.title}" class="w-full h-48 object-cover rounded-xl">
-          <div class="p-4">
-            <h2 class="font-bold text-lg">${item.title}</h2>
-            <p class="text-sm text-gray-500">${item.address}</p>
-            <p class="text-sm">${item.description}</p>
-          </div>
-        </div>
-      </div>`;
+<div class="lists poiDetl cursor-pointer" data-poiid="${item.id}">
+  <div class="border border-gray-300 mb-3 rounded-xl bg-white overflow-hidden">
+    <div class="flex flex-row" style="min-height: 120px;">
+      <img 
+        src="${item.image_url}" 
+        alt="${item.title}"
+        style="width: 110px; min-width: 110px; object-fit: cover;"
+        class="rounded-l-xl"
+      >
+      <div class="flex flex-col justify-between p-2 flex-1 min-w-0">
+      <div>
+        <h2 class="text-sm font-bold text-gray-800 leading-5"
+            style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+          ${item.title}
+        </h2>
+        <p class="text-xs text-gray-500 mt-1"
+          style="display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;">
+          ${item.address}
+        </p>
+        <p class="text-xs text-gray-600 mt-1"
+          style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
+          ${item.description}
+        </p>
+      </div>
+      <div class="flex justify-between items-center mt-1">
+        <p class="text-xs text-yellow-600">Timings: ${item.timings}</p>
+        <p class="text-xs font-bold text-green-600">₹ ${item.price}</p>
+      </div>
+    </div>
+    </div>
+  </div>
+</div>
+        `;
   }
 
   function renderPOIDetails(item) {
     if (!item) {
       return;
     }
-
+    Drupal.city_map?.removeMap();
+    setTimeout(() => {  
+      addMarker(createMarker(item))
+      }, 500);  // single marker
+    zoomToLocation(item);
+    
     const container = document.querySelector('.poi-cards');
     container.innerHTML = `
-      <button class="back-to-list mb-4">← Back</button>
-      <h2 class="text-xl font-bold">${item.title}</h2>
-      <p>${item.description}</p>
+      <button class="mt-6 bg-gray-200 px-4 py-2 rounded back-to-list">← Back to List</button>
+      <div class="poi-full-details bg-white rounded-xl p-4">
+        <img src="${item.image_url}" alt="${item.title}" class="w-full h-64 object-cover rounded-xl mb-4">
+        <h2 class="text-xl font-bold mb-2">${item.title}</h2>
+        <p class="text-sm mb-4">${item.description}</p>
+        <div class="bg-gray-200 my-5 mx-1 h-px"></div>
+        <div class="py-2 px-2">
+        <a target="_blank" href="https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${item.latitude},${item.longitude}">
+          <img src="themes/custom/engage_theme/images/CityMap/direction.svg" class="w-14 h-12 cursor-pointer" alt="Pointer">
+        <p>Directions</p>
+        </a>
+
+        </div>
+        <div class="bg-gray-200 my-5 mx-1 h-px"></div>
+        <div class="flex gap-5 mb-3 items-center">
+          <img src="themes/custom/engage_theme/images/CityMap/location.svg" class="w-4 h-5" alt="Pointer">
+          <p class="text-xs">${item.address}</p>
+        </div>
+        <div class="flex gap-5 mb-3 items-center">
+          <img src="themes/custom/engage_theme/images/CityMap/clock.svg" class="w-4 h-5" alt="Pointer">
+          <p class="text-xs">${item.timings}</p>
+        </div>
+         <div class="flex gap-5 mb-3 items-center">
+          <img src="themes/custom/engage_theme/images/CityMap/website.png" class="w-4 h-5" alt="Pointer">
+          <a href="${item.website_url}" target="_blank" class="text-blue-500 underline">Visit Website</a>
+        </div>
+         <div class="flex gap-5 mb-3 items-center">
+          <img src="themes/custom/engage_theme/images/CityMap/phone.svg" class="w-4 h-5" alt="Pointer">
+          <p class="text-xs">${item.contact_number}</p>
+        </div>
+        
+      </div>
     `;
 
-    zoomToLocation(item);
-    addMarker(createMarker(item));
+    // zoomToLocation(item);
+    // // createMarker(item);
+    // addMarker(createMarker(item));
 
     container
       .querySelector('.back-to-list')
       .addEventListener('click', () => {
-        renderPOICards(poiItems);
+        console.log('Back to list clicked');
         Drupal.city_map?.removeMap();
+        renderPOICards(poiItems);
+        
       });
   }
 
@@ -187,7 +252,7 @@
       lon: item.longitude,
       label: item.title,
       label_color: '#ba5100',
-      img_url: 'themes/custom/engage_theme/images/CityMap/pointer.png',
+      img_url: item.poi_icon || 'themes/custom/engage_theme/images/CityMap/pointer.png',
     };
   }
 

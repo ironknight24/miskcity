@@ -12,20 +12,16 @@ use Drupal\Core\Datetime\DateFormatterInterface;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
-use Drupal\Core\StringTranslation\StringTranslationTrait;
 use Drupal\Core\Url;
 use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 use Drupal\file\FileInterface;
 use Drupal\media\MediaInterface;
 use Drupal\node\NodeInterface;
-use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Variation lookup, cart-backed slot label, and URLs for Court node display.
  */
 final class CourtBookingCourtNodeDisplay {
-
-  use StringTranslationTrait;
 
   public function __construct(
     protected EntityTypeManagerInterface $entityTypeManager,
@@ -35,8 +31,6 @@ final class CourtBookingCourtNodeDisplay {
     protected ConfigFactoryInterface $configFactory,
     protected DateFormatterInterface $dateFormatter,
     protected FileUrlGeneratorInterface $fileUrlGenerator,
-    protected RequestStack $requestStack,
-    protected CourtBookingSlotBooking $slotBooking,
   ) {}
 
   /**
@@ -106,12 +100,7 @@ final class CourtBookingCourtNodeDisplay {
    *   cart_url: string,
    *   booking_back_url: string,
    *   cache_tags: string[],
-   *   cache_contexts: string[],
-   *   pending_proceed: bool,
-   *   pending_error: string,
-   *   pending_variation_id: int,
-   *   pending_start: string,
-   *   pending_end: string
+   *   cache_contexts: string[]
    * }
    */
   public function buildPreprocessData(NodeInterface $node, AccountInterface $account): array {
@@ -137,7 +126,6 @@ final class CourtBookingCourtNodeDisplay {
 
     $variation_ids = $this->getVariationIdsForCourtNode($node);
     $variation = $this->loadFirstVariationByIds($variation_ids);
-    $match_item = NULL;
     $hero_slot = NULL;
     $price_formatted = '';
     $header = $this->resolveCourtHeaderBackground($node);
@@ -184,6 +172,7 @@ final class CourtBookingCourtNodeDisplay {
         $cart = $this->cartProvider->getCart($order_type, $store, $account);
         if ($cart) {
           $cache_tags = array_merge($cache_tags, $cart->getCacheTags());
+          $match_item = NULL;
           foreach ($cart->getItems() as $item) {
             $pe = $item->getPurchasedEntity();
             if ($pe && in_array((int) $pe->id(), $variation_ids, TRUE)) {
@@ -201,55 +190,6 @@ final class CourtBookingCourtNodeDisplay {
       }
     }
 
-    $pending_proceed = FALSE;
-    $pending_error = '';
-    $pending_variation_id = 0;
-    $pending_start = '';
-    $pending_end = '';
-    $request = $this->requestStack->getCurrentRequest();
-    if (!($match_item instanceof OrderItemInterface) && $request && $variation_ids) {
-      $q_vid = (int) $request->query->get('variation');
-      $q_start = trim((string) $request->query->get('start'));
-      $q_end = trim((string) $request->query->get('end'));
-      if ($q_vid > 0 && $q_start !== '' && $q_end !== '') {
-        if (!in_array($q_vid, $variation_ids, TRUE)) {
-          $pending_error = (string) $this->t('This time selection does not match this court.');
-        }
-        else {
-          $pending_variation = $this->entityTypeManager->getStorage('commerce_product_variation')->load($q_vid);
-          if (!$pending_variation instanceof ProductVariationInterface) {
-            $pending_error = (string) $this->t('Invalid court selection.');
-          }
-          else {
-            $validation = $this->slotBooking->validateLessonSlot($pending_variation, $q_start, $q_end, 1, $account);
-            if (!$validation['ok']) {
-              $pending_error = $validation['message'];
-            }
-            elseif (!$match_item instanceof OrderItemInterface) {
-              $slot_label = $this->formatSlotUtcStorageRange($q_start, $q_end, $account);
-              if ($slot_label) {
-                $hero_slot = $slot_label;
-              }
-              $p = $pending_variation->getPrice();
-              if ($p) {
-                $price_formatted = $this->currencyFormatter->format($p->getNumber(), $p->getCurrencyCode());
-              }
-              $pending_variation_id = $q_vid;
-              $pending_start = $q_start;
-              $pending_end = $q_end;
-              $pending_proceed = TRUE;
-            }
-          }
-        }
-      }
-    }
-
-    $cache_contexts = array_values(array_unique(array_merge($cache_contexts, [
-      'url.query_args:variation',
-      'url.query_args:start',
-      'url.query_args:end',
-    ])));
-
     return [
       'hero_slot' => $hero_slot,
       'hero_background_type' => $hero_background_type,
@@ -258,39 +198,9 @@ final class CourtBookingCourtNodeDisplay {
       'price_formatted' => $price_formatted,
       'cart_url' => $cart_url,
       'booking_back_url' => $booking_back_url,
-      'pending_proceed' => $pending_proceed,
-      'pending_error' => $pending_error,
-      'pending_variation_id' => $pending_variation_id,
-      'pending_start' => $pending_start,
-      'pending_end' => $pending_end,
       'cache_tags' => array_values(array_unique($cache_tags)),
       'cache_contexts' => $cache_contexts,
     ];
-  }
-
-  /**
-   * Formats UTC storage datetime strings for hero (same storage TZ as order items).
-   */
-  protected function formatSlotUtcStorageRange(string $value, string $end_value, AccountInterface $account): ?string {
-    if ($value === '' || $end_value === '') {
-      return NULL;
-    }
-    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $account);
-    $storage_tz = DateTimeItemInterface::STORAGE_TIMEZONE;
-    try {
-      $start_dt = new \DateTimeImmutable($value, new \DateTimeZone($storage_tz));
-      $end_dt = new \DateTimeImmutable($end_value, new \DateTimeZone($storage_tz));
-      $start_ts = $start_dt->getTimestamp();
-      $end_ts = $end_dt->getTimestamp();
-    }
-    catch (\Throwable $e) {
-      return NULL;
-    }
-    $date_part = $this->dateFormatter->format($start_ts, 'custom', 'D, d M', $tz_id);
-    $time_from = $this->dateFormatter->format($start_ts, 'custom', 'g:i A', $tz_id);
-    $time_to = $this->dateFormatter->format($end_ts, 'custom', 'g:i A', $tz_id);
-
-    return $date_part . ' | ' . $time_from . ' - ' . $time_to;
   }
 
   /**

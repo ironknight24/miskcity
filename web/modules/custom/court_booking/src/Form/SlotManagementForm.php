@@ -12,8 +12,10 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Url;
 use Drupal\Component\Utility\Html;
+use Drupal\commerce_bat\Entity\BatAvailabilityProfileInterface;
 use Drupal\court_booking\CourtBookingRegional;
 use Drupal\court_booking\CourtBookingSlotBlockOverlapValidator;
+use Drupal\court_booking\CourtBookingSportSettings;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -25,6 +27,7 @@ final class SlotManagementForm extends FormBase {
     protected AvailabilityManagerInterface $availabilityManager,
     protected EntityTypeManagerInterface $entityTypeManager,
     protected CourtBookingSlotBlockOverlapValidator $slotBlockOverlapValidator,
+    protected CourtBookingSportSettings $sportSettings,
     protected CacheTagsInvalidatorInterface $cacheTagsInvalidator,
     protected Connection $database,
   ) {}
@@ -37,6 +40,7 @@ final class SlotManagementForm extends FormBase {
       $container->get('commerce_bat.availability_manager'),
       $container->get('entity_type.manager'),
       $container->get('court_booking.slot_block_overlap_validator'),
+      $container->get('court_booking.sport_settings'),
       $container->get('cache_tags.invalidator'),
       $container->get('database'),
     );
@@ -177,6 +181,11 @@ final class SlotManagementForm extends FormBase {
       $form_state->setErrorByName('time_end', $this->t('End time must be after start time.'));
       return;
     }
+    $now = new \DateTimeImmutable('now', $tz);
+    if ($start < $now) {
+      $form_state->setErrorByName('block_date', $this->t('Cannot block slots in the past. Choose a future date/time.'));
+      return;
+    }
 
     $form_state->set('parsed_start', $start);
     $form_state->set('parsed_end', $end);
@@ -191,6 +200,42 @@ final class SlotManagementForm extends FormBase {
       $form_state->setErrorByName('variation_id', $this->t(
         'This court is currently mapped to a shared BAT unit pool. Blocking one court would affect other courts too. Run database updates (for example, drush updb) to apply per-variation lesson capacity before creating slot blocks.',
       ));
+      return;
+    }
+    $rules = $this->sportSettings->getMergedForVariation($variation);
+    $operating_window = $this->resolveRulesOperatingWindow($rules);
+    if ($operating_window === NULL) {
+      $form_state->setErrorByName(
+        'variation_id',
+        $this->t('Could not resolve operating hours from court booking settings for this court. Configure booking start/end times before creating slot blocks.')
+      );
+      return;
+    }
+    if (!$this->isWithinOperatingWindow($start, $end, $operating_window['start'], $operating_window['end'])) {
+      $form_state->setErrorByName(
+        'time_start',
+        $this->t('Selected range is outside configured court operating hours (@start-@end).', [
+          '@start' => $operating_window['start'],
+          '@end' => $operating_window['end'],
+        ])
+      );
+      return;
+    }
+    $duration_error = $this->validateMaxBookingDuration($start, $end, $rules);
+    if ($duration_error !== NULL) {
+      $form_state->setErrorByName('time_end', $duration_error);
+      return;
+    }
+    // Keep profile checks as a secondary safety guard when a schedule profile exists.
+    $profile_window = $this->resolveVariationOperatingWindow($variation, $start);
+    if ($profile_window !== NULL && !$this->isWithinOperatingWindow($start, $end, $profile_window['start'], $profile_window['end'])) {
+      $form_state->setErrorByName(
+        'time_start',
+        $this->t('Selected range is outside variation availability profile hours (@start-@end).', [
+          '@start' => $profile_window['start'],
+          '@end' => $profile_window['end'],
+        ])
+      );
       return;
     }
 
@@ -297,6 +342,147 @@ final class SlotManagementForm extends FormBase {
     }
 
     return [$h, $min];
+  }
+
+  /**
+   * Parses HH:MM to minutes from midnight.
+   */
+  private function parseHmToMinutes(string $hm): ?int {
+    $parts = $this->parseHourMinute($hm);
+    if ($parts === NULL) {
+      return NULL;
+    }
+    [$h, $m] = $parts;
+    return $h * 60 + $m;
+  }
+
+  /**
+   * Resolves booking-day operating window from merged court-booking rules.
+   *
+   * @param array<string, mixed> $rules
+   *
+   * @return array{start: string, end: string}|null
+   */
+  private function resolveRulesOperatingWindow(array $rules): ?array {
+    $start = trim((string) ($rules['booking_day_start'] ?? ''));
+    $end = trim((string) ($rules['booking_day_end'] ?? ''));
+    $start_m = $this->parseHmToMinutes($start);
+    $end_m = $this->parseHmToMinutes($end);
+    if ($start_m === NULL || $end_m === NULL || $end_m <= $start_m) {
+      return NULL;
+    }
+    return [
+      'start' => $start,
+      'end' => $end,
+    ];
+  }
+
+  /**
+   * Validates selected duration against merged max-booking rules.
+   *
+   * @param array<string, mixed> $rules
+   *
+   * @return \Drupal\Core\StringTranslation\TranslatableMarkup|null
+   *   Error message when invalid, NULL otherwise.
+   */
+  private function validateMaxBookingDuration(\DateTimeImmutable $start, \DateTimeImmutable $end, array $rules) {
+    $duration_minutes = (int) round(($end->getTimestamp() - $start->getTimestamp()) / 60);
+    if ($duration_minutes <= 0) {
+      return $this->t('End time must be after start time.');
+    }
+    $buffer_minutes = max(0, min(180, (int) ($rules['buffer_minutes'] ?? 0)));
+    $play_minutes = $duration_minutes;
+    if ($buffer_minutes > 0) {
+      $play_minutes -= $buffer_minutes;
+      if ($play_minutes <= 0) {
+        return $this->t('The selected window is too short for the configured buffer plus play time.');
+      }
+    }
+    $max_hours = max(1, min(24, (int) ($rules['max_booking_hours'] ?? 4)));
+    if ($play_minutes > ($max_hours * 60)) {
+      return $this->t('Selected duration exceeds maximum booking limit of @hours hour(s) for this court.', [
+        '@hours' => $max_hours,
+      ]);
+    }
+    return NULL;
+  }
+
+  /**
+   * Resolves the variation availability profile used for operating hours.
+   */
+  private function resolveVariationScheduleProfile(ProductVariationInterface $variation): ?BatAvailabilityProfileInterface {
+    foreach (['field_cbat_schedule', 'field_schedule'] as $field_name) {
+      if (!$variation->hasField($field_name) || $variation->get($field_name)->isEmpty()) {
+        continue;
+      }
+      $profile = $variation->get($field_name)->entity;
+      if ($profile instanceof BatAvailabilityProfileInterface) {
+        return $profile;
+      }
+    }
+    return NULL;
+  }
+
+  /**
+   * Resolves day operating window from variation availability profile.
+   *
+   * @return array{start: string, end: string}|null
+   */
+  private function resolveVariationOperatingWindow(ProductVariationInterface $variation, \DateTimeImmutable $local_date): ?array {
+    $profile = $this->resolveVariationScheduleProfile($variation);
+    if (!$profile) {
+      return NULL;
+    }
+
+    $seasonal = $profile->getOperatingHoursForDate($local_date, 'lesson');
+    if (is_array($seasonal) && !empty($seasonal['start']) && !empty($seasonal['end'])) {
+      return [
+        'start' => (string) $seasonal['start'],
+        'end' => (string) $seasonal['end'],
+      ];
+    }
+    $weekly_rules = (array) $profile->getWeeklyRules();
+    $weekday = strtolower($local_date->format('D'));
+    foreach ($weekly_rules as $rule) {
+      if (!is_array($rule)) {
+        continue;
+      }
+      if (($rule['day'] ?? '') !== $weekday) {
+        continue;
+      }
+      $start = trim((string) ($rule['start_time'] ?? ''));
+      $end = trim((string) ($rule['end_time'] ?? ''));
+      if ($this->parseHmToMinutes($start) === NULL || $this->parseHmToMinutes($end) === NULL) {
+        continue;
+      }
+      if ($this->parseHmToMinutes($end) <= $this->parseHmToMinutes($start)) {
+        continue;
+      }
+      return ['start' => $start, 'end' => $end];
+    }
+    return NULL;
+  }
+
+  /**
+   * TRUE when selected local window is inside operating hours.
+   */
+  private function isWithinOperatingWindow(
+    \DateTimeImmutable $start,
+    \DateTimeImmutable $end,
+    string $open_hm,
+    string $close_hm,
+  ): bool {
+    $open_m = $this->parseHmToMinutes($open_hm);
+    $close_m = $this->parseHmToMinutes($close_hm);
+    if ($open_m === NULL || $close_m === NULL || $close_m <= $open_m) {
+      return FALSE;
+    }
+    $start_m = (int) $start->format('G') * 60 + (int) $start->format('i');
+    $end_m = (int) $end->format('G') * 60 + (int) $end->format('i');
+    if ($end_m < $start_m) {
+      return FALSE;
+    }
+    return $start_m >= $open_m && $end_m <= $close_m;
   }
 
   /**

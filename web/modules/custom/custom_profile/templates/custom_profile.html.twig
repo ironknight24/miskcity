@@ -23,7 +23,7 @@
 			</div>
 			<div class="gap-4 md:flex md:mb-5">
 				<div class="md:basis-[33%] mb-5">
-					<h1 class="text-2xl text-[#404040] font-[nevis] font-bold mb-8 s:mb-5 xs:mb-5 translateLabel search_field" label-alias="la_personal_details">Personal Details</h1>
+					<h1 class="text-2xl text-[#404040] font-[nevis] font-bold mb-8 s:mb-5 xs:mb-5 translateLabel search_field" label-alias="la_personal_details">{{'Personal Details'|t}}</h1>
 					<div class="container my-account-wrapper scroller max-w-4xl mx-auto border border-inherit border-2 rounded-md p-4 bg-white text-center lg:text-left gap-4 sm:mb-5 xs:mb-5">
 
 
@@ -90,7 +90,7 @@
 					</div>
 				</div>
 				<div class="md:basis-[33%] mb-5">
-					<h1 class="text-2xl text-[#404040] font-[nevis] font-bold mb-8 s:mb-5 xs:mb-5 translateLabel search_field" label-alias="la_family_details">Family Details</h1>
+					<h1 class="text-2xl text-[#404040] font-[nevis] font-bold mb-8 s:mb-5 xs:mb-5 translateLabel search_field" label-alias="la_family_details">{{'Family Details'|t}}</h1>
 					<div class="container my-account-wrapper scroller border-inherit	border-2 rounded-lg p-4 bg-white text-center lg:text-start  s:mb-5 xs:mb-5">
 
 						<div
@@ -103,7 +103,7 @@
 									</a>
 								</div>
 								<p class="add_family translateLabel search_field" label-alias="la_add_family_memebers">
-									Add Family Members
+									{{'Add Family Members'|t}}
 								</p>
 							</div>
 
@@ -151,7 +151,7 @@
 						<img src="themes/custom/engage_theme/images/Profile/success.png" alt="Success Popup"/>
 					</p>
 					<div class="thanks_title">
-						<p>Profile Details Updated Successfully</p>
+						<p>{{'Profile Details Updated Successfully'|t}}</p>
 					</div>
 
 					<div
@@ -180,18 +180,18 @@
 						<svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewbox="0 0 14 14">
 							<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
 						</svg>
-						<span class="sr-only">Close modal</span>
+						<span class="sr-only">{{'Close modal'|t}}</span>
 					</button>
 					<input type="hidden" id="delete-nid" value="">
 					<div class="p-4 md:p-5 text-center">
 						<svg class="mx-auto mb-4 text-gray-400 w-12 h-12 dark:text-gray-200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewbox="0 0 20 20">
 							<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 11V6m0 8h.01M19 10a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
 						</svg>
-						<h3 class="font-bold text-2xl font-nevis mb-6">Are you sure you want to delete your member?</h3>
+						<h3 class="font-bold text-2xl font-nevis mb-6">{{'Are you sure you want to delete your member?'|t}}</h3>
 						<button data-modal-hide="popup-modal" type="button" class="engage-btn confirm-delete-btn text-white bg-[#ffcc00] focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-block items-center px-5 py-2.5 text-center">
-							Yes
+							{{'Yes'|t}}
 						</button>
-						<button data-modal-hide="popup-modal" type="button" class="engage-cancel-btn py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">No</button>
+						<button data-modal-hide="popup-modal" type="button" class="engage-cancel-btn py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">{{'No'|t}}</button>
 					</div>
 				</div>
 			</div>
@@ -202,11 +202,11 @@
 				<div class="relative bg-white rounded-lg shadow-sm">
 					<input type="hidden" id="delete-nid" value="">
 					<div class="md:p-5 text-center max-w-[640px] max-w-[640px] p-10">
-						<h3 class="font-bold text-2xl font-nevis mb-6">Are you sure you want to remove your Profile Picture?</h3>
+						<h3 class="font-bold text-2xl font-nevis mb-6">{{'Are you sure you want to remove your Profile Picture?'|t}}</h3>
 						<button data-modal-hide="remove-profile-picture-modal" engage-button="engage-button-modal" type="button" id="remove-btn" class="engage-btn w-[135px] text-white bg-[#ffcc00] focus:ring-4 focus:outline-none focus:ring-red-300 dark:focus:ring-red-800 font-medium rounded-lg text-sm inline-block items-center px-5 py-2.5 text-center">
-							Yes
+							{{'Yes'|t}}
 						</button>
-						<button data-modal-hide="remove-profile-picture-modal" type="button" class="engage-cancel-btn w-[135px] py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">No</button>
+						<button data-modal-hide="remove-profile-picture-modal" type="button" class="engage-cancel-btn w-[135px] py-2.5 px-5 ms-3 text-sm font-medium text-gray-900 focus:outline-none bg-white rounded-lg border border-gray-200 hover:bg-gray-100 focus:z-10 focus:ring-4 focus:ring-gray-100 dark:focus:ring-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700">{{'No'|t}}</button>
 					</div>
 				</div>
 			</div>

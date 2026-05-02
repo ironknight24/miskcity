@@ -124,7 +124,7 @@ class PasswordRecoveryService
       'claims' => [
         [
           'uri' => 'http://wso2.org/claims/username',
-          'value' => $username,
+          'value' => 'primary/' . $username,
         ],
       ],
       'properties' => [

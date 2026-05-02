@@ -1,5 +1,26 @@
 <?php
 
+/**
+ * @file
+ * Hooks and theme definitions for the Custom Profile Page module.
+ *
+ * This module provides the citizen-facing "My Account" dashboard, which allows
+ * authenticated users to:
+ *  - View and edit their personal profile (name, gender, DOB, address).
+ *  - Upload or remove their profile picture.
+ *  - Add and manage family members via an external citizen-app API.
+ *  - Change their IDAM-managed password.
+ *  - Add, edit, and delete saved addresses (stored as Drupal nodes).
+ *  - Browse their service-request history and inspect individual request details.
+ */
+
+/**
+ * Implements hook_theme().
+ *
+ * Registers all Twig template definitions used by this module. Each entry maps
+ * a theme hook name to a template file inside the module's /templates directory
+ * and declares the variables that will be available inside that template.
+ */
 function custom_profile_theme($existing, $type, $theme, $path)
 {
   $module_path = \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates';
@@ -27,26 +48,20 @@ function custom_profile_theme($existing, $type, $theme, $path)
     ],
     'success-family-member' => [
       'render element' => 'elements',
-      'template' => 'success-family-member', // Refers to my-static-page.html.twig
+      'template' => 'success-family-member',
     ],
     'failed-family-member' => [
       'render element' => 'elements',
-      'template' => 'failed-family-member', // Refers to my-static-page.html.twig
+      'template' => 'failed-family-member',
     ],
     'change-password' => [
       'render element' => 'form',
       'template' => 'change-password',
       'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
     ],
-    // 'add_address_form' => [
-    //   'render element' => 'form',
-    //   'template' => 'add-address-form',
-    //   'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
-    // ],
-    
     'add_address_form' => [
       'render element' => 'form',
-      'template' => 'add-address-form', // Corresponds to add-address-form.html.twig
+      'template' => 'add-address-form',
       'path' => \Drupal::service('extension.list.module')->getPath('custom_profile') . '/templates',
     ],
     'my_services_page' => [
@@ -55,7 +70,7 @@ function custom_profile_theme($existing, $type, $theme, $path)
         'total_count' => 0,
         'current_page' => 1,
         'items_per_page' => 10,
-        'search' => '', // <-- Include this
+        'search' => '',
       ],
       'template' => 'my-services-page',
       'path' => $module_path,
@@ -70,11 +85,17 @@ function custom_profile_theme($existing, $type, $theme, $path)
 }
 
 
+/**
+ * Implements hook_preprocess_page().
+ *
+ * On the My Account page, loads the body value from the first published
+ * "basic" block content entity and exposes it as $my_profile_title so the
+ * page template can display a configurable section heading.
+ */
 function custom_profile_preprocess_page(array &$variables)
 {
   if (\Drupal::routeMatch()->getRouteName() === 'custom_profile.my_account') {
 
-    // Optional: load custom block body field
     $block_storage = \Drupal::entityTypeManager()->getStorage('block_content');
     $blocks = $block_storage->loadByProperties([
       'type' => 'basic',
@@ -87,14 +108,21 @@ function custom_profile_preprocess_page(array &$variables)
   }
 }
 
+/**
+ * Implements hook_form_alter().
+ *
+ * Reserved for future form-specific overrides (e.g. AI CKEditor dialog tweaks).
+ */
 function custom_profile_form_alter(&$form, \Drupal\Core\Form\FormStateInterface $form_state, $form_id)
 {
-  // Target the AI CKEditor modal form
-  // if ($form_id === 'ckeditor5_ai_ckeditor_dialog_form') {
-  //   $form['#attached']['library'][] = 'custom_profile/ai_modal_fix';
-  // }
 }
 
+/**
+ * Implements hook_page_attachments().
+ *
+ * Attaches the AI media modal fix library only on Gin-themed admin routes,
+ * keeping the asset out of front-end pages entirely.
+ */
 function custom_profile_page_attachments(array &$attachments) {
   $theme = \Drupal::theme()->getActiveTheme()->getName();
 

@@ -15,21 +15,84 @@ use Drupal\global_module\Service\GlobalVariablesService;
 use Drupal\global_module\Service\VaultConfigService;
 use Drupal\global_module\Service\ApimanTokenService;
 
+/**
+ * Form for adding a new family member to the citizen user account.
+ *
+ * The form is broken into discrete protected helper methods, each building
+ * a logical section:
+ *  - buildFormContainer() — wrapper markup and hidden user ID field.
+ *  - addIdentityFields() — name and date-of-birth inputs.
+ *  - addRelationshipFields() — gender and relationship selects.
+ *  - addContactFields() — mobile number and email inputs.
+ *  - addUploadAndTermsFields() — profile picture upload and T&C checkbox.
+ *  - addActionFields() — submit and cancel buttons.
+ *
+ * On submission, if a file is present it is uploaded via FileUploadService
+ * first, and the returned URL is included in the payload sent to the
+ * family-members/add-family-member API endpoint. Success or failure redirects
+ * to the dedicated result pages.
+ */
 class AddFamilyMemberForm extends FormBase
 {
+
   /**
-   * The HTTP client.
+   * The HTTP client used to POST the new family-member payload to the API.
    *
    * @var \GuzzleHttp\ClientInterface
    */
   protected $httpClient;
+
+  /**
+   * Service that handles multipart file upload to the document store.
+   *
+   * @var \Drupal\global_module\Service\FileUploadService
+   */
   protected $fileUploadService;
+
+  /**
+   * The current HTTP request, used to access uploaded files.
+   *
+   * @var \Symfony\Component\HttpFoundation\Request
+   */
   protected $request;
+
+  /**
+   * Provides encryption helpers and global site variables.
+   *
+   * @var \Drupal\global_module\Service\GlobalVariablesService
+   */
   protected $globalVariableService;
+
+  /**
+   * Provides Vault-stored configuration including the API base URL.
+   *
+   * @var \Drupal\global_module\Service\VaultConfigService
+   */
   protected $vaultConfigService;
+
+  /**
+   * Provides a short-lived bearer token for API Manager authentication.
+   *
+   * @var \Drupal\global_module\Service\ApimanTokenService
+   */
   protected $apimanTokenService;
 
-
+  /**
+   * Constructs an AddFamilyMemberForm.
+   *
+   * @param \Drupal\global_module\Service\FileUploadService $fileUploadService
+   *   The file upload service.
+   * @param \GuzzleHttp\ClientInterface $http_client
+   *   The HTTP client.
+   * @param \Symfony\Component\HttpFoundation\RequestStack $request_stack
+   *   The request stack; the current request is resolved immediately.
+   * @param \Drupal\global_module\Service\GlobalVariablesService $globalVariableService
+   *   The global variables service.
+   * @param \Drupal\global_module\Service\VaultConfigService $vaultConfigService
+   *   The Vault configuration service.
+   * @param \Drupal\global_module\Service\ApimanTokenService $apimanTokenService
+   *   The API Manager token service.
+   */
   public function __construct(FileUploadService $fileUploadService, ClientInterface $http_client, RequestStack $request_stack, GlobalVariablesService $globalVariableService, VaultConfigService $vaultConfigService, ApimanTokenService $apimanTokenService)
   {
     $this->httpClient = $http_client;
@@ -40,6 +103,9 @@ class AddFamilyMemberForm extends FormBase
     $this->apimanTokenService = $apimanTokenService;
   }
 
+  /**
+   * {@inheritdoc}
+   */
   public static function create(ContainerInterface $container)
   {
     return new static(
@@ -51,11 +117,21 @@ class AddFamilyMemberForm extends FormBase
       $container->get('global_module.apiman_token_service')
     );
   }
+
+  /**
+   * {@inheritdoc}
+   */
   public function getFormId()
   {
     return 'add_family_member_form';
   }
 
+  /**
+   * {@inheritdoc}
+   *
+   * Delegates field construction to focused helper methods, then calls
+   * finalizeForm() to attach the theme hook and asset libraries.
+   */
   public function buildForm(array $form, FormStateInterface $form_state)
   {
     $form = $this->buildFormContainer($form);
@@ -67,16 +143,22 @@ class AddFamilyMemberForm extends FormBase
     return $this->finalizeForm($form);
   }
 
+  /**
+   * {@inheritdoc}
+   *
+   * Handles optional file upload before building the API payload. If the
+   * file upload service returns an error the form bails early with a messenger
+   * error and skips the API call. On API success the user is redirected to the
+   * family success page; on failure or exception, to the family failure page.
+   */
   public function submitForm(array &$form, FormStateInterface $form_state)
   {
-    $values = $form_state->getValues();
-    $session = \Drupal::request()->getSession();
+    $values    = $form_state->getValues();
+    $session   = \Drupal::request()->getSession();
     $user_data = $session->get('api_redirect_result') ?? [];
 
-    $image_url = NULL;
+    $image_url     = NULL;
     $response_data = [];
-
-    // Upload file using custom file upload service
 
     if (
       isset($_FILES['files']['full_path']['upload_file']) &&
@@ -84,8 +166,6 @@ class AddFamilyMemberForm extends FormBase
     ) {
       $upload_response = $this->fileUploadService->uploadFile($this->request);
       if ($upload_response instanceof \Symfony\Component\HttpFoundation\JsonResponse) {
-
-        // Debug what we really have
         $response_data = json_decode($upload_response->getContent(), TRUE);
         if (!empty($response_data['fileName'])) {
           $image_url = $response_data['fileName'];
@@ -98,8 +178,7 @@ class AddFamilyMemberForm extends FormBase
       }
     }
 
-
-    $access_token = $this->apimanTokenService->getApimanAccessToken();
+    $access_token    = $this->apimanTokenService->getApimanAccessToken();
     $globalVariables = $this->vaultConfigService->getGlobalVariables();
 
     $payload = [
@@ -148,6 +227,15 @@ class AddFamilyMemberForm extends FormBase
     }
   }
 
+  /**
+   * Adds the outer wrapper markup and the hidden user ID field to the form.
+   *
+   * @param array $form
+   *   The form render array to modify.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function buildFormContainer(array $form): array
   {
     $form['#prefix'] = '<div id="add-family-member-form-wrapper">';
@@ -161,6 +249,21 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Adds the full name and date-of-birth fields to the form.
+   *
+   * The calendar field enforces a maximum of today so future dates cannot be
+   * selected. An inline date-error helper renders any existing form-state
+   * errors immediately below the field.
+   *
+   * @param array $form
+   *   The form render array to modify.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state, used for inline error display.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function addIdentityFields(array $form, FormStateInterface $form_state): array
   {
     $form['first_name'] = [
@@ -202,6 +305,15 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Adds the gender and relationship select fields to the form.
+   *
+   * @param array $form
+   *   The form render array to modify.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function addRelationshipFields(array $form): array
   {
     $form['gender'] = [
@@ -209,7 +321,7 @@ class AddFamilyMemberForm extends FormBase
       '#title' => $this->t('Gender'),
       '#required' => TRUE,
       '#options' => [
-        'Male' => $this->t('Male'),
+        'Male'   => $this->t('Male'),
         'Female' => $this->t('Female'),
         'Others' => $this->t('Others'),
       ],
@@ -230,15 +342,15 @@ class AddFamilyMemberForm extends FormBase
       '#title' => $this->t('Relationship'),
       '#required' => TRUE,
       '#options' => [
-        '' => $this->t('Relationship*'),
-        'Mother' => $this->t('Mother'),
-        'Father' => $this->t('Father'),
-        'Sister' => $this->t('Sister'),
+        ''        => $this->t('Relationship*'),
+        'Mother'  => $this->t('Mother'),
+        'Father'  => $this->t('Father'),
+        'Sister'  => $this->t('Sister'),
         'Brother' => $this->t('Brother'),
-        'Wife' => $this->t('Wife'),
+        'Wife'    => $this->t('Wife'),
         'Husband' => $this->t('Husband'),
         'Daughter' => $this->t('Daughter'),
-        'Son' => $this->t('Son'),
+        'Son'     => $this->t('Son'),
       ],
       '#attributes' => [
         'class' => [
@@ -255,6 +367,15 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Adds the mobile number and email address fields to the form.
+   *
+   * @param array $form
+   *   The form render array to modify.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function addContactFields(array $form): array
   {
     $form['phone_number'] = [
@@ -294,6 +415,20 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Adds the profile picture upload field and the Terms & Conditions checkbox.
+   *
+   * The upload field uses server-side validators to restrict the accepted MIME
+   * types to JPG/JPEG/PNG and to enforce a 2 MB maximum file size. The
+   * terms checkbox is required; unchecked submission is blocked both
+   * client-side (JS) and server-side (Drupal required validation).
+   *
+   * @param array $form
+   *   The form render array to modify.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function addUploadAndTermsFields(array $form): array
   {
     $form['upload_file'] = [
@@ -333,6 +468,18 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Adds the submit and cancel action buttons to the form.
+   *
+   * The cancel button uses an inline onclick to reload the page rather than
+   * a Drupal link, keeping it fully client-side with no server round-trip.
+   *
+   * @param array $form
+   *   The form render array to modify.
+   *
+   * @return array
+   *   The modified form render array.
+   */
   protected function addActionFields(array $form): array
   {
     $form['actions']['submit'] = [
@@ -365,6 +512,18 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
+  /**
+   * Applies the custom theme hook and attaches front-end asset libraries.
+   *
+   * The ajax_loader library from global_module provides the loading spinner
+   * displayed while the form submits.
+   *
+   * @param array $form
+   *   The assembled form render array.
+   *
+   * @return array
+   *   The finalised form render array with theme and libraries set.
+   */
   protected function finalizeForm(array $form): array
   {
     $form['#theme'] = 'add-family-member';
@@ -373,7 +532,20 @@ class AddFamilyMemberForm extends FormBase
     return $form;
   }
 
-
+  /**
+   * Generates inline HTML for a field-level date validation error.
+   *
+   * Used only by the calendar field suffix to surface errors directly below
+   * the date input instead of at the top of the form.
+   *
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state containing any existing errors.
+   * @param string $field_name
+   *   The form field key to check for errors.
+   *
+   * @return string
+   *   An HTML error paragraph, or an empty string when no error exists.
+   */
   private function getDateErrorMarkup(FormStateInterface $form_state, $field_name)
   {
     $errors = $form_state->getErrors();
@@ -382,12 +554,27 @@ class AddFamilyMemberForm extends FormBase
     }
     return '';
   }
+
+  /**
+   * AJAX callback invoked on submit when JavaScript is enabled.
+   *
+   * Returns the full form render array whether or not there are errors, so
+   * Drupal can display inline validation messages without a page reload.
+   *
+   * @param array $form
+   *   The form render array.
+   * @param \Drupal\Core\Form\FormStateInterface $form_state
+   *   The current form state.
+   *
+   * @return array
+   *   The form render array.
+   */
   public function ajaxCallback(array &$form, FormStateInterface $form_state)
   {
     if ($form_state->hasAnyErrors()) {
-      // Return the entire form to show errors, but do NOT process submit
       return $form;
     }
     return $form;
   }
+
 }

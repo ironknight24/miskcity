@@ -1,43 +1,45 @@
-{# <div class="space-y-4"> #}
-  {% for row in rows %}
-    {% set entity = row.content['#row']._entity %}
-    <a href="/node/{{ entity.nid.0.value }}" class="block bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition w-full max-w-3xl mx-auto">
-      <div class="flex flex-col sm:flex-row gap-4">
+{% set langcode = current_langcode %}
 
-        <!-- Image -->
-        <div class="w-full sm:w-auto sm:flex-shrink-0">
-          <img 
-            src="{{ file_url(entity.field_event_image.0.entity.uri.value) }}" 
-            alt="{{ entity.title.0.value }}" 
-            class="w-full sm:w-32 sm:h-44 object-cover rounded-lg" />
-        </div>
+{% for row in rows %}
+  {% set raw_entity = row.content['#row']._entity %}
+  {% set entity = raw_entity.hasTranslation(langcode) ? raw_entity.getTranslation(langcode) : raw_entity %}
 
-        <!-- Content -->
-        <div class="flex flex-col w-full">
-          <!-- Title -->
-          <h2 class="text-base sm:text-lg font-nevis leading-tight text-gray-800 truncate my-4">
-            {{ entity.title.0.value }}
-          </h2>
+  <a href="/node/{{ entity.nid.0.value }}" class="block bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition w-full max-w-3xl mx-auto">
+    <div class="flex flex-col sm:flex-row gap-4">
 
-          <!-- Dates -->
-          <p class="text-xs text-gray-700 mt-1">
-            {{ entity.field_event_start_date.0.value|date("M d | h a") }}
-            &ndash;
-            {{ entity.field_event_end_date.0.value|date("M d | h a") }}
-          </p>
-
-          <!-- Category -->
-          <p class="text-xs text-gray-600 font-medium mt-1 border-b border-gray-200 w-max">
-            {{ entity.field_event_categories.0.entity.name.0.value }}
-          </p>
-
-          <!-- Location -->
-          <p class="text-xs text-gray-600 mt-1">
-            {{ entity.field_event_location.0.value }}
-          </p>
-        </div>
-
+      <!-- Image -->
+      <div class="w-full sm:w-auto sm:flex-shrink-0">
+        <img 
+          src="{{ file_url(entity.field_event_image.0.entity.uri.value) }}" 
+          alt="{{ entity.title.0.value }}" 
+          class="w-full sm:w-32 sm:h-44 object-cover rounded-lg" />
       </div>
-    </a>
-  {% endfor %}
-{# </div> #}
+
+      <!-- Content -->
+      <div class="flex flex-col w-full">
+        <!-- Title -->
+        <h2 class="text-base sm:text-lg font-nevis leading-tight text-gray-800 truncate my-4">
+          {{ entity.title.0.value }}
+        </h2>
+
+        <!-- Dates -->
+        <p class="text-xs text-gray-700 mt-1">
+          {{ entity.field_event_start_date.0.value|date("M d | h a") }}
+          &ndash;
+          {{ entity.field_event_end_date.0.value|date("M d | h a") }}
+        </p>
+
+        <!-- Category -->
+        <p class="text-xs text-gray-600 font-medium mt-1 border-b border-gray-200 w-max">
+          {{ entity.field_event_categories.0.entity.name.0.value }}
+        </p>
+
+        <!-- Location -->
+        <p class="text-xs text-gray-600 mt-1">
+          {{ entity.field_event_location.0.value }}
+        </p>
+      </div>
+
+    </div>
+  </a>
+{% endfor %}

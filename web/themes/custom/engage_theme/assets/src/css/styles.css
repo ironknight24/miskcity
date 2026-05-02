@@ -947,3 +947,98 @@ form[data-drupal-selector^="comment-"] .js-form-type-textarea .form-textarea {
 #node-preview-form-select .form-submit {
   display: none !important;
 }
+
+#user-login-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* Changed from center to flex-start */
+  /* width: 100%; */
+  max-width: fit-content;
+  margin: 0 auto; /* keeps the form block centered on page */
+  padding: 2rem;
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+}
+
+#user-login-form .js-form-item {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  /* width: 100%; */
+   /* ensures inputs stretch full width */
+}
+
+#user-login-form label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  letter-spacing: 0.025em;
+  text-align: left;
+}
+
+#user-login-form input.form-text {
+  /* width: 100%; */
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  color: #111827;
+  background-color: #ffffff;
+  border: 1.5px solid #d1d5db;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+}
+
+#user-login-form input.form-text:focus {
+  border-color: #ebca25;
+  box-shadow: 0 0 0 3px rgba(235, 202, 37, 0.2);
+}
+
+/* Actions wrapper - left align the button */
+#user-login-form [data-drupal-selector="edit-actions"] {
+  /* width: 100%; */
+  display: flex;
+  justify-content: flex-start; /* button stays left */
+}
+
+#user-login-form [data-drupal-selector="edit-actions"] input {
+  background-color: #ebca25;
+  color: #ffffff;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#user-login-form [data-drupal-selector="edit-actions"] input:hover {
+  background-color: #d4b520;
+}
+
+/* #career-apply-form .test label.absolute-label {
+  top: 50% !important;
+  transform: translateY(-50%) scale(1);
+}
+
+#career-apply-form .test.has-error label.absolute-label {
+  top: 30% !important;
+  transform: translateY(0) scale(0.75) !important;
+} */
+
+.news-and-page-exposed div .js-form-item-sort-order label{
+  display:none !important
+}
+.news-and-page-exposed div .js-form-item-sort-order select{
+  width: 100px;
+}
+
+.gender-career div{
+  display: flex;
+  flex-direction: column;
+}
+.gender-career div select{
+  width: 150px;
+}

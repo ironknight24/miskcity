@@ -1,65 +1,72 @@
-<div{{attributes.addClass(classes)}}>
-	<div class="search-page mx-auto max-w-screen-xl bg-white px-4 py-6">
-		{{ title_prefix }}
-		{{ title }}
-		{{ title_suffix }}
+{# Get the title query param value #}
+{% set title_too_short = search_title is defined and search_title|length < 2 %}
+<div{{ attributes.addClass(classes) }}>
+  <div class="search-page mx-auto max-w-screen-xl bg-white px-4 py-6">
 
-		<!-- Header -->
-		<div
-			class="grid grid-cols-[auto,1fr,auto] items-center pt-6 pb-10">
+    {{ title_prefix }}
+    {{ title }}
+    {{ title_suffix }}
 
-			<!-- Arrow -->
-			<div class="flex justify-start">
-				<a href="/" class="text-gray-700 hover:text-yellow-600">
-					<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewbox="0 0 16 16">
-						<path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"></path>
-					</svg>
-				</a>
-			</div>
+    <!-- Header -->
+    <div class="grid grid-cols-[auto,1fr,auto] items-center pt-6 pb-10">
 
-			<!-- Title -->
-			<div class="text-center">
-				<h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{'Search Lists'|t}}</h1>
-			</div>
+      <!-- Arrow -->
+      <div class="flex justify-start">
+        <a href="/" class="text-gray-700 hover:text-yellow-600">
+          <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+          </svg>
+        </a>
+      </div>
 
-			<!-- Spacer to balance grid -->
-			<div></div>
+      <!-- Title -->
+      <div class="text-center">
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-nevis">{{ 'Search Lists'|t }}</h1>
+      </div>
 
-		</div>
+      <!-- Spacer to balance grid -->
+      <div></div>
 
-		{# <div class="border-t border-[#dedede] border-solid dottedBorder my-6"></div> #}
-		<div class="border-2 border-solid rounded-2xl bg-white px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10">
+    </div>
 
-			{% if header %}
-				<header class="mb-6 font-nevis">{{ header }}</header>
-			{% endif %}
+    <div class="border-2 border-solid rounded-2xl bg-white px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10">
 
-			{{ exposed }}
-			{{ attachment_before }}
+      
 
+      {{ exposed }}
+      {{ attachment_before }}
 
-			{% if rows %}
-				{# <div class="grid grid-cols-1 sm:grid-cols-2 gap-6"> #}
-				{% for row in rows %}
-					{# <div class="views-row grid grid-cols-1 sm:grid-cols-2 gap-6"> #}
-						{{ row }}
-					{# </div> #}
-				{% endfor %}
-				{# </div> #}
-			{% elseif empty %}
-				<div class="text-center text-gray-500 py-8">{{ empty }}</div>
-			{% endif %}
+      {# ── Short-query guard ── #}
+      {% if title_too_short %}
+        <div class="text-center text-gray-500 py-8">
+          <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3 h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+          </svg>
+          <p class="text-lg font-medium">{{ 'No results found'|t }}</p>
+          <p class="text-sm mt-1">{{ 'Please enter at least 2 characters to search.'|t }}</p>
+        </div>
 
+      {% elseif rows %}
+	  {% if header %}
+        <header class="mb-6 font-nevis">{{ header }}</header>
+      {% endif %}
+        {% for row in rows %}
+          {{ row }}
+        {% endfor %}
 
-			{{ pager }}
+      {% elseif empty %}
+        <div class="text-center text-gray-500 py-8">{{ empty }}</div>
 
-			{% if footer %}
-				<footer class="mt-8">{{ footer }}</footer>
-			{% endif %}
+      {% endif %}
 
-			{{ feed_icons }}
+      {{ pager }}
 
-			{# <div class="border-t border-[#dedede] dottedBorder my-10"></div> #}
-		</div>
-	</div>
+      {% if footer %}
+        <footer class="mt-8">{{ footer }}</footer>
+      {% endif %}
+
+      {{ feed_icons }}
+
+    </div>
+  </div>
 </div>

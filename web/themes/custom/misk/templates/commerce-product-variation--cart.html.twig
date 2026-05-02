@@ -3,7 +3,6 @@
  * Cart line: court image, title, location (misk theme — styles in src/input.css).
  *
  * @see court_booking_preprocess_commerce_product_variation()
- * @see court_booking_court_location_label()
  */
 #}
 <div{{ attributes.addClass('cb-cart-variation') }}>
@@ -15,9 +14,6 @@
     {% endif %}
   </div>
   <div class="cb-cart-variation__body">
-    {% if cart_line_title %}
-      <h3 class="cb-cart-variation__title">{{ cart_line_title }}</h3>
-    {% endif %}
     {{- product_variation -}}
     {% if cart_location_label %}
       <p class="cb-cart-variation__location">

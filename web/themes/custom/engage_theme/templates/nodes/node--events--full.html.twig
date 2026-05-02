@@ -30,8 +30,16 @@
 
           <div class="divide-y divide-dashed border-t border-b border-[#cecece] py-3">
             <p class="text-sm text-[#333] font-light font-sans sm:text-xs">
-              <span class="font-normal">{{ node.field_event_start_date.value|date('M d | g a') }}</span> -
-              <span class="font-normal">{{ node.field_event_end_.value|date('M d | g a') }}</span>
+              <span class="font-normal">
+              {% if node.field_event_start_date.value %}
+              {{ node.field_event_start_date.value|date('M d | g a') }}
+              {% endif %}
+              </span> -
+              <span class="font-normal">
+              {% if node.field_event_end_date.value %}
+              {{ node.field_event_end_date.value|date('M d | g a') }}
+              {% endif %}
+              </span>
             </p>
           </div>
 

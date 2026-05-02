@@ -7,7 +7,10 @@
     </div>
     
     {# Right aligned field #}
-    <div class="w-full sm:w-1/2 sm:flex sm:justify-end">
+    <div class="w-full sm:w-1/2 sm:flex sm:justify-end gap-2">
+    {# {{ dump(form) }}
+    {{ dump(form|keys) }} #}
+      {{form.sort_order }}
       {{ form.field_news_categories_target_id }}
     </div>
 

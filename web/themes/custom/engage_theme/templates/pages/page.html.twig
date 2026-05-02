@@ -1,5 +1,5 @@
-{# {{ dump(path('<current>')) }} #}
 {% set current_path = path('<current>') %}
+
 {% if path('<current>') == '/user-login' or path('<current>') == '/user-register' or path('<current>') == '/validate-password' or path('<current>') == '/forgot-password' or current_path starts with '/password-recovery-status' %}
 	<div>
 		{{  page.content }}
@@ -14,7 +14,7 @@
 			<div class="flex flex-wrap items-center gap-2 lg:gap-4 xl:gap-20 2xl:gap-24">
 				<div class="download-link flex items-end gap-3 hidden lg:flex">
 					<p class="font-sans text-xs font-bold text-dark px-1 hidden xl:block translateLabel" label-alias="la_download_city_app">
-						Download City App:
+						{{ 'Download City App:'|t }}
 					</p>
 
 					<a href="https://play.google.com/store/apps/" target="_blank" rel="noopener noreferrer">
@@ -28,7 +28,7 @@
 
 				<div class="social-link flex items-center gap-3">
 					<p class="font-sans text-xs font-bold text-dark px-1 translateLabel" label-alias="la_follow_us">
-						Follow us:
+						{{ 'Follow us:'|t }}
 					</p>
 
 					<!-- Facebook -->
@@ -219,14 +219,14 @@
 
 			<!-- Centered copyright -->
 			<div class="text-center opacity-70">
-				Copyright ©
+				{{ 'Copyright ©'|t }}
 				{{ "now"|date("Y") }}
-				- All Rights Reserved
+				{{ ' - All Rights Reserved'|t }}
 			</div>
 
 			<!-- Right-aligned version -->
 			<div class="text-sm text-gray-300">
-				V3.2.0
+				{{ 'V3.2.0'|t }}
 			</div>
 
 		</div>

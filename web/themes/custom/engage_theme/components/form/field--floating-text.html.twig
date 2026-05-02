@@ -1,92 +1,107 @@
-{# Props: field (a Drupal render array for input or select) #}
+  {# Props: field (a Drupal render array for input or select) #}
 
-{% set id = field['#id'] ?? '' %}
-{% set name = field['#name'] ?? '' %}
-{% set value = field['#value'] ?? '' %}
-{% set label = field['#title'] ?? '' %}
-{% set error = field['#errors'] ?? null %}
-{% set required = field['#required'] ?? false %}
-{% set maxlength = field['#maxlength'] ?? '' %}
-{% set type = field['#type'] ?? 'text' %}
-{% set disabled = field['#attributes']['disabled'] ?? false %}
-{% set options = field['#options'] ?? {} %}
+  {% set id = field['#id'] ?? '' %}
+  {% set name = field['#name'] ?? '' %}
+  {% set value = field['#value'] ?? '' %}
+  {% set label = field['#title'] ?? '' %}
+  {% set error = field['#errors'] ?? null %}
+  {% set required = field['#required'] ?? false %}
+  {% set maxlength = field['#maxlength'] ?? '' %}
+  {% set type = field['#type'] ?? 'text' %}
+  {% set disabled = field['#attributes']['disabled'] ?? false %}
+  {% set options = field['#options'] ?? {} %}
 
-{# Ensure type is valid #}
-{% if type not in ['text', 'email', 'password', 'select', 'date'] %}
-  {% set type = 'text' %}
-{% endif %}
-
-{# Build attributes, removing disabled (handled separately) #}
-{% set attrs = create_attribute(field['#attributes']|default({})|without('disabled')) %}
-
-{# Ensure placeholder exists for floating-label effect #}
-{% if not attrs.hasAttribute('placeholder') %}
-  {% set attrs = attrs.setAttribute('placeholder', ' ') %}
-{% endif %}
-
-<div class="relative test flex flex-col items-baseline flex-row">
-  {% if type == 'select' %}
-    <select
-      id="{{ id }}"
-      name="{{ name }}"
-      {% if required %} required {% endif %}
-      class="peer w-full px-2.5 pb-2.5 pt-4 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
-      {{ disabled ? 'disabled' }}
-      {{ attrs }}
-    >
-      {% for key, option in options %}
-        <option value="{{ key }}" {% if value == key %}selected{% endif %}>
-          {{ option }}
-        </option>
-      {% endfor %}
-    </select>
-  {% elseif type == 'password' %}
-    <input
-      type="password"
-      id="{{ id }}"
-      name="{{ name }}"
-      {% if maxlength %} maxlength="{{ maxlength }}" {% endif %}
-      {% if required %} required {% endif %}
-      class="peer w-full px-2.5 pb-2.5 pt-4 pe-10 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
-      {{ disabled ? 'disabled' }}
-      {{ attrs }}
-    />
-    <button
-      type="button"
-      class="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 cursor-pointer items-center justify-center"
-      aria-label="Toggle password visibility">
-      <img
-        src="/themes/custom/engage_theme/images/Profile/hide-eye.svg"
-        alt=""
-        class="hide-eye-old icon-hide h-4 w-5"
-      >
-      <img
-        src="/themes/custom/engage_theme/images/Profile/show-eye.svg"
-        alt=""
-        class="show-eye-old icon-show hidden h-4 w-6"
-      >
-    </button>
-  {% else %}
-    <input
-      type="{{ type }}"
-      id="{{ id }}"
-      name="{{ name }}"
-      value="{{ value }}"
-      {% if maxlength %} maxlength="{{ maxlength }}" {% endif %}
-      {% if required %} required {% endif %}
-      class="peer w-full px-2.5 pb-2.5 pt-4 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
-      {{ disabled ? 'disabled' }}
-      {{ attrs }}
-    />
+  {# Ensure type is valid #}
+  {% if type not in ['text', 'email', 'password', 'select', 'date'] %}
+    {% set type = 'text' %}
   {% endif %}
 
-  <label
-    for="{{ id }}"
-    class="absolute text-sm {{ error ? 'text-red-500' : 'text-gray-500' }} bg-white px-2 transition-all duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0]
-      peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2
-      peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1
-      peer-focus:text-yellow-500"
-  >
-    {{ label }}{% if required %}{% endif %}
-  </label>
-</div>
+  {# Build attributes, removing disabled (handled separately) #}
+  {% set attrs = create_attribute(field['#attributes']|default({})|without('disabled')) %}
+
+  {# Ensure placeholder exists for floating-label effect #}
+  {% if not attrs.hasAttribute('placeholder') %}
+    {% set attrs = attrs.setAttribute('placeholder', ' ') %}
+  {% endif %}
+
+  <div class="relative test flex flex-col items-baseline flex-row">
+    {% if type == 'select' %}
+      <select
+        id="{{ id }}"
+        name="{{ name }}"
+        {% if required %} required {% endif %}
+        class="peer w-full px-2.5 pb-2.5 pt-4 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
+        {{ disabled ? 'disabled' }}
+        {{ attrs }}
+      >
+
+        {% for key, option in options %}
+          <option value="{{ key }}" {% if value == key %}selected{% endif %}>
+            {{ option }}
+          </option>
+        {% endfor %}
+      </select>
+    {% elseif type == 'password' %}
+      <input
+        type="password"
+        id="{{ id }}"
+        name="{{ name }}"
+        {% if maxlength %} maxlength="{{ maxlength }}" {% endif %}
+        {% if required %} required {% endif %}
+        class="peer w-full px-2.5 pb-2.5 pt-4 pe-10 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
+        {{ disabled ? 'disabled' }}
+        {{ attrs }}
+      />
+      <button
+        type="button"
+        class="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 cursor-pointer items-center justify-center"
+        aria-label="Toggle password visibility">
+        <img
+          src="/themes/custom/engage_theme/images/Profile/hide-eye.svg"
+          alt=""
+          class="hide-eye-old icon-hide h-4 w-5"
+        >
+        <img
+          src="/themes/custom/engage_theme/images/Profile/show-eye.svg"
+          alt=""
+          class="show-eye-old icon-show hidden h-4 w-6"
+        >
+      </button>
+      <div id="password-tooltip-{{ id }}" class="change-password-card__tooltip absolute top-full z-50 mt-2 left-0 invisible opacity-0 transition-opacity duration-300 ease-in-out bg-white border border-gray-200 p-4 rounded-xl shadow-md text-sm w-full max-w-md">
+					<p class="font-semibold mb-2 text-sm text-gray-700">{{ 'Password must contain:'|t }}</p>
+					<ul class="list-disc ml-5 space-y-1">
+						<li id="rule-length-confirm" class="text-red-600">At least 8 characters</li>
+						<li id="rule-uppercase-confirm" class="text-red-600">At least one uppercase letter</li>
+						<li id="rule-lowercase-confirm" class="text-red-600">At least one lowercase letter</li>
+						<li id="rule-number-confirm" class="text-red-600">At least one number</li>
+						<li id="rule-special-confirm" class="text-red-600">At least one special character (@!$#%^&*)</li>
+						 {% if id == 'edit-confirm-password' %}
+              <li id="passmatch" class="text-red-600">Passwords must match</li>
+            {% endif %}
+					</ul>
+				</div>
+    {% else %}
+      <input
+        type="{{ type }}"
+        id="{{ id }}"
+        name="{{ name }}"
+        value="{{ value }}"
+        {% if maxlength %} maxlength="{{ maxlength }}" {% endif %}
+        {% if required %} required {% endif %}
+        class="peer w-full px-2.5 pb-2.5 pt-4 text-sm text-gray-700 bg-transparent rounded-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:!border-yellow-500 {{ error ? 'border-red-500' : '' }}"
+        {{ disabled ? 'disabled' }}
+        {{ attrs }}
+      />
+    {% endif %}
+
+    <label
+      for="{{ id }}"
+      class="absolute text-sm {{ error ? 'text-red-500' : 'text-gray-500' }} bg-white px-2 transition-all duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0]
+        peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2
+        peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 left-1
+        peer-focus:text-yellow-500 absolute-label"
+    >
+      {{ label }}{% if required %}{% endif %}
+    </label>
+    
+  </div>

@@ -30,4 +30,17 @@ function engage_theme_preprocess_page(array &$variables)
   $variables['#attached']['drupalSettings']['globalVariables']['tenantCode'] = $globalVariables['applicationConfig']['config']['tenantCode'];
   $variables['#attached']['drupalSettings']['globalVariables']['userLogged'] = \Drupal::currentUser()->isAuthenticated();
   $variables['#attached']['drupalSettings']['globalVariables']['mapConfig'][] = $globalVariables['mapConfig']['config'];
+  $variables['#attached']['drupalSettings']['globalVariables']['langcode'] = \Drupal::languageManager()->getCurrentLanguage()->getId();
+}
+function engage_theme_preprocess_views_view(array &$variables) {
+  if ($variables['view']->id() == 'search_standard') {
+    $request = \Drupal::request();
+    $variables['search_title'] = $request->query->get('title', '');
+  }
+}
+
+function engage_theme_preprocess_views_view_unformatted(&$variables) {
+  $variables['current_langcode'] = \Drupal::languageManager()
+    ->getCurrentLanguage()
+    ->getId();
 }

@@ -10,6 +10,7 @@
 # Ignore Drupal's site-specific files
 /web/sites/*/settings.php
 /web/sites/*/example.settings.docker.php
+!/web/sites/default/example.settings.docker.php
 /web/sites/*/settings.local.php
 /web/sites/*/services.yml
 /web/sites/*/services.local.yml
@@ -45,3 +46,5 @@ node_modules/
 !/coverage/.gitkeep
 *.sql
 scripts/
+.scannerwork/
+.phpunit.result.cache

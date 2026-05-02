@@ -7,10 +7,10 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Compose V2 plugin included as `docker compose`)
 - **Windows**: Enable WSL2 and use the WSL2 backend in Docker Desktop; clone the repo on the Linux filesystem (e.g. `\\wsl$\...`) for better file I/O. Ensure the project folder is allowed under Docker **Settings → Resources → File sharing**.
 - **macOS**: Apple Silicon (ARM) and Intel are supported by the `drupal` base image (multi-arch).
-- **RAM**: At least ~4 GB free for the default stack; add ~2 GB more if you enable the SonarQube profile.
+- **RAM**: At least ~4 GB free for the default stack; add ~256 MB headroom for the bundled Redis service; add ~2 GB more if you enable the SonarQube profile.
 - **PHP in Docker**: The `web` image uses **PHP 8.4** (`Dockerfile.web`) so it matches the Composer platform requirement (`composer.lock`). If you run `composer` on the host, use PHP 8.4+ or rely on Composer inside the `web` container only.
-- **PHP extensions**: The image sets **`memory_limit` to 512M** (CLI and FPM) so `drush cr` and large pages do not hit the default 128M limit, and installs **`bcmath`** (required by Drupal Commerce and related code). Rebuild the `web` service after changing [`Dockerfile.web`](Dockerfile.web): `docker compose build web && docker compose up -d`.
-- **Performance**: Xdebug is **installed but not loaded** by default (it noticeably slows Drupal bootstrap and `drush cr`). OPcache is tuned in [`docker/php/99-opcache.ini`](docker/php/99-opcache.ini). For PHPUnit coverage, use the **`php-xdebug`** wrapper (see PHPUnit section below).
+- **PHP extensions**: The image sets **`memory_limit` to 512M** (CLI and FPM) so `drush cr` and large pages do not hit the default 128M limit, and installs **`bcmath`** (required by Drupal Commerce and related code), **`gmp`** (required by some Composer dependencies such as OIDC/JWX), and **PhpRedis** (for the contrib Redis module). Rebuild the `web` service after changing [`Dockerfile.web`](Dockerfile.web): `docker compose build web && docker compose up -d`.
+- **Performance**: Xdebug is **installed but not loaded** by default (it noticeably slows Drupal bootstrap and `drush cr`). OPcache is tuned in [`docker/php/99-opcache.ini`](docker/php/99-opcache.ini). For PHPUnit coverage, use the **`php-xdebug`** wrapper (see PHPUnit section below). **Redis** is used for Drupal’s application cache when the `web` service has `REDIS_HOST` set (see Redis section below); turning on Xdebug still adds overhead—Redis does not remove that.
 
 ## Quick start
 
@@ -22,14 +22,14 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
 
    Edit `.env` and set `SONAR_TOKEN` if you use the `sonar` profile. Never commit `.env`.
 
-2. Build and start the **default** stack (PHP-FPM, Nginx, MySQL, phpMyAdmin):
+2. Build and start the **default** stack (PHP-FPM, Nginx, MySQL, Redis, phpMyAdmin):
 
    ```bash
    docker compose build
    docker compose up -d
    ```
 
-   The MySQL service allows up to **60 seconds** on first boot (empty volume) before health checks count as failures—this helps slower disks (e.g. some Windows setups).
+   The MySQL service allows up to **60 seconds** on first boot (empty volume) before health checks count as failures—this helps slower disks (e.g. some Windows setups). The `web` service waits for both MySQL and Redis to be healthy before starting.
 
 3. Install PHP dependencies (required before Drush/Drupal can run). From the project root, using the same PHP version as production:
 
@@ -52,6 +52,8 @@ Drupal 11 stack for local development using Docker Compose (works on **macOS** a
   ```bash
   cp web/sites/default/example.settings.docker.php web/sites/default/settings.php
   ```
+
+- If you already have a hand-written `settings.php`, merge in the **Redis** block from [`web/sites/default/example.settings.docker.php`](web/sites/default/example.settings.docker.php) (the `if (getenv('REDIS_HOST')) { ... include redis.settings.php; }` section) so local Docker uses Redis. Tracked [`web/sites/default/redis.settings.php`](web/sites/default/redis.settings.php) is loaded only when `REDIS_HOST` is set (Compose does this for `web`); production without that variable keeps the default cache backends.
 
 - Some phpMyAdmin exports contain **unescaped single quotes** inside `longtext` (e.g. `ai_log.prompt`, `visitors.visitors_title`). MySQL will reject those statements. Build a sanitized file with `bash scripts/make-drupal-import-sql.sh`, then import `drupal_import.sql` instead of the raw dump (see the comment after the `ai_log` header in that file).
 
@@ -93,6 +95,24 @@ docker compose --profile sonar up -d
 
 Set `SONAR_TOKEN` in `.env` (create a token under **My Account → Security** in SonarQube). If a token was ever committed to the repository, **revoke it** in SonarQube and use a new one locally only.
 
+## Redis (local application cache)
+
+The default Compose stack includes a **`redis`** service (`redis:7-alpine`, internal only—port **6379** is not published to the host by default). The `web` container receives `REDIS_HOST=redis` and `REDIS_PORT=6379`. [`web/sites/default/redis.settings.php`](web/sites/default/redis.settings.php) wires the [Redis](https://www.drupal.org/project/redis) contrib module per upstream recommendations (default cache backend, lock/flood/tag checksum services from `example.services.yml`, container cache in Redis when the extension is present).
+
+- After pulling changes, run `composer install` (or `composer update`) inside `web` if needed, then enable the module once per environment: `docker compose exec web bash -lc "cd /opt/drupal && vendor/bin/drush pm:enable redis -y"`.
+- Run **`vendor/bin/drush cr`** after changing cache or Redis settings. The first request after a rebuild can still be relatively cold.
+- **Verify** Redis is in use: open a few pages, then `docker compose exec redis redis-cli DBSIZE` (key count should grow). For detailed Drupal metrics, use **Reports → Redis** (`/admin/reports/redis`). Avoid `KEYS *` on large databases (fine for a small local site).
+- To use **redis-cli from the host**, add a ports mapping under `redis` in `docker-compose.yml` (for example `"6379:6379"`) only if you need it; omit it otherwise.
+
+**502 Bad Gateway after code or module changes:** Nginx was returning 502 while PHP-FPM logged errors such as missing field formatter plugins (stale cache in Redis). Clear Redis and rebuild Drupal caches:
+
+```bash
+docker compose exec redis redis-cli FLUSHALL
+docker compose exec web bash -lc "cd /opt/drupal && vendor/bin/drush cr"
+```
+
+Then reload the site. Nginx [`nginx/default.conf`](nginx/default.conf) logs upstream issues at **warn** level to `/var/log/nginx/drupal_error.log` inside the `nginx` container (`docker compose exec nginx tail /var/log/nginx/drupal_error.log`).
+
 ## Development commands
 
 Use **`docker compose`** (with a space), not the legacy `docker-compose` binary.
@@ -108,14 +128,22 @@ docker compose exec web bash -lc "cd /opt/drupal && vendor/bin/drush <command>"
 
 ### PHPUnit and coverage
 
-Create the output directory if it is missing:
+PHPUnit comes from **`drupal/core-dev`** ([`composer.json`](composer.json) `require-dev`). Install dependencies **with dev packages** (do **not** use `composer install --no-dev`), otherwise `vendor/bin/phpunit` will be missing:
+
+```bash
+docker compose exec web bash -lc "cd /opt/drupal && composer install"
+```
+
+Create the coverage output directory if it is missing:
 
 ```bash
 mkdir -p coverage
 ```
 
+Run PHPUnit with Xdebug coverage (same PHP version as in [`Dockerfile.web`](Dockerfile.web)):
+
 ```bash
-docker compose exec web bash -c "cd /opt/drupal && XDEBUG_MODE=coverage php-xdebug ./vendor/bin/phpunit --coverage-clover coverage/clover.xml -c phpunit.xml.dist"
+docker compose exec web bash -lc "cd /opt/drupal && XDEBUG_MODE=coverage php-xdebug ./vendor/bin/phpunit --coverage-clover coverage/clover.xml -c phpunit.xml.dist"
 ```
 
 Coverage output is read by SonarQube via `sonar-project.properties` (`coverage/clover.xml`).

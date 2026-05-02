@@ -8,11 +8,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - DRUPAL_DB_HOST=db
       - DRUPAL_DB_USER=drupal
       - DRUPAL_DB_PASSWORD=drupal
       - DRUPAL_DB_NAME=drupal
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     mem_limit: 2g
     # Default 1024 shares; avoid throttling PHP-FPM vs other local containers on busy hosts.
     networks:
@@ -56,6 +60,22 @@ services:
       retries: 10
       start_period: 60s
     mem_limit: 2g
+    networks:
+      - drupal_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: drupal_redis_miskcityd11
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    mem_limit: 256m
     networks:
       - drupal_network
 
@@ -138,6 +158,7 @@ services:
 
 volumes:
   db_data:
+  redis_data:
   sonar_data:
   sonar_extensions:
   sonar_logs:

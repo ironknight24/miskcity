@@ -71,53 +71,31 @@ final class DualLanguageSwitcherBlock extends BlockBase implements ContainerFact
    * {@inheritdoc}
    */
   public function build(): array {
-    $settings = $this->configFactory->get('dual_language_switch.settings');
-    $secondary = trim((string) $settings->get('secondary_langcode'));
+    $secondary = trim((string) $this->configFactory->get('dual_language_switch.settings')->get('secondary_langcode'));
     if ($secondary === '') {
       return $this->buildEmpty();
     }
 
-    $default = $this->languageManager->getDefaultLanguage();
-    $default_id = $default->getId();
+    $default_id = $this->languageManager->getDefaultLanguage()->getId();
     $languages = $this->languageManager->getLanguages();
     if (!isset($languages[$secondary]) || $secondary === $default_id) {
       return $this->buildEmpty();
     }
 
     $current_id = $this->languageManager->getCurrentLanguage(LanguageInterface::TYPE_INTERFACE)->getId();
+    $target_id = $this->resolveTargetLanguage($current_id, $default_id, $secondary);
 
-    // Default ↔ secondary; any other enabled language → offer switch to default.
-    if ($current_id === $default_id) {
-      $target_id = $secondary;
-    }
-    elseif ($current_id === $secondary) {
-      $target_id = $default_id;
-    }
-    else {
-      $target_id = $default_id;
-    }
-
-    if ($this->pathMatcher->isFrontPage() || !$this->routeMatch->getRouteObject()) {
-      $url = Url::fromRoute('<front>');
-    }
-    else {
-      $url = Url::fromRouteMatch($this->routeMatch);
-    }
-
+    $url = $this->resolveUrl();
     $switch = $this->languageManager->getLanguageSwitchLinks(LanguageInterface::TYPE_INTERFACE, $url);
     if (!$switch || empty($switch->links) || !isset($switch->links[$target_id])) {
       return $this->buildEmpty();
     }
 
     $link = $switch->links[$target_id];
-    $fallback_title = $link['title'] ?? '';
-    if (is_object($fallback_title) && method_exists($fallback_title, '__toString')) {
-      $fallback_title = (string) $fallback_title;
-    }
-    elseif (!is_string($fallback_title)) {
-      $fallback_title = isset($languages[$target_id]) ? $languages[$target_id]->getName() : '';
-    }
-    $link['title'] = $this->nativeLanguageDisplayName($target_id, $fallback_title);
+    $link['title'] = $this->nativeLanguageDisplayName(
+      $target_id,
+      $this->normalizeLinkTitle($link['title'] ?? '', $target_id, $languages)
+    );
 
     $one = [$target_id => $link];
     $build = [
@@ -144,6 +122,73 @@ final class DualLanguageSwitcherBlock extends BlockBase implements ContainerFact
     $cache->applyTo($build);
 
     return $build;
+  }
+
+  /**
+   * Determines the target language for the switch link.
+   *
+   * When the current language is the site default, target the secondary.
+   * In all other cases (current is secondary, or a third language), target
+   * the default so visitors can always return to the primary UI.
+   *
+   * @param string $current_id
+   *   The active interface language code.
+   * @param string $default_id
+   *   The site default language code.
+   * @param string $secondary
+   *   The configured secondary language code.
+   *
+   * @return string
+   *   The language code to link to.
+   */
+  private function resolveTargetLanguage(string $current_id, string $default_id, string $secondary): string {
+    if ($current_id === $default_id) {
+      return $secondary;
+    }
+    return $default_id;
+  }
+
+  /**
+   * Resolves the URL to pass to getLanguageSwitchLinks().
+   *
+   * Uses the front-page route when on the front page or when no route object
+   * is available (e.g. 404 pages); otherwise uses the current route match.
+   *
+   * @return \Drupal\Core\Url
+   *   The URL to generate switch links for.
+   */
+  private function resolveUrl(): Url {
+    if ($this->pathMatcher->isFrontPage() || !$this->routeMatch->getRouteObject()) {
+      return Url::fromRoute('<front>');
+    }
+    return Url::fromRouteMatch($this->routeMatch);
+  }
+
+  /**
+   * Returns a plain string title for a language switch link.
+   *
+   * Core's language negotiation may return the title as a string, a stringable
+   * object (e.g. TranslatableMarkup), or another type. Any non-string,
+   * non-stringable value falls back to the language's own getName().
+   *
+   * @param mixed $title
+   *   The raw title value from the switch-link array.
+   * @param string $target_id
+   *   Language code used to look up a fallback name.
+   * @param array $languages
+   *   Keyed array of enabled LanguageInterface objects.
+   *
+   * @return string
+   *   A resolved plain-string title.
+   */
+  private function normalizeLinkTitle(mixed $title, string $target_id, array $languages): string {
+    if (is_object($title) && method_exists($title, '__toString')) {
+      return (string) $title;
+    }
+    if (is_string($title)) {
+      return $title;
+    }
+    return isset($languages[$target_id]) ? $languages[$target_id]->getName() : '';
   }
 
   /**

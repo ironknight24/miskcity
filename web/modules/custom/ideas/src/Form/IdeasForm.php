@@ -322,10 +322,6 @@ class IdeasForm extends FormBase
   public function submitForm(array &$form, FormStateInterface $form_state)
   {
     $image_url = $form_state->getValue('upload_file_hidden');
-    // if (empty($image_url)) {
-    //   $this->messenger()->addError($this->t('Please upload a file before submitting.'));
-    //   return;
-    // }
 
     // Gather form values.
     $title = $form_state->getValue('first_name');

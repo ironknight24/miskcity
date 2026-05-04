@@ -6,18 +6,154 @@ services:
   event_booking.api:
     class: Drupal\event_booking\EventBookingApiService
     arguments:
+      - '@event_booking.portal'
+      - '@event_booking.cart'
+      - '@event_booking.receipt'
+      - '@event_booking.bookings'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.account_identity:
+    class: Drupal\event_booking\Service\EventBookingAccountIdentity
+    arguments:
+      - '@entity_type.manager'
+      - '@global_module.global_variables'
+
+  event_booking.node_serializer:
+    class: Drupal\event_booking\Service\EventBookingNodeSerializer
+    arguments:
+      - '@event_booking.date_formatter'
+      - '@event_booking.image_builder'
+      - '@event_booking.field_serializer'
+      - '@event_booking.search_matcher'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.date_formatter:
+    class: Drupal\event_booking\Service\EventBookingDateFormatter
+    arguments:
+      - '@config.factory'
+
+  event_booking.image_builder:
+    class: Drupal\event_booking\Service\EventBookingImageBuilder
+    arguments:
+      - '@file_url_generator'
+
+  event_booking.field_serializer:
+    class: Drupal\event_booking\Service\EventBookingFieldSerializer
+    arguments:
+      - '@event_booking.date_formatter'
+      - '@file_url_generator'
+
+  event_booking.search_matcher:
+    class: Drupal\event_booking\Service\EventBookingSearchMatcher
+
+  event_booking.portal:
+    class: Drupal\event_booking\Service\EventBookingPortalService
+    arguments:
+      - '@event_booking.account_identity'
+      - '@event_booking.portal_user_client'
+      - '@logger.channel.event_booking'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.cart:
+    class: Drupal\event_booking\Service\EventBookingCartService
+    arguments:
       - '@commerce_cart.cart_manager'
       - '@commerce_cart.cart_provider'
       - '@commerce_order.order_refresh'
-      - '@entity_type.manager'
-      - '@entity_field.manager'
       - '@config.factory'
-      - '@global_module.global_variables'
-      - '@file_url_generator'
+      - '@event_booking.store_resolver'
+      - '@event_booking.stock_guard'
+      - '@event_booking.cart_serializer'
+      - '@event_booking.cart_clearer'
+      - '@event_booking.ticket_pricing'
+      - '@logger.channel.event_booking'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.receipt:
+    class: Drupal\event_booking\Service\EventBookingReceiptService
+    arguments:
+      - '@entity_type.manager'
+      - '@commerce_order.order_refresh'
+      - '@config.factory'
+      - '@event_booking.event_node_resolver'
+      - '@event_booking.node_serializer'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.bookings:
+    class: Drupal\event_booking\Service\EventBookingBookingsService
+    arguments:
+      - '@config.factory'
+      - '@entity_type.manager'
+      - '@event_booking.event_node_resolver'
+      - '@event_booking.order_map_builder'
+      - '@event_booking.rows_builder'
+      - '@event_booking.pager'
+      - '@event_booking.unified_bookings'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.store_resolver:
+    class: Drupal\event_booking\Service\EventBookingStoreResolver
+    arguments:
+      - '@config.factory'
+      - '@entity_type.manager'
+
+  event_booking.stock_guard:
+    class: Drupal\event_booking\Service\EventBookingTicketStockGuard
+    arguments:
       - '@commerce_stock.service_manager'
       - '@logger.channel.event_booking'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.cart_serializer:
+    class: Drupal\event_booking\Service\EventBookingCartSerializer
+
+  event_booking.cart_clearer:
+    class: Drupal\event_booking\Service\EventBookingCartClearer
+    arguments:
+      - '@commerce_order.order_refresh'
+      - '@logger.channel.event_booking'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.ticket_pricing:
+    class: Drupal\event_booking\Service\EventBookingTicketPricingService
+    arguments:
+      - '@event_booking.store_resolver'
+    calls:
+      - [setStringTranslation, ['@string_translation']]
+
+  event_booking.event_node_resolver:
+    class: Drupal\event_booking\Service\EventBookingEventNodeResolver
+    arguments:
+      - '@entity_type.manager'
+      - '@entity_field.manager'
+      - '@logger.channel.event_booking'
+
+  event_booking.order_map_builder:
+    class: Drupal\event_booking\Service\EventBookingOrderMapBuilder
+    arguments:
+      - '@entity_type.manager'
+
+  event_booking.rows_builder:
+    class: Drupal\event_booking\Service\EventBookingRowsBuilder
+    arguments:
+      - '@event_booking.node_serializer'
+
+  event_booking.pager:
+    class: Drupal\event_booking\Service\EventBookingPager
+
+  event_booking.unified_bookings:
+    class: Drupal\event_booking\Service\EventBookingUnifiedBookingsService
+    arguments:
       - '@court_booking.api'
-      - '@event_booking.portal_user_client'
+      - '@event_booking.pager'
     calls:
       - [setStringTranslation, ['@string_translation']]
 

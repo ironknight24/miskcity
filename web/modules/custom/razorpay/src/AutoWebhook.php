@@ -14,7 +14,8 @@ use Symfony\Component\HttpFoundation\RequestStack;
 /**
  * Ensures Razorpay webhook exists and stays up to date.
  */
-class AutoWebhook {
+class AutoWebhook
+{
 
   use StringTranslationTrait;
 
@@ -46,85 +47,128 @@ class AutoWebhook {
     $this->stringTranslation = $stringTranslation;
   }
 
-  protected function generateWebhookSecret(): string {
+  protected function generateWebhookSecret(): string
+  {
     $alphanumericString = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-=~!@#$%^&*()_+,./<>?;:[]{}|abcdefghijklmnopqrstuvwxyz';
     return substr(str_shuffle($alphanumericString), 0, 20);
   }
 
   public function autoEnableWebhook(string $key_id, string $key_secret): mixed {
+    $result = NULL;
+  
     try {
       $request = $this->requestStack->getCurrentRequest();
-      if ($request === NULL) {
-        return NULL;
-      }
-      $domainIp = gethostbyname($request->getHost());
-      if (!filter_var($domainIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-        $this->messenger->addError($this->t('Could not enable webhook for localhost.'));
-        return NULL;
-      }
-
-      drupal_flush_all_caches();
-
-      $config = $this->configFactory->getEditable('razorpay.settings');
-      $settingFlags = (array) $config->get('razorpay_flags');
-      $webhookSecret = empty($settingFlags['webhook_secret']) ? $this->generateWebhookSecret() : (string) $settingFlags['webhook_secret'];
-      $config->set('razorpay_flags', [
-        'webhook_secret' => $webhookSecret,
-        'webhook_enable_at' => time(),
-      ])->save();
-
-      $skip = 0;
-      $count = 10;
-      $webhookItems = [];
-      $webhookExist = FALSE;
-      $webhookId = '';
-      $webhookUrl = Url::fromRoute('commerce_payment.notify', ['commerce_payment_gateway' => 'razorpay'], ['absolute' => TRUE])->toString();
-      $api = new Api($key_id, $key_secret);
-
-      do {
-        $webhooks = $api->webhook->all(['count' => $count, 'skip' => $skip]);
-        $skip += 10;
-        if (!empty($webhooks['count'])) {
-          foreach ($webhooks['items'] as $value) {
-            $webhookItems[] = $value;
-          }
+  
+      if ($this->isValidRequest($request)) {
+        $webhookSecret = $this->prepareWebhookConfig();
+  
+        $api = new Api($key_id, $key_secret);
+        $webhookUrl = $this->getWebhookUrl();
+  
+        [$webhookExist, $webhookId] = $this->findExistingWebhook($api, $webhookUrl);
+  
+        $requestBody = [
+          'url' => $webhookUrl,
+          'active' => TRUE,
+          'events' => $this->defaultWebhookEvents,
+          'secret' => $webhookSecret,
+        ];
+  
+        if ($webhookExist && $webhookId !== '') {
+          $this->logger->info('Updating razorpay webhook.');
+          $result = $api->webhook->edit($requestBody, $webhookId);
         }
-      } while ((int) ($webhooks['count'] ?? 0) === $count);
-
-      $requestBody = [
-        'url' => $webhookUrl,
-        'active' => TRUE,
-        'events' => $this->defaultWebhookEvents,
-        'secret' => $webhookSecret,
-      ];
-
-      foreach ($webhookItems as $value) {
-        if (($value['url'] ?? '') !== $webhookUrl) {
-          continue;
+        else {
+          $this->logger->info('Creating razorpay webhook.');
+          $result = $api->webhook->create($requestBody);
         }
-        foreach (($value['events'] ?? []) as $eventKey => $eventVal) {
-          if ($eventVal == 1 && isset($this->supportedWebhookEvents[$eventKey])) {
-            $this->defaultWebhookEvents[$eventKey] = TRUE;
-          }
-        }
-        $webhookExist = TRUE;
-        $webhookId = (string) ($value['id'] ?? '');
       }
-
-      if ($webhookExist && $webhookId !== '') {
-        $this->logger->info('Updating razorpay webhook.');
-        return $api->webhook->edit($requestBody, $webhookId);
-      }
-
-      $this->logger->info('Creating razorpay webhook.');
-      return $api->webhook->create($requestBody);
     }
     catch (\Throwable $exception) {
-      $this->messenger->addError($this->t('Razorpay webhook setup failed: @message', ['@message' => $exception->getMessage()]));
+      $this->messenger->addError(
+        $this->t('Razorpay webhook setup failed: @message', ['@message' => $exception->getMessage()])
+      );
       $this->logger->error($exception->getMessage());
-      return NULL;
     }
+  
+    return $result;
   }
 
-}
+  private function isValidRequest($request): bool {
+    if ($request === NULL) {
+      return FALSE;
+    }
+  
+    $domainIp = gethostbyname($request->getHost());
+  
+    if (!filter_var($domainIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+      $this->messenger->addError($this->t('Could not enable webhook for localhost.'));
+      return FALSE;
+    }
+  
+    return TRUE;
+  }
 
+  private function prepareWebhookConfig(): string {
+    drupal_flush_all_caches();
+  
+    $config = $this->configFactory->getEditable('razorpay.settings');
+    $flags = (array) $config->get('razorpay_flags');
+  
+    $secret = empty($flags['webhook_secret'])
+      ? $this->generateWebhookSecret()
+      : (string) $flags['webhook_secret'];
+  
+    $config->set('razorpay_flags', [
+      'webhook_secret' => $secret,
+      'webhook_enable_at' => time(),
+    ])->save();
+  
+    return $secret;
+  }
+
+  private function getWebhookUrl(): string {
+    return Url::fromRoute(
+      'commerce_payment.notify',
+      ['commerce_payment_gateway' => 'razorpay'],
+      ['absolute' => TRUE]
+    )->toString();
+  }
+
+  private function findExistingWebhook(Api $api, string $webhookUrl): array {
+    $skip = 0;
+    $count = 10;
+    $webhookItems = [];
+    $webhookExist = FALSE;
+    $webhookId = '';
+  
+    do {
+      $webhooks = $api->webhook->all(['count' => $count, 'skip' => $skip]);
+      $skip += 10;
+  
+      if (!empty($webhooks['count'])) {
+        foreach ($webhooks['items'] as $value) {
+          $webhookItems[] = $value;
+        }
+      }
+    }
+    while ((int) ($webhooks['count'] ?? 0) === $count);
+  
+    foreach ($webhookItems as $value) {
+      if (($value['url'] ?? '') !== $webhookUrl) {
+        continue;
+      }
+  
+      foreach (($value['events'] ?? []) as $eventKey => $eventVal) {
+        if ($eventVal == 1 && isset($this->supportedWebhookEvents[$eventKey])) {
+          $this->defaultWebhookEvents[$eventKey] = TRUE;
+        }
+      }
+  
+      $webhookExist = TRUE;
+      $webhookId = (string) ($value['id'] ?? '');
+    }
+  
+    return [$webhookExist, $webhookId];
+  }
+}

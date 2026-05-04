@@ -13,7 +13,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 /**
  * Provides the off-site payment form.
  */
-class RazorpayForm extends BasePaymentOffsiteForm {
+class RazorpayForm extends BasePaymentOffsiteForm
+{
 
   protected $payment;
   protected array $config = [];
@@ -21,73 +22,81 @@ class RazorpayForm extends BasePaymentOffsiteForm {
 
   protected ?AutoWebhook $autoWebhook = NULL;
 
-  public static function create(ContainerInterface $container): static {
+  public static function create(ContainerInterface $container): static
+  {
     $instance = parent::create($container);
     $instance->autoWebhook = $container->get('razorpay.auto_webhook');
     return $instance;
   }
 
-  public function createOrGetRazorpayOrderId($order, array $orderData): string {
+  public function createOrGetRazorpayOrderId($order, array $orderData): string
+  {
+    $result = '';
     $create = FALSE;
     $api = $this->getRazorpayApiInstance();
+
     try {
       $razorpayOrderId = $order->getData('razorpay_order_id');
       $razorpayOrderAmount = $order->getData('razorpay_order_amount');
+
       if (empty($razorpayOrderId) || empty($razorpayOrderAmount)) {
         $create = TRUE;
-      }
-      elseif (!empty($razorpayOrderId)) {
+      } else {
         $razorpayOrder = $api->order->fetch($razorpayOrderId);
+
         if ($razorpayOrder['amount'] !== $orderData['amount']) {
           $create = TRUE;
-        }
-        else {
-          return $razorpayOrderId;
+        } else {
+          $result = (string) $razorpayOrderId;
         }
       }
-    }
-    catch (\Throwable) {
+    } catch (\Throwable) {
       $create = TRUE;
     }
 
-    if (!$create) {
-      return '';
+    if ($create) {
+      try {
+        $orderPayload = [
+          'receipt' => $order->id(),
+          'amount' => (int) $orderData['amount'],
+          'currency' => $orderData['currency'],
+          'payment_capture' => ($orderData['payment_action'] === 'authorize') ? 0 : 1,
+          'notes' => [
+            'drupal_order_id' => (string) $order->id(),
+          ],
+        ];
+
+        $razorpayOrder = $api->order->create($orderPayload);
+
+        $order->setData('razorpay_order_id', $razorpayOrder->id);
+        $order->setData('razorpay_order_amount', $razorpayOrder->amount);
+        $order->save();
+
+        $result = (string) $razorpayOrder['id'];
+      } catch (\Throwable $exception) {
+        \Drupal::logger('razorpay')->error($exception->getMessage());
+        $result = 'error';
+      }
     }
 
-    try {
-      $orderPayload = [
-        'receipt' => $order->id(),
-        'amount' => (int) $orderData['amount'],
-        'currency' => $orderData['currency'],
-        'payment_capture' => ($orderData['payment_action'] === 'authorize') ? 0 : 1,
-        'notes' => [
-          'drupal_order_id' => (string) $order->id(),
-        ],
-      ];
-      $razorpayOrder = $api->order->create($orderPayload);
-      $order->setData('razorpay_order_id', $razorpayOrder->id);
-      $order->setData('razorpay_order_amount', $razorpayOrder->amount);
-      $order->save();
-      return (string) $razorpayOrder['id'];
-    }
-    catch (\Throwable $exception) {
-      \Drupal::logger('razorpay')->error($exception->getMessage());
-      return 'error';
-    }
+    return $result;
   }
 
-  protected function getRazorpayApiInstance(?string $key = NULL, ?string $secret = NULL): Api {
+  protected function getRazorpayApiInstance(?string $key = NULL, ?string $secret = NULL): Api
+  {
     $key = $key ?? $this->config['key_id'];
     $secret = $secret ?? $this->config['key_secret'];
     return new Api($key, $secret);
   }
 
-  protected function setPaymentConfigAndMessenger(): void {
+  protected function setPaymentConfigAndMessenger(): void
+  {
     $this->payment = $this->entity;
     $this->config = $this->payment->getPaymentGateway()->getPlugin()->getConfiguration();
   }
 
-  public function generateCheckoutForm(array &$form, string $orderId, string $orderAmount): array {
+  public function generateCheckoutForm(array &$form, string $orderId, string $orderAmount): array
+  {
     $html = '<p>ORDER NUMBER: <b>' . $orderId . '</b><br>ORDER TOTAL: <b>' . $orderAmount . '</b></p><hr><p>Thank you for your order, please click the button below to pay with Razorpay.</p><p id="msg-razorpay-success">Please wait while we are processing your payment.</p>';
     $form['pay_now'] = [
       '#type' => 'button',
@@ -106,7 +115,8 @@ class RazorpayForm extends BasePaymentOffsiteForm {
     return $form;
   }
 
-  public function buildConfigurationForm(array $form, FormStateInterface $form_state): array {
+  public function buildConfigurationForm(array $form, FormStateInterface $form_state): array
+  {
     $form = parent::buildConfigurationForm($form, $form_state);
     $this->setPaymentConfigAndMessenger();
     $route_order = \Drupal::routeMatch()->getParameter('commerce_order');
@@ -156,13 +166,10 @@ class RazorpayForm extends BasePaymentOffsiteForm {
       if (empty($webhookEnableAt) || ($webhookEnableAt + static::TWELVE_HOURS) < time()) {
         $this->autoWebhook?->autoEnableWebhook($this->config['key_id'], $this->config['key_secret']);
       }
-    }
-    catch (\Throwable $exception) {
+    } catch (\Throwable $exception) {
       \Drupal::logger('razorpay')->error($exception->getMessage());
     }
 
     return $form;
   }
-
 }
-

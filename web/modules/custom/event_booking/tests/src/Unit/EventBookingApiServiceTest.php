@@ -17,6 +17,26 @@ use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\File\FileUrlGeneratorInterface;
 use Drupal\Core\Session\AccountInterface;
 use Drupal\event_booking\EventBookingApiService;
+use Drupal\event_booking\Service\EventBookingAccountIdentity;
+use Drupal\event_booking\Service\EventBookingBookingsService;
+use Drupal\event_booking\Service\EventBookingCartClearer;
+use Drupal\event_booking\Service\EventBookingCartSerializer;
+use Drupal\event_booking\Service\EventBookingCartService;
+use Drupal\event_booking\Service\EventBookingDateFormatter;
+use Drupal\event_booking\Service\EventBookingEventNodeResolver;
+use Drupal\event_booking\Service\EventBookingFieldSerializer;
+use Drupal\event_booking\Service\EventBookingImageBuilder;
+use Drupal\event_booking\Service\EventBookingNodeSerializer;
+use Drupal\event_booking\Service\EventBookingOrderMapBuilder;
+use Drupal\event_booking\Service\EventBookingPager;
+use Drupal\event_booking\Service\EventBookingPortalService;
+use Drupal\event_booking\Service\EventBookingReceiptService;
+use Drupal\event_booking\Service\EventBookingRowsBuilder;
+use Drupal\event_booking\Service\EventBookingSearchMatcher;
+use Drupal\event_booking\Service\EventBookingStoreResolver;
+use Drupal\event_booking\Service\EventBookingTicketStockGuard;
+use Drupal\event_booking\Service\EventBookingTicketPricingService;
+use Drupal\event_booking\Service\EventBookingUnifiedBookingsService;
 use Drupal\global_module\Service\GlobalVariablesService;
 use Drupal\event_booking\Portal\PortalUserClientInterface;
 use Drupal\Tests\UnitTestCase;
@@ -86,19 +106,55 @@ class EventBookingApiServiceTest extends UnitTestCase {
     $this->courtBookingApi = $this->createMock(CourtBookingApiService::class);
     $this->portalUserClient = $this->createMock(PortalUserClientInterface::class);
 
-    $this->service = new EventBookingApiService(
+    $date_formatter = new EventBookingDateFormatter($this->configFactory);
+    $node_serializer = new EventBookingNodeSerializer(
+      $date_formatter,
+      new EventBookingImageBuilder($this->fileUrlGenerator),
+      new EventBookingFieldSerializer($date_formatter, $this->fileUrlGenerator),
+      new EventBookingSearchMatcher(),
+    );
+    $store_resolver = new EventBookingStoreResolver($this->configFactory, $this->entityTypeManager);
+    $event_node_resolver = new EventBookingEventNodeResolver($this->entityTypeManager, $this->entityFieldManager, $this->logger);
+
+    $portal = new EventBookingPortalService(
+      new EventBookingAccountIdentity($this->entityTypeManager, $this->globalVariables),
+      $this->portalUserClient,
+      $this->logger,
+    );
+    $cart = new EventBookingCartService(
       $this->cartManager,
       $this->cartProvider,
       $this->orderRefresh,
-      $this->entityTypeManager,
-      $this->entityFieldManager,
       $this->configFactory,
-      $this->globalVariables,
-      $this->fileUrlGenerator,
-      $this->stockServiceManager,
+      $store_resolver,
+      new EventBookingTicketStockGuard($this->stockServiceManager, $this->logger),
+      new EventBookingCartSerializer(),
+      new EventBookingCartClearer($this->orderRefresh, $this->logger),
+      new EventBookingTicketPricingService($store_resolver),
       $this->logger,
-      $this->courtBookingApi,
-      $this->portalUserClient,
+    );
+    $receipt = new EventBookingReceiptService(
+      $this->entityTypeManager,
+      $this->orderRefresh,
+      $this->configFactory,
+      $event_node_resolver,
+      $node_serializer,
+    );
+    $bookings = new EventBookingBookingsService(
+      $this->configFactory,
+      $this->entityTypeManager,
+      $event_node_resolver,
+      new EventBookingOrderMapBuilder($this->entityTypeManager),
+      new EventBookingRowsBuilder($node_serializer),
+      new EventBookingPager(),
+      new EventBookingUnifiedBookingsService($this->courtBookingApi, new EventBookingPager()),
+    );
+
+    $this->service = new EventBookingApiService(
+      $portal,
+      $cart,
+      $receipt,
+      $bookings,
     );
     $this->service->setStringTranslation($this->getStringTranslationStub());
   }
@@ -227,6 +283,42 @@ class EventBookingApiServiceTest extends UnitTestCase {
     $this->assertSame(401, $result['status']);
   }
 
+  public function testAddTicketsRejectsQuantityAboveConfiguredMaximum(): void {
+    $account = $this->createMock(AccountInterface::class);
+    $store = $this->createMock(StoreInterface::class);
+
+    $store_storage = $this->createMock(\Drupal\Core\Entity\EntityStorageInterface::class);
+    $store_storage->method('load')->with('2')->willReturn($store);
+    $this->entityTypeManager->method('getStorage')
+      ->willReturnMap([
+        ['commerce_store', $store_storage],
+      ]);
+    $this->configFactory->method('get')
+      ->with('event_booking.settings')
+      ->willReturn($this->createConfigMock([
+        'commerce_store_id' => '2',
+        'order_type_id' => 'default',
+        'default_variation_id' => '7',
+        'max_quantity_per_request' => 2,
+      ]));
+
+    $result = $this->service->addTickets($account, ['variation_id' => 7, 'quantity' => 3]);
+
+    $this->assertSame(400, $result['status']);
+    $this->assertArrayHasKey('message', $result['data']);
+  }
+
+  public function testBuildReceiptDeniesOtherCustomersOrder(): void {
+    $account = $this->createMock(AccountInterface::class);
+    $account->method('id')->willReturn(1);
+    $order = $this->createMock(\Drupal\commerce_order\Entity\OrderInterface::class);
+    $order->method('getCustomerId')->willReturn(2);
+
+    $result = $this->service->buildReceipt($order, $account);
+
+    $this->assertSame(403, $result['status']);
+  }
+
   public function testGetMyBookedEventsReturnsUnauthorizedForAnonymous(): void {
     $account = $this->createMock(AccountInterface::class);
     $account->method('isAuthenticated')->willReturn(FALSE);
@@ -234,6 +326,15 @@ class EventBookingApiServiceTest extends UnitTestCase {
     $result = $this->service->getMyBookedEvents($account, 'upcoming', []);
 
     $this->assertSame(401, $result['status']);
+  }
+
+  public function testGetMyBookedEventsRejectsInvalidBucket(): void {
+    $account = $this->createMock(AccountInterface::class);
+    $account->method('isAuthenticated')->willReturn(TRUE);
+
+    $result = $this->service->getMyBookedEvents($account, 'archived', []);
+
+    $this->assertSame(400, $result['status']);
   }
 
   public function testGetUnifiedBookingsBucketDefaultsAndSegments(): void {

@@ -593,7 +593,7 @@ class CommerceCheckoutRestService {
   }
 
   /**
-   * Applies cancel transition only when available for the current order state.
+   * Applies cancellation for the current order state.
    */
   private function applyCancelTransitionIfPossible(OrderInterface $order): void {
     try {
@@ -607,6 +607,10 @@ class CommerceCheckoutRestService {
         '@order' => (int) $order->id(),
         '@msg' => $e->getMessage(),
       ]);
+    }
+    if ($order->getState()->getId() !== 'canceled') {
+      // Completed orders can have no cancel transition in the configured workflow.
+      $order->set('state', 'canceled');
     }
   }
 

@@ -339,21 +339,8 @@ class EventBookingApiService {
       ]];
     }
 
-    $removed_count = 0;
-    try {
-      foreach ($cart->getItems() as $item) {
-        $cart->removeItem($item);
-        $item->delete();
-        $removed_count++;
-      }
-      $this->orderRefresh->refresh($cart);
-      $cart->save();
-    }
-    catch (\Throwable $e) {
-      $this->logger->error('event_booking clear cart failed for order @order: @msg', [
-        '@order' => (int) $cart->id(),
-        '@msg' => $e->getMessage(),
-      ]);
+    $removed_count = $this->removeAllCartItems($cart);
+    if ($removed_count === NULL) {
       return ['status' => 500, 'data' => ['message' => (string) $this->t('Could not clear event cart.')]];
     }
 
@@ -364,6 +351,36 @@ class EventBookingApiService {
       'removed_count' => $removed_count,
       'remaining_items' => count($cart->getItems()),
     ]];
+  }
+
+  /**
+   * Removes all line items from a cart order, refreshes, and saves it.
+   *
+   * @param \Drupal\commerce_order\Entity\OrderInterface $cart
+   *   The draft cart order to empty.
+   *
+   * @return int|null
+   *   Number of items removed on success, or NULL when an exception occurs.
+   */
+  private function removeAllCartItems(OrderInterface $cart): ?int {
+    $count = 0;
+    try {
+      foreach ($cart->getItems() as $item) {
+        $cart->removeItem($item);
+        $item->delete();
+        $count++;
+      }
+      $this->orderRefresh->refresh($cart);
+      $cart->save();
+      return $count;
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('event_booking clear cart failed for order @order: @msg', [
+        '@order' => (int) $cart->id(),
+        '@msg' => $e->getMessage(),
+      ]);
+      return NULL;
+    }
   }
 
   /**
@@ -887,6 +904,28 @@ class EventBookingApiService {
     if ($q === '') {
       return TRUE;
     }
+    foreach ($this->buildEventSearchHaystacks($node, $serialized, $location_field) as $text) {
+      if ($text !== '' && str_contains($text, $q)) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
+   * Builds the list of normalised text haystacks for event search matching.
+   *
+   * @param \Drupal\node\NodeInterface $node
+   *   The event node being tested.
+   * @param array<string, mixed> $serialized
+   *   Pre-serialised node data (may contain a 'location' key).
+   * @param string $location_field
+   *   Machine name of the location field used to avoid duplicate entries.
+   *
+   * @return string[]
+   *   Lowercased text values to search within.
+   */
+  private function buildEventSearchHaystacks(NodeInterface $node, array $serialized, string $location_field): array {
     $haystacks = [
       mb_strtolower($node->getTitle()),
       isset($serialized['location']) ? mb_strtolower((string) $serialized['location']) : '',
@@ -899,12 +938,7 @@ class EventBookingApiService {
       && !$node->get($location_field)->isEmpty()) {
       $haystacks[] = mb_strtolower((string) $node->get($location_field)->value);
     }
-    foreach ($haystacks as $text) {
-      if ($text !== '' && str_contains($text, $q)) {
-        return TRUE;
-      }
-    }
-    return FALSE;
+    return $haystacks;
   }
 
   /**
@@ -1210,6 +1244,29 @@ class EventBookingApiService {
     }
 
     $orders = $this->entityTypeManager->getStorage('commerce_order')->loadMultiple(array_values($order_ids));
+    $variation_orders = $this->buildVariationOrdersFromOrders($orders);
+
+    foreach ($variation_orders as &$ids) {
+      rsort($ids, SORT_NUMERIC);
+      $ids = array_values($ids);
+    }
+    unset($ids);
+
+    $variation_ids = array_values(array_map('intval', array_keys($variation_orders)));
+    sort($variation_ids, SORT_NUMERIC);
+    return ['variation_ids' => $variation_ids, 'variation_orders' => $variation_orders];
+  }
+
+  /**
+   * Builds a variation → order-IDs map from a set of completed orders.
+   *
+   * @param \Drupal\commerce_order\Entity\OrderInterface[] $orders
+   *   Completed orders to inspect.
+   *
+   * @return array<int, array<int, int>>
+   *   Map of variation ID to a deduplicated set of order IDs (keys = values).
+   */
+  private function buildVariationOrdersFromOrders(array $orders): array {
     $variation_orders = [];
     foreach ($orders as $order) {
       if (!$order instanceof OrderInterface) {
@@ -1224,16 +1281,7 @@ class EventBookingApiService {
         }
       }
     }
-
-    foreach ($variation_orders as &$ids) {
-      rsort($ids, SORT_NUMERIC);
-      $ids = array_values($ids);
-    }
-    unset($ids);
-
-    $variation_ids = array_values(array_map('intval', array_keys($variation_orders)));
-    sort($variation_ids, SORT_NUMERIC);
-    return ['variation_ids' => $variation_ids, 'variation_orders' => $variation_orders];
+    return $variation_orders;
   }
 
   /**
@@ -1244,8 +1292,25 @@ class EventBookingApiService {
     if (!$node->hasField($variation_field) || $node->get($variation_field)->isEmpty()) {
       return [];
     }
+    $order_ids = $this->collectOrderIdsFromVariationItems($node->get($variation_field), $variation_orders);
+    rsort($order_ids, SORT_NUMERIC);
+    return array_values($order_ids);
+  }
+
+  /**
+   * Collects unique order IDs matched by variation items against an order map.
+   *
+   * @param iterable<object> $field_items
+   *   Field items each exposing a target_id property (variation reference).
+   * @param array<int, int[]> $variation_orders
+   *   Map of variation ID to completed order IDs for the current account.
+   *
+   * @return array<int, int>
+   *   Deduplicated order IDs keyed and valued by order ID.
+   */
+  private function collectOrderIdsFromVariationItems(iterable $field_items, array $variation_orders): array {
     $order_ids = [];
-    foreach ($node->get($variation_field) as $item) {
+    foreach ($field_items as $item) {
       $variation_id = (int) ($item->target_id ?? 0);
       if ($variation_id <= 0 || empty($variation_orders[$variation_id])) {
         continue;
@@ -1254,8 +1319,7 @@ class EventBookingApiService {
         $order_ids[(int) $order_id] = (int) $order_id;
       }
     }
-    rsort($order_ids, SORT_NUMERIC);
-    return array_values($order_ids);
+    return $order_ids;
   }
 
   /**
@@ -1343,18 +1407,8 @@ class EventBookingApiService {
       return NULL;
     }
 
-    if ($service->getId() === 'always_in_stock') {
+    if ($this->isStockServiceAlwaysInStock($service, $variation)) {
       return NULL;
-    }
-
-    $checker = $service->getStockChecker();
-    try {
-      if ($checker->getIsAlwaysInStock($variation)) {
-        return NULL;
-      }
-    }
-    catch (\Throwable $e) {
-      $this->logger->notice('event_booking stock: always-in-stock check skipped: @msg', ['@msg' => $e->getMessage()]);
     }
 
     try {
@@ -1368,6 +1422,33 @@ class EventBookingApiService {
     }
 
     return is_numeric($level) ? max(0, (int) $level) : NULL;
+  }
+
+  /**
+   * Returns TRUE when the stock service treats the variation as always in stock.
+   *
+   * Checks both the service ID shortcut and the checker's per-variation flag.
+   * A thrown exception from the checker is treated as "not always in stock".
+   *
+   * @param object $service
+   *   The stock service returned by StockServiceManagerInterface::getService().
+   * @param \Drupal\commerce_product\Entity\ProductVariationInterface $variation
+   *   The ticket variation being checked.
+   *
+   * @return bool
+   *   TRUE when stock enforcement should be skipped for this variation.
+   */
+  private function isStockServiceAlwaysInStock(object $service, ProductVariationInterface $variation): bool {
+    if ($service->getId() === 'always_in_stock') {
+      return TRUE;
+    }
+    try {
+      return (bool) $service->getStockChecker()->getIsAlwaysInStock($variation);
+    }
+    catch (\Throwable $e) {
+      $this->logger->notice('event_booking stock: always-in-stock check skipped: @msg', ['@msg' => $e->getMessage()]);
+      return FALSE;
+    }
   }
 
   private function loadEventStore(): ?StoreInterface {
@@ -1484,19 +1565,37 @@ class EventBookingApiService {
         continue;
       }
       $field_type = (string) $definition->getType();
-      $values = [];
-      foreach ($items as $item) {
-        $value = $item->getValue();
-        $value = $this->normalizeFieldDateValuesToSiteTimezone($value, $field_type);
-        if (isset($item->entity) && $item->entity instanceof FileInterface) {
-          $value['url'] = $this->fileUrlGenerator->generateAbsoluteString($item->entity->getFileUri());
-        }
-        $values[] = $value;
-      }
-      $fields[$field_name] = $values;
+      $fields[$field_name] = $this->serializeFieldItemValues($items, $field_type);
     }
     ksort($fields);
     return $fields;
+  }
+
+  /**
+   * Serialises all items of a field list into value arrays.
+   *
+   * Normalises date/daterange values to site timezone and appends an absolute
+   * file URL when the item carries a FileInterface entity.
+   *
+   * @param iterable<object> $items
+   *   Field item list to iterate.
+   * @param string $field_type
+   *   Drupal field type identifier (e.g. 'datetime', 'daterange', 'image').
+   *
+   * @return array<int, array<string, mixed>>
+   *   One associative array per field item.
+   */
+  private function serializeFieldItemValues(iterable $items, string $field_type): array {
+    $values = [];
+    foreach ($items as $item) {
+      $value = $item->getValue();
+      $value = $this->normalizeFieldDateValuesToSiteTimezone($value, $field_type);
+      if (isset($item->entity) && $item->entity instanceof FileInterface) {
+        $value['url'] = $this->fileUrlGenerator->generateAbsoluteString($item->entity->getFileUri());
+      }
+      $values[] = $value;
+    }
+    return $values;
   }
 
 }

@@ -3,6 +3,7 @@
 namespace Drupal\court_booking;
 
 use Drupal\commerce_bat\Util\DateTimeHelper;
+use Drupal\court_booking\CoachAvailabilityService;
 use Drupal\commerce_cart\CartProviderInterface;
 use Drupal\commerce_checkout\Event\CheckoutEvents;
 use Drupal\commerce_order\Entity\OrderInterface;
@@ -26,7 +27,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 /**
  * REST helpers for Commerce cart and checkout (OAuth clients).
  */
-class CommerceCheckoutRestService {
+final class CommerceCheckoutRestService {
 
   use StringTranslationTrait;
   private const API_GATEWAY_ID = 'example_payment';
@@ -41,6 +42,7 @@ class CommerceCheckoutRestService {
     protected ConfigFactoryInterface $configFactory,
     protected LoggerInterface $logger,
     protected KeyValueFactoryInterface $keyValueFactory,
+    protected CoachAvailabilityService $coachAvailability,
   ) {}
 
   /**
@@ -65,10 +67,16 @@ class CommerceCheckoutRestService {
   /**
    * Serializes cart for JSON.
    *
-   * Rental `start` / `end` are returned in Drupal site timezone.
+   * Rental `value` / `end_value` remain stored UTC strings (Commerce BAT).
+   * `start` / `end` are the same instants in the effective display timezone
+   * (see \Drupal\court_booking\CourtBookingRegional::effectiveTimeZoneId).
    */
-  public function buildCartPayload(OrderInterface $order): array {
-    $tz_id = $this->siteTimezoneId();
+  public function buildCartPayload(OrderInterface $order, ?AccountInterface $account = NULL): array {
+    $tz_account = $account ?? $order->getCustomer();
+    if (!$tz_account instanceof AccountInterface) {
+      $tz_account = \Drupal::currentUser();
+    }
+    $tz_id = CourtBookingRegional::effectiveTimeZoneId($this->configFactory, $tz_account);
     $items = [];
     foreach ($order->getItems() as $item) {
       $row = [
@@ -97,6 +105,8 @@ class CommerceCheckoutRestService {
         if ($dr && method_exists($dr, 'getValue')) {
           $val = $dr->getValue();
           $row['rental'] = [
+            'value' => $val['value'] ?? NULL,
+            'end_value' => $val['end_value'] ?? NULL,
             'timezone' => $tz_id,
           ];
           $row['rental'] += $this->rentalUtcStringsToDisplayIso(
@@ -107,6 +117,51 @@ class CommerceCheckoutRestService {
           );
         }
       }
+      // Coach data: primary source is field_selected_coach; fallback is the
+      // coach adjustment source_id ('coach_<id>') for items created before the
+      // field existed in this environment (e.g. dev missing field config).
+      $row['coach'] = NULL;
+      $coach_entity = NULL;
+      $coach_price_charged = NULL;
+
+      // Scan adjustments once — captures price_charged and fallback coach_id.
+      $fallback_coach_id = 0;
+      foreach ($item->getAdjustments() as $adj) {
+        $source_id = (string) $adj->getSourceId();
+        if (str_starts_with($source_id, 'coach_')) {
+          $amount = $adj->getAmount();
+          $coach_price_charged = [
+            'number'        => $amount->getNumber(),
+            'currency_code' => $amount->getCurrencyCode(),
+            'formatted'     => $amount->__toString(),
+          ];
+          $fallback_coach_id = (int) substr($source_id, strlen('coach_'));
+          break;
+        }
+      }
+
+      // Primary: field_selected_coach (exists after drush updb court_booking_update_9024).
+      if ($item->hasField('field_selected_coach') && !$item->get('field_selected_coach')->isEmpty()) {
+        $coach_target_id = $item->get('field_selected_coach')->target_id;
+        if ($coach_target_id) {
+          $coach_entity = $this->entityTypeManager->getStorage('node')->load($coach_target_id);
+        }
+      }
+
+      // Fallback: derive coach from adjustment source_id when field is missing/empty.
+      if (!$coach_entity && $fallback_coach_id > 0) {
+        $coach_entity = $this->entityTypeManager->getStorage('node')->load($fallback_coach_id);
+      }
+
+      if ($coach_entity) {
+        $row['coach'] = [
+          'id'            => (int) $coach_entity->id(),
+          'name'          => $coach_entity->get('field_coach_name')->value ?: $coach_entity->label(),
+          'price'         => (int) $coach_entity->get('field_coach_price')->value,
+          'price_charged' => $coach_price_charged,
+        ];
+      }
+      
       $items[] = $row;
     }
     $checkout_step = $order->get('checkout_step')->value;
@@ -160,11 +215,6 @@ class CommerceCheckoutRestService {
       }
     }
     return $out;
-  }
-
-  private function siteTimezoneId(): string {
-    $tz = (string) ($this->configFactory->get('system.date')->get('timezone.default') ?? 'UTC');
-    return $tz !== '' ? $tz : 'UTC';
   }
 
   /**
@@ -325,13 +375,26 @@ class CommerceCheckoutRestService {
    * @return array{status: int, data: array}
    */
   public function payAndPlaceOrder(OrderInterface $order, AccountInterface $account, array $data): array {
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+    $storage = $this->entityTypeManager->getStorage('commerce_order');
+    /** @var \Drupal\commerce_order\Entity\OrderInterface|null $reloaded */
+    $reloaded = $storage->load($order->id());
+    if ($reloaded instanceof OrderInterface && $reloaded->getState()->getId() === 'completed') {
+      return ['status' => 200, 'data' => [
+        'order_id' => (int) $reloaded->id(),
+        'state' => 'completed',
+        'message' => (string) $this->t('Order already completed.'),
+      ]];
+    }
+
     $validation = $this->reloadOwnedDraftOrder($order, $account);
     if ($validation['status'] !== 200) {
       return $validation;
     }
     /** @var \Drupal\commerce_order\Entity\OrderInterface $order */
     $order = $validation['order'];
-    $storage = $this->entityTypeManager->getStorage('commerce_order');
 
     $balance = $order->getBalance();
     if ($balance->isZero()) {
@@ -422,6 +485,96 @@ class CommerceCheckoutRestService {
   }
 
   /**
+   * Cancels a placed or completed order on behalf of the owning user.
+   *
+   * Does NOT issue a refund — marks the order canceled and releases BAT slots.
+   * Coach blocking events are cleaned up via OrderPlaceBatSyncSubscriber.
+   *
+   * @return array{status: int, data: array}
+   */
+  public function cancelOrder(OrderInterface $order, AccountInterface $account, array $data = []): array {
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
+    }
+
+    $storage = $this->entityTypeManager->getStorage('commerce_order');
+    /** @var \Drupal\commerce_order\Entity\OrderInterface|null $order */
+    $order = $storage->load($order->id());
+    if (!$order instanceof OrderInterface) {
+      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found.')]];
+    }
+
+    $state = $order->getState()->getId();
+    if ($state === 'canceled') {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('Order is already canceled.'),
+        'state' => $state,
+      ]];
+    }
+    if (!in_array($state, ['draft', 'placed', 'completed', 'fulfillment', 'validation'], TRUE)) {
+      return ['status' => 409, 'data' => [
+        'message' => (string) $this->t('This order cannot be canceled in its current state.'),
+        'state' => $state,
+      ]];
+    }
+
+    $reason = trim((string) ($data['reason'] ?? ''));
+    if ($reason !== '') {
+      $order->setData('court_booking_cancel_reason', [
+        'reason'          => $reason,
+        'canceled_by_uid' => (int) $account->id(),
+        'canceled_at'     => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(DATE_ATOM),
+      ]);
+    }
+
+    // Apply the cancel transition via the state machine when available.
+    // Commerce's default workflow has no cancel transition from 'completed',
+    // so we force-set the state directly in that case.
+    $transitions = $order->getState()->getTransitions();
+    if (isset($transitions['cancel'])) {
+      $order->getState()->applyTransitionById('cancel');
+    }
+    else {
+      // Force state for orders where cancel transition is not in the workflow
+      // (e.g. completed → canceled is not a standard Commerce transition).
+      $order->set('state', 'canceled');
+    }
+
+    try {
+      $order->save();
+    }
+    catch (\Throwable $e) {
+      $this->logger->error('cancelOrder: could not save order @order: @msg', [
+        '@order' => (int) $order->id(),
+        '@msg'   => $e->getMessage(),
+      ]);
+      return ['status' => 500, 'data' => ['message' => (string) $this->t('Could not cancel the order. Please try again.')]];
+    }
+
+    // Release coach BAT blocking events (works even when state was force-set).
+    $this->coachAvailability->deleteCoachBlockingEventsForOrder((int) $order->id());
+
+    // Release court lesson_event BAT slots for this order.
+    $this->coachAvailability->deleteCourtBlockingEventsForOrder((int) $order->id());
+
+    $this->logger->info('Court booking: order @order canceled by user @uid (state was @state).', [
+      '@order' => (int) $order->id(),
+      '@uid'   => (int) $account->id(),
+      '@state' => $state,
+    ]);
+
+    $reloaded = $storage->load($order->id());
+    $final_state = $reloaded instanceof OrderInterface ? $reloaded->getState()->getId() : 'canceled';
+    return ['status' => 200, 'data' => [
+      'status'   => 'canceled',
+      'order_id' => (int) $order->id(),
+      'state'    => $final_state,
+      'refund'   => 'not_automated',
+      'message'  => (string) $this->t('Order has been canceled.'),
+    ]];
+  }
+
+  /**
    * Records a payment failure reported by authenticated client.
    *
    * @return array{status: int, data: array}
@@ -462,60 +615,6 @@ class CommerceCheckoutRestService {
       'state' => $order->getState()->getId(),
       'refund' => 'not_automated',
       'message' => (string) $this->t('Payment failure recorded.'),
-    ]];
-  }
-
-  /**
-   * Cancels an authenticated user's placed/completed order.
-   *
-   * @return array{status: int, data: array}
-   */
-  public function cancelOrder(OrderInterface $order, AccountInterface $account, array $data): array {
-    if ((int) $order->getCustomerId() !== (int) $account->id()) {
-      return ['status' => 403, 'data' => ['message' => (string) $this->t('Access denied.')]];
-    }
-
-    $storage = $this->entityTypeManager->getStorage('commerce_order');
-    /** @var \Drupal\commerce_order\Entity\OrderInterface|null $fresh */
-    $fresh = $storage->load($order->id());
-    if (!$fresh instanceof OrderInterface) {
-      return ['status' => 404, 'data' => ['message' => (string) $this->t('Order not found.')]];
-    }
-    $this->orderRefresh->refresh($fresh);
-
-    $state = $fresh->getState()->getId();
-    if ($state === 'canceled') {
-      return ['status' => 409, 'data' => [
-        'message' => (string) $this->t('Order is already canceled.'),
-        'state' => $state,
-      ]];
-    }
-    if (!in_array($state, ['placed', 'completed'], TRUE)) {
-      return ['status' => 409, 'data' => [
-        'message' => (string) $this->t('Only placed/completed orders can be canceled.'),
-        'state' => $state,
-      ]];
-    }
-
-    $reason = trim((string) ($data['reason'] ?? ''));
-    $fresh->setData('court_booking_user_cancellation', [
-      'reason' => $reason,
-      'canceled_by_uid' => (int) $account->id(),
-      'canceled_at' => (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format(DATE_ATOM),
-      'previous_state' => $state,
-    ]);
-    $this->applyCancelTransitionIfPossible($fresh);
-    $fresh->save();
-    if (function_exists('commerce_bat_sync_order_events')) {
-      \commerce_bat_sync_order_events($fresh);
-    }
-
-    return ['status' => 200, 'data' => [
-      'status' => 'ok',
-      'message' => (string) $this->t('Order canceled.'),
-      'order_id' => (int) $fresh->id(),
-      'state' => $fresh->getState()->getId(),
-      'refund' => 'not_automated',
     ]];
   }
 
@@ -593,7 +692,7 @@ class CommerceCheckoutRestService {
   }
 
   /**
-   * Applies cancellation for the current order state.
+   * Applies cancel transition only when available for the current order state.
    */
   private function applyCancelTransitionIfPossible(OrderInterface $order): void {
     try {
@@ -607,10 +706,6 @@ class CommerceCheckoutRestService {
         '@order' => (int) $order->id(),
         '@msg' => $e->getMessage(),
       ]);
-    }
-    if ($order->getState()->getId() !== 'canceled') {
-      // Completed orders can have no cancel transition in the configured workflow.
-      $order->set('state', 'canceled');
     }
   }
 

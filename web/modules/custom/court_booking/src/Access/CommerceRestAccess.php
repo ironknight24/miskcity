@@ -26,6 +26,27 @@ final class CommerceRestAccess {
   }
 
   /**
+   * Own order in any non-canceled state (used for order cancel endpoint).
+   */
+  public static function ownActiveOrder(Route $route, RouteMatchInterface $route_match, AccountInterface $account): AccessResult {
+    $base = static::checkout($account);
+    if (!$base->isAllowed()) {
+      return $base;
+    }
+    $order = $route_match->getParameter('commerce_order');
+    if (!$order instanceof OrderInterface) {
+      return AccessResult::forbidden();
+    }
+    if ((int) $order->getCustomerId() !== (int) $account->id()) {
+      return AccessResult::forbidden()->addCacheableDependency($order);
+    }
+    if ($order->getState()->getId() === 'canceled') {
+      return AccessResult::forbidden()->addCacheableDependency($order);
+    }
+    return AccessResult::allowed()->addCacheableDependency($order);
+  }
+
+  /**
    * Checkout permission + own order (OAuth clients use authenticated users).
    */
   public static function ownDraftOrder(Route $route, RouteMatchInterface $route_match, AccountInterface $account): AccessResult {

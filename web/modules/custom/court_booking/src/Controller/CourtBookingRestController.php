@@ -136,7 +136,7 @@ final class CourtBookingRestController extends ControllerBase {
   }
 
   /**
-   * GET receipt for a completed court-booking order (order type from court_booking.settings).
+   * GET receipt for a completed court-booking order.
    */
   public function orderReceipt(OrderInterface $commerce_order): JsonResponse {
     $result = $this->courtBookingApi->buildCourtOrderReceipt($commerce_order, $this->currentUser());

@@ -44,36 +44,26 @@ Availability endpoints are public and do not require a bearer token.
 |--------|------|--------------|-------|
 | POST | `/rest/v1/auth/login` | JSON: `email`, `password` | Public login endpoint; returns OAuth token payload for API clients |
 | GET | `/rest/v1/court-booking/sports` | — | Full bootstrap payload for app clients (sports, variations, merged booking rules, date strip) |
-| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q` (or `title` alias), optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is strictly in the future (`end > now`) (`rows` + `pager`). |
-| GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is at-or-before now (`end <= now`). |
+| GET | `/rest/v1/court-booking/my-bookings/upcoming` | `page`, `limit`, `q` (or `title` alias), optional `sport_tid` | Bearer + `use court booking add`. **Completed** orders only; rows where rental **end** is still in the future (`rows` + `pager`). |
+| GET | `/rest/v1/court-booking/my-bookings/past` | same | Same as upcoming, but rental **end** is before now. |
 | GET | `/rest/v1/court-booking/variations/{variation_id}/availability` | `from`, `to`, optional `interval` | Rule-aware timeslots only from `court_booking.settings` |
-| GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Uses the same rule validator as add-to-cart/price-preview for parity with `/amenities/{sport}` |
+| GET | `/rest/v1/court-booking/variations/{variation_id}/slot` | `start`, `end`, `quantity` | Same as `GET /commerce-bat/check/{id}` → `{ "available": bool }` |
 | POST | `/rest/v1/court-booking/slot-candidates` | JSON: `ymd`, `duration_minutes` or `duration_hours`, `variation_ids`, `quantity` | Staggered candidates when buffer > 0 |
-| POST | `/rest/v1/court-booking/cart/line-items` | JSON: `variation_id`, `start`, `end`, `quantity` | Adds validated line; response includes `order_id`, `order_item_id`, `total`, `checkout_url` |
+| POST | `/rest/v1/court-booking/cart/line-items` | JSON: `variation_id`, `start`, `end`, `quantity`, optional `coach_id` | Adds validated line; response includes `order_id`, `order_item_id`, `total`, `checkout_url` |
 | POST | `/rest/v1/court-booking/cart/clear` | Optional JSON body `{}` | Clears **all** lines from current user's **draft** court cart; triggers BAT sync. Use `Content-Type: application/json` (or send empty body). |
 | PATCH | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | JSON: `start`, `end` | Cart line must belong to current user's cart |
 | POST | `/rest/v1/court-booking/cart/line-items/{order_item_id}` | Optional JSON body `{}` | Cancels/removes a draft cart booking line item (no refund automation). **POST** (not DELETE) for broader client/proxy compatibility. |
-| POST | `/rest/v1/court-booking/orders/{order_id}/cancel` | Optional JSON body `{ "reason": "..." }` | Cancels authenticated user's **placed/completed** order, restores slot availability, refund is not automated |
-| POST | `/rest/v1/court-booking/orders/{order_id}/checkout/complete` | Same body as [checkout complete](#checkout-complete-body) | **Alias** of `POST /rest/v1/commerce/orders/{order_id}/checkout/complete` (prefix parity with event booking). |
-| POST | `/rest/v1/court-booking/orders/{order_id}/payment/details` | Same as commerce [payment details](#9-collect-payment-details-example_payment-api-flow) | **Alias** of `POST /rest/v1/commerce/orders/{order_id}/payment/details`. |
-| POST | `/rest/v1/court-booking/orders/{order_id}/payment/confirm` | Same as commerce [payment confirm](#10-confirm-payment-example_payment-api-flow) | **Alias** of `POST /rest/v1/commerce/orders/{order_id}/payment/confirm`. |
-| POST | `/rest/v1/court-booking/orders/{order_id}/payment/failure` | Same as commerce [payment failure](#13-report-payment-failure-authenticated-client) | **Alias** of `POST /rest/v1/commerce/orders/{order_id}/payment/failure`. |
-| GET | `/rest/v1/court-booking/orders/{order_id}/receipt` | — | [Order receipt](#order-receipt-completed-court-orders) for **completed** orders: `court_booking.settings` order type and current store; `409` if wrong type or not completed. |
 
 Legacy session + CSRF JSON (unchanged): `/court-booking/add`, `/court-booking/slot-candidates`, `/court-booking/price-preview`, `/court-booking/cart/slot/{order_item}`.
 
-**POST `/court-booking/price-preview`** — JSON body: `variation_id`, `start`, `end`, optional `quantity` (send datetimes in Drupal site timezone). Returns `total_formatted`, `total_number`, `currency_code`, `billing_units`, etc., after the same validation as add-to-cart (no cart write). Session + `X-CSRF-Token` header. The **GET `/rest/v1/court-booking/sports`** bootstrap includes **`pricePreviewUrl`** (absolute) for the same endpoint when the app shares the session cookie.
+**POST `/court-booking/price-preview`** — JSON body: `variation_id`, `start`, `end`, optional `quantity` (same UTC semantics as add-to-cart). Returns `total_formatted`, `total_number`, `currency_code`, `billing_units`, etc., after the same validation as add-to-cart (no cart write). Session + `X-CSRF-Token` header. The **GET `/rest/v1/court-booking/sports`** bootstrap includes **`pricePreviewUrl`** (absolute) for the same endpoint when the app shares the session cookie.
 
 ## Commerce helpers
 
-Checkout and payment handlers are registered twice: under **`/rest/v1/commerce/orders/{order_id}/...`** (below) and under **`/rest/v1/court-booking/orders/{order_id}/...`** (see [Court booking endpoints](#court-booking-endpoints)). Both call the same controllers; use whichever prefix matches your client (event booking uses the `event-booking` prefix for the same pattern).
-
 | Method | Path | Body | Notes |
 |--------|------|------|-------|
-| GET | `/rest/v1/commerce/cart` | — | Current cart for the **court booking order type** (from `court_booking.settings`). Line item `rental` includes `start` / `end` in Drupal site timezone (`system.date`). |
+| GET | `/rest/v1/commerce/cart` | — | Current cart for the **court booking order type** (from `court_booking.settings`). Line item `rental` includes UTC storage (`value` / `end_value`) plus `start` / `end` in the effective display timezone (see step 8). |
 | POST | `/rest/v1/commerce/orders/{order_id}/checkout/complete` | See below | Completes checkout for **manual** gateways or **zero balance**. |
-| POST | `/rest/v1/commerce/orders/{order_id}/payment/details` | Same as [step 9](#9-collect-payment-details-example_payment-api-flow) | Collects gateway payment metadata (e.g. `example_payment`). |
-| POST | `/rest/v1/commerce/orders/{order_id}/payment/confirm` | Same as [step 10](#10-confirm-payment-example_payment-api-flow) | Confirms payment and places the order when applicable. |
 | POST | `/rest/v1/commerce/orders/{order_id}/payment/failure` | JSON: `gateway`, `code`, `message`, optional `raw` | Authenticated client-reported payment failure audit endpoint (cancel-only policy). |
 | POST | `/rest/v1/commerce/payments/webhook` | JSON webhook payload + signature headers | Gateway callback endpoint, idempotent and signature-validated. |
 
@@ -94,60 +84,6 @@ Checkout and payment handlers are registered twice: under **`/rest/v1/commerce/o
 **On-site gateways** (card entry with stored payment methods) return HTTP `501` with `checkout_url` until a gateway-specific integration is added.
 
 **Zero balance** orders complete without `payment_gateway_id`.
-
-### Order receipt (completed court orders)
-
-`GET /rest/v1/court-booking/orders/{order_id}/receipt` returns a receipt for the authenticated **owner** when the order is **completed**, uses the **court booking** Commerce order type from `court_booking.settings` (`order_type_id`), and belongs to the **current** Commerce store. Canceled orders are rejected at the access layer (**403**). Wrong order type or non-completed state returns **409** with a message (and `order_type` or `state` when applicable). Adjustments/fees may appear as lines with `rental: null` and no `court`.
-
-**Example (`200`)**
-
-```json
-{
-  "order_id": 5,
-  "state": "completed",
-  "total": "100.00 SAR",
-  "line_items": [
-    {
-      "order_item_id": 12,
-      "title": "Padel Court 1",
-      "quantity": "1",
-      "variation_id": 2,
-      "unit_price": "100.00 SAR",
-      "total_price": "100.00 SAR",
-      "rental": {
-        "timezone": "Asia/Riyadh",
-        "start": "2026-05-10T09:00:00+03:00",
-        "end": "2026-05-10T10:00:00+03:00"
-      },
-      "court": {
-        "nid": 40,
-        "title": "Padel Court 1",
-        "location": "North campus",
-        "image": "https://example.com/files/court.jpg",
-        "fields": { }
-      }
-    }
-  ],
-  "courts": [
-    {
-      "nid": 40,
-      "title": "Padel Court 1",
-      "location": "North campus",
-      "image": "https://example.com/files/court.jpg",
-      "fields": { }
-    }
-  ]
-}
-```
-
-`rental.start` / `rental.end` use the site default timezone (`system.date`), consistent with [my-bookings](#2a-my-court-bookings--upcoming-and-past-authenticated). Per-line `court.fields` uses the same dynamic field serialization as my-bookings (`nid` / taxonomy / media URLs expanded where applicable).
-
-```bash
-curl -s -X GET \
-  "http://localhost:8080/rest/v1/court-booking/orders/5/receipt" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Accept: application/json"
-```
 
 ## Cancellation and payment-failure APIs
 
@@ -186,38 +122,6 @@ curl -X POST \
 ```
 
 This endpoint records failure details and may move the order to canceled if the cancel transition is available.
-
-### Cancel a placed/completed order (authenticated)
-
-Use this endpoint when a user cannot attend after booking. It applies the cancel transition when allowed for the current order state.
-
-```bash
-curl -X POST \
-  "http://localhost:8080/rest/v1/court-booking/orders/5/cancel" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json" \
-  -d '{
-    "reason": "Unable to attend"
-  }'
-```
-
-**Example success (`200`)**
-
-```json
-{
-  "status": "ok",
-  "message": "Order canceled.",
-  "order_id": 5,
-  "state": "canceled",
-  "refund": "not_automated"
-}
-```
-
-Notes:
-- Allowed for authenticated user-owned orders in `placed`/`completed` state.
-- For court bookings, cancellation triggers BAT sync (`commerce_bat_sync_order_events`) so the slot becomes available again.
-- Refunds are out of scope and not automated.
 
 ### Payment webhook callback
 
@@ -366,13 +270,13 @@ Each variation’s pricing bootstrap may include **`hasTieredPricing`**, **`hasD
 
 ### 2A. My court bookings — upcoming and past (authenticated)
 
-These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is strictly after current server time (`end > now`); **past** means the rental **end** is at-or-before now (`end <= now`).
+These list **completed** Commerce orders for the configured court booking order type. Each row is one order line with a BAT rental range. **Upcoming** means the rental **end** is still at or after the current time; **past** means the rental **end** is before now.
 
 Query params (both endpoints): `page` (default `0`), `limit` (default `10`, max `50`), `q` (optional search on title and location), `title` (backward-compatible alias for `q`), `sport_tid` (optional; same taxonomy id as `sports[].id`).
 
 `q` takes precedence. If both `q` and `title` are sent, the API applies `q` and ignores `title`.
 
-`rental` on each row includes `timezone`, `start`, and `end` in Drupal site timezone (`system.date`) as ISO-8601 with offset.
+`rental` on each row includes UTC storage (`value` / `end_value`), `timezone`, and display instants `start` / `end` (ISO-8601 with offset), same semantics as `GET /rest/v1/commerce/cart`.
 
 ```bash
 curl -s -X GET \
@@ -435,8 +339,8 @@ curl -X GET \
   "to": "2026-05-23",
   "slots": [
     {
-      "start": "2026-05-23T06:00:00+05:30",
-      "end": "2026-05-23T07:00:00+05:30",
+      "start": "2026-05-23T00:30:00Z",
+      "end": "2026-05-23T01:30:00Z",
       "ymd": "2026-05-23"
     }
   ]
@@ -461,38 +365,7 @@ curl -X GET \
   -H "Accept: application/json"
 ```
 
-Input notes:
-- `start` and `end` accept:
-  - local naive datetime (`YYYY-MM-DDTHH:mm:ss`) interpreted in Drupal site timezone (`system.date`)
-  - offset datetime (`YYYY-MM-DDTHH:mm:ss+05:30`)
-  - UTC datetime (`YYYY-MM-DDTHH:mm:ssZ`)
-- `quantity` defaults to `1` when omitted.
-
-**Example available response**
-
-```json
-{
-  "available": true,
-  "quantity": 1,
-  "timezone": "Asia/Kolkata",
-  "start": "2026-05-10T09:00:00+05:30",
-  "end": "2026-05-10T10:00:00+05:30"
-}
-```
-
-**Example unavailable response**
-
-```json
-{
-  "available": false,
-  "quantity": 1,
-  "timezone": "Asia/Kolkata",
-  "start": "2026-05-10T09:00:00+05:30",
-  "end": "2026-05-10T10:00:00+05:30",
-  "message": "That slot is no longer available.",
-  "reason_status": 409
-}
-```
+**Response:** `{ "available": true }` or `{ "available": false }`
 
 ---
 
@@ -522,26 +395,6 @@ Use `duration_hours` instead of `duration_minutes` if you prefer:
   }'
 ```
 
-Behavior notes:
-- Works for both booking configurations:
-  - **buffer mode (`buffer_minutes > 0`)**: candidates follow staggered cadence of `(play + buffer)`.
-  - **non-buffer mode (`buffer_minutes = 0`)**: candidates follow standard slot-interval cadence.
-- Candidates are validated with the same booking rules used by add-to-cart/price-preview (`booking hours`, `same-day cutoff`, `blackout dates`, `resource closures`, and live availability).
-
-Example response:
-
-```json
-{
-  "slots": [
-    {
-      "start": "2026-05-10T09:00:00+05:30",
-      "end": "2026-05-10T10:00:00+05:30",
-      "variationIds": [2]
-    }
-  ]
-}
-```
-
 ---
 
 ### 6. Add a court booking to cart
@@ -556,9 +409,12 @@ curl -X POST \
     "variation_id": 1,
     "start": "2026-05-10T09:00:00",
     "end": "2026-05-10T10:00:00",
-    "quantity": 1
+    "quantity": 1,
+    "coach_id": 42
   }'
 ```
+
+`coach_id` is optional. Omit it (or pass `0`) for a court-only booking. When provided, the coach must be a published node of bundle `coach` assigned to the court and available for the requested slot; otherwise the add-to-cart returns a non-2xx status. The coach fee is added as a line-item adjustment and included in `total`. The cart's `GET /rest/v1/commerce/cart` response then populates the `coach` object on the line item.
 
 **Successful response:**
 
@@ -639,8 +495,9 @@ curl -X GET \
 
 **Rental times**
 
-- `timezone` is always the Drupal site timezone from `system.date` (`timezone.default`).
-- `start` and `end` are ISO-8601 strings with numeric offset in that site timezone.
+- `value` and `end_value` are the **raw stored** rental range (Commerce BAT / field storage in **UTC**), unchanged for backward compatibility.
+- `timezone` is the IANA id used for display (same rules as the booking UI: per-user timezone when configurable and set, otherwise site default from **Configuration » Regional and language » Regional settings**).
+- `start` and `end` are the **same instants** expressed as ISO-8601 strings **with numeric offset** in that `timezone` (use these for UI that should match local wall clock).
 
 **Successful response:**
 
@@ -657,6 +514,8 @@ curl -X GET \
       "title": "Badminton Court A",
       "quantity": "1",
       "rental": {
+        "value": "2026-05-10T04:30:00",
+        "end_value": "2026-05-10T05:30:00",
         "timezone": "Asia/Kolkata",
         "start": "2026-05-10T10:00:00+05:30",
         "end": "2026-05-10T11:00:00+05:30"
@@ -674,9 +533,6 @@ curl -X GET \
 
 Use this endpoint before checkout complete when `payment_gateway_id=example_payment`.
 The API validates and stores only masked/non-sensitive metadata.
-
-You may use the court-booking prefix instead (same body and response):  
-`POST /rest/v1/court-booking/orders/{order_id}/payment/details`.
 
 ```bash
 curl -X POST \
@@ -714,8 +570,7 @@ curl -X POST \
 
 ### 10. Confirm payment (`example_payment` API flow)
 
-Use the `payment_session_id` returned by step 9.  
-Alias: `POST /rest/v1/court-booking/orders/{order_id}/payment/confirm`.
+Use the `payment_session_id` returned by step 9.
 
 ```bash
 curl -X POST \
@@ -746,8 +601,7 @@ curl -X POST \
 ### 11. Complete checkout (manual payment gateway / zero balance)
 
 Replace `5` with your `order_id`. The `payment_gateway_id` must match a gateway
-machine name configured under **Commerce → Configuration → Payment gateways**.  
-Alias: `POST /rest/v1/court-booking/orders/{order_id}/checkout/complete`.
+machine name configured under **Commerce → Configuration → Payment gateways**.
 
 ```bash
 curl -X POST \
@@ -801,8 +655,7 @@ curl -X POST \
 
 ### 13. Report payment failure (authenticated client)
 
-Records failure on the user’s **own draft** order (same access as checkout complete). Optional `raw` is any JSON-serializable object for audit.  
-Alias: `POST /rest/v1/court-booking/orders/{order_id}/payment/failure`.
+Records failure on the user’s **own draft** order (same access as checkout complete). Optional `raw` is any JSON-serializable object for audit.
 
 ```bash
 curl -X POST \
@@ -854,10 +707,9 @@ curl -X POST \
 5. GET  /rest/v1/court-booking/variations/{id}/slot            → confirm slot is free
 6. POST /rest/v1/court-booking/cart/line-items                 → add to cart → get order_id
 7. GET  /rest/v1/commerce/cart                                 → review cart
-8. POST /rest/v1/court-booking/orders/{order_id}/payment/details   → collect payment metadata (example_payment); or same path under /commerce/orders/
-9. POST /rest/v1/court-booking/orders/{order_id}/payment/confirm   → confirm + place order (example_payment); or /commerce/orders/
-10. POST /rest/v1/court-booking/orders/{order_id}/checkout/complete → place order (manual gateway / zero-balance); or /commerce/orders/
-11. GET  /rest/v1/court-booking/orders/{order_id}/receipt            → receipt after completed (optional)
+8. POST /rest/v1/commerce/orders/{order_id}/payment/details    → collect payment metadata (example_payment)
+9. POST /rest/v1/commerce/orders/{order_id}/payment/confirm    → confirm + place order (example_payment)
+10. POST /rest/v1/commerce/orders/{order_id}/checkout/complete → place order (manual gateway / zero-balance)
 ```
 
 Optional / error paths:
@@ -865,8 +717,7 @@ Optional / error paths:
 ```
 POST   /rest/v1/court-booking/cart/clear                               → clear entire draft cart (all lines)
 POST   /rest/v1/court-booking/cart/line-items/{order_item_id}           → drop a draft line (step 12)
-POST   /rest/v1/court-booking/orders/{order_id}/payment/failure         → same as /commerce/orders/.../payment/failure (step 13)
-POST   /rest/v1/commerce/orders/{order_id}/payment/failure              → legacy alias for client-reported decline (step 13)
+POST   /rest/v1/commerce/orders/{order_id}/payment/failure              → client-reported decline (step 13)
 POST   /rest/v1/commerce/payments/webhook                               → gateway callback (step 14)
 ```
 

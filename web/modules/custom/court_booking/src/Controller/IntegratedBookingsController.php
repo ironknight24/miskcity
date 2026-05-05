@@ -18,8 +18,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Admin dashboard: orders with court booking line items + BAT event links.
  */
-final class IntegratedBookingsController extends ControllerBase
-{
+final class IntegratedBookingsController extends ControllerBase {
 
   /**
    * Pager size: distinct orders per page (table may show multiple line item rows).
@@ -36,8 +35,7 @@ final class IntegratedBookingsController extends ControllerBase
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container): static
-  {
+  public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('court_booking.integrated_bookings_query'),
       $container->get('court_booking.utc_daterange_formatter'),
@@ -49,8 +47,7 @@ final class IntegratedBookingsController extends ControllerBase
   /**
    * Builds the integrated bookings table.
    */
-  public function content(Request $request): array
-  {
+  public function content(Request $request): array {
     $filters = IntegratedBookingsFilters::fromRequest($request);
 
     $limit = self::ORDERS_PER_PAGE;
@@ -91,7 +88,7 @@ final class IntegratedBookingsController extends ControllerBase
       }
     }
 
-    return [
+    $build = [
       'description' => [
         '#type' => 'html_tag',
         '#tag' => 'p',
@@ -124,13 +121,14 @@ final class IntegratedBookingsController extends ControllerBase
         'contexts' => ['user.permissions', 'url.query_args'],
       ],
     ];
+
+    return $build;
   }
 
   /**
    * Title callback.
    */
-  public function title()
-  {
+  public function title() {
     return $this->t('Court booking: bookings & overrides');
   }
 
@@ -184,8 +182,7 @@ final class IntegratedBookingsController extends ControllerBase
   /**
    * Link HTML only: avoids embedding GeneratedLink bubbleable metadata in #markup.
    */
-  protected function plainLinkHtml(Link $link): string
-  {
+  protected function plainLinkHtml(Link $link): string {
     return (string) $link->toString();
   }
 
@@ -193,8 +190,7 @@ final class IntegratedBookingsController extends ControllerBase
    * @return string|null
    *   Field name, or NULL if none of the configured date fields are set.
    */
-  protected function firstNonEmptyDateField(OrderItemInterface $item, array $date_fields): ?string
-  {
+  protected function firstNonEmptyDateField(OrderItemInterface $item, array $date_fields): ?string {
     foreach ($date_fields as $fn) {
       if ($item->hasField($fn) && !$item->get($fn)->isEmpty()) {
         return $fn;
@@ -209,8 +205,7 @@ final class IntegratedBookingsController extends ControllerBase
    *
    * @return array{summary: string, links: string[]}
    */
-  protected function buildBatEventCells(int $order_item_id): array
-  {
+  protected function buildBatEventCells(int $order_item_id): array {
     $storage = $this->entityTypeManager()->getStorage('bat_event');
     try {
       $ids = $storage->getQuery()
@@ -218,7 +213,8 @@ final class IntegratedBookingsController extends ControllerBase
         ->condition('field_order_item_ref', $order_item_id)
         ->sort('id')
         ->execute();
-    } catch (\Throwable $e) {
+    }
+    catch (\Throwable $e) {
       return [
         'summary' => (string) $this->t('Could not load BAT events.'),
         'links' => [],
@@ -256,4 +252,5 @@ final class IntegratedBookingsController extends ControllerBase
       'links' => $links,
     ];
   }
+
 }

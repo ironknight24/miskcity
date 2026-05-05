@@ -514,3 +514,25 @@ function court_booking_modules_installed(array $modules, bool $is_syncing): void
   \Drupal::moduleHandler()->loadInclude('court_booking', 'inc', 'court_booking.locale_register');
   _court_booking_register_js_interface_strings();
 }
+
+/**
+ * Implements hook_node_presave().
+ */
+function court_booking_node_presave(NodeInterface $node) {
+  if ($node->bundle() !== 'coach') {
+    return;
+  }
+  // Only provision if no BAT unit linked yet.
+  if (!$node->get('field_coach_bat_unit')->isEmpty()) {
+    return;
+  }
+  $bat_unit = \Drupal::entityTypeManager()
+    ->getStorage('bat_unit')
+    ->create([
+      'type'  => 'coach_unit',
+      'name'  => ($node->get('field_coach_name')->value ?: $node->label()) . ' (Coach)',
+    ]);
+  $bat_unit->save();
+  $node->set('field_coach_bat_unit', ['target_id' => $bat_unit->id()]);
+}
+

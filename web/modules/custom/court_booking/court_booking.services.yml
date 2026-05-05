@@ -22,7 +22,9 @@ services:
 
   court_booking.order_place_bat_sync:
     class: Drupal\court_booking\EventSubscriber\OrderPlaceBatSyncSubscriber
-    arguments: ['@logger.channel.court_booking']
+    arguments:
+      - '@logger.channel.court_booking'
+      - '@court_booking.coach_availability'
     tags:
       - { name: event_subscriber }
 
@@ -105,6 +107,7 @@ services:
       - '@file_url_generator'
       - '@court_booking.price_resolver'
       - '@commerce_price.currency_formatter'
+      - '@court_booking.coach_availability'
     calls:
       - [setStringTranslation, ['@string_translation']]
 
@@ -121,6 +124,12 @@ services:
     tags:
       - { name: authentication_provider, provider_id: court_booking_bearer, priority: 100 }
 
+  court_booking.coach_availability:
+    class: Drupal\court_booking\CoachAvailabilityService
+    arguments:
+      - '@entity_type.manager'
+      - '@file_url_generator'
+
   court_booking.commerce_checkout_rest:
     class: Drupal\court_booking\CommerceCheckoutRestService
     arguments:
@@ -132,5 +141,6 @@ services:
       - '@config.factory'
       - '@logger.channel.court_booking'
       - '@keyvalue'
+      - '@court_booking.coach_availability'
     calls:
       - [setStringTranslation, ['@string_translation']]

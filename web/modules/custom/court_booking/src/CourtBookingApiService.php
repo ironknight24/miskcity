@@ -7,6 +7,7 @@ use Drupal\commerce_bat\Util\DateTimeHelper;
 use Drupal\commerce_cart\CartManagerInterface;
 use Drupal\commerce_cart\CartProviderInterface;
 use Drupal\commerce_checkout\CheckoutOrderManagerInterface;
+use Drupal\commerce_order\Adjustment;
 use Drupal\commerce_order\Entity\OrderInterface;
 use Drupal\commerce_order\Entity\OrderItemInterface;
 use Drupal\commerce_order\OrderRefreshInterface;
@@ -30,7 +31,7 @@ use Symfony\Component\HttpFoundation\Request;
 /**
  * Shared JSON logic for session-based and OAuth REST court booking endpoints.
  */
-class CourtBookingApiService {
+final class CourtBookingApiService {
 
   use StringTranslationTrait;
 
@@ -50,6 +51,7 @@ class CourtBookingApiService {
     protected FileUrlGeneratorInterface $fileUrlGenerator,
     protected CourtBookingPriceResolver $priceResolver,
     protected CurrencyFormatterInterface $currencyFormatter,
+    protected CoachAvailabilityService $coachAvailability,
   ) {}
 
   /**
@@ -126,16 +128,54 @@ class CourtBookingApiService {
         ? $this->slotBooking->buildBufferSlotCandidatesForDay($filtered_ids, $ymd, $play_minutes, $quantity, $account)
         : $this->slotBooking->buildNonBufferSlotCandidatesForDay($filtered_ids, $ymd, $play_minutes, $quantity, $account);
     }
+    $tz_utc      = new \DateTimeZone('UTC');
+    $court_cache = [];
+    $avail_cache = [];
+
     foreach ($slots as &$slot) {
       if (!is_array($slot)) {
         continue;
       }
+
+      // Keep original UTC strings before formatting for coach cache key.
+      $raw_start = $slot['start'] ?? '';
+      $raw_end   = $slot['end']   ?? '';
+
       if (isset($slot['start']) && is_string($slot['start'])) {
         $slot['start'] = $this->formatUtcStringToSiteIso($slot['start']) ?? $slot['start'];
       }
       if (isset($slot['end']) && is_string($slot['end'])) {
         $slot['end'] = $this->formatUtcStringToSiteIso($slot['end']) ?? $slot['end'];
       }
+
+      // Add available coaches per variation for this slot.
+      $coach_map = [];
+      try {
+        $start_dt = new \DateTimeImmutable($raw_start, $tz_utc);
+        $end_dt   = new \DateTimeImmutable($raw_end,   $tz_utc);
+        foreach ((array) ($slot['variationIds'] ?? []) as $vid) {
+          $vid = (int) $vid;
+          if (!array_key_exists($vid, $court_cache)) {
+            $v  = $variations[$vid] ?? ProductVariation::load($vid);
+            $cn = $v ? \court_booking_variation_published_court_node($v) : NULL;
+            $court_cache[$vid] = $cn ? (int) $cn->id() : NULL;
+          }
+          $court_nid = $court_cache[$vid];
+          if (!$court_nid) {
+            $coach_map[(string) $vid] = [];
+            continue;
+          }
+          $cache_key = $court_nid . '|' . $raw_start . '|' . $raw_end;
+          if (!array_key_exists($cache_key, $avail_cache)) {
+            $avail_cache[$cache_key] = $this->coachAvailability->getAvailableCoaches($court_nid, $start_dt, $end_dt);
+          }
+          $coach_map[(string) $vid] = $avail_cache[$cache_key];
+        }
+      }
+      catch (\Throwable $e) {
+        // Non-fatal: return empty coaches rather than breaking the slot list.
+      }
+      $slot['coachOptions'] = $coach_map;
     }
     unset($slot);
 
@@ -411,6 +451,7 @@ class CourtBookingApiService {
         }
         $card = CourtBookingVariationThumbnail::data($variation, $file_url_generator);
         $slot_len = max(1, (int) $this->availabilityManager->getLessonSlotLength($variation));
+        $coaches = $this->coachAvailability->getCoachListForCourt((int) $court_node->id());
         $variations_out[] = array_merge([
           'id' => (int) $variation->id(),
           'title' => $court_node->getTitle(),
@@ -424,6 +465,8 @@ class CourtBookingApiService {
           'detailUrl' => Url::fromRoute('court_booking.court_detail', [
             'commerce_product_variation' => $variation->id(),
           ])->setAbsolute()->toString(),
+          'coachCount' => count($coaches),
+          'coaches' => $coaches,
         ], $this->priceResolver->variationPricingBootstrap($variation));
       }
       if ($variations_out === []) {
@@ -627,6 +670,15 @@ class CourtBookingApiService {
 
     $this->slotBooking->applyRentalAndPrice($order_item, $variation, $start, $end, $billing_units, $account);
 
+    // Optional coach: validate, stack price, link to order item.
+    $coach_id = (int) ($data['coach_id'] ?? 0);
+    if ($coach_id > 0) {
+      $coach_result = $this->applyCoachToOrderItem($order_item, $coach_id, $start, $end, $billing_units);
+      if (!$coach_result['ok']) {
+        return ['status' => $coach_result['status'], 'data' => ['message' => $coach_result['message']]];
+      }
+    }
+
     try {
       $this->cartManager->addOrderItem($cart, $order_item, FALSE, TRUE);
     }
@@ -670,6 +722,70 @@ class CourtBookingApiService {
     }
 
     return ['status' => 200, 'data' => $response];
+  }
+
+  /**
+   * Validates coach availability, stacks coach price on the order item, and
+   * sets field_selected_coach when the field exists.
+   *
+   * @return array{ok: bool, status: int, message: string}
+   */
+  private function applyCoachToOrderItem(
+    OrderItemInterface $order_item,
+    int $coach_id,
+    \DateTimeImmutable $start,
+    \DateTimeImmutable $end,
+    int $billing_units,
+  ): array {
+    $fail = fn(int $s, string $m) => ['ok' => FALSE, 'status' => $s, 'message' => $m];
+
+    $coach = $this->entityTypeManager->getStorage('node')->load($coach_id);
+    if (!$coach || $coach->bundle() !== 'coach' || !$coach->isPublished()) {
+      return $fail(400, (string) $this->t('Invalid or unpublished coach selected.'));
+    }
+    if ($coach->get('field_coach_bat_unit')->isEmpty()) {
+      return $fail(500, (string) $this->t('Selected coach has no BAT unit configured.'));
+    }
+
+    $bat_unit_id = (int) $coach->get('field_coach_bat_unit')->target_id;
+    if (!$this->coachAvailability->isCoachUnitAvailable($bat_unit_id, $start, $end)) {
+      return $fail(409, (string) $this->t('The selected coach is not available for this time slot.'));
+    }
+
+    // Attach coach fee as a visible line-item adjustment so the cart shows a
+    // clear breakdown: court price + "Coach: <Name>" = total.
+    $coach_price_per_unit = (int) $coach->get('field_coach_price')->value;
+    if ($coach_price_per_unit > 0 && $billing_units >= 1) {
+      $current = $order_item->getUnitPrice();
+      if ($current instanceof Price) {
+        try {
+          $coach_name  = $coach->get('field_coach_name')->value ?: $coach->label();
+          $coach_total = new Price((string) ($coach_price_per_unit * $billing_units), $current->getCurrencyCode());
+          // Remove any stale adjustment for this coach (e.g. on slot update).
+          $adjustments = array_filter(
+            $order_item->getAdjustments(),
+            fn(Adjustment $a) => $a->getSourceId() !== 'coach_' . $coach_id,
+          );
+          $order_item->setAdjustments($adjustments);
+          $order_item->addAdjustment(new Adjustment([
+            'type'      => 'custom',
+            'label'     => (string) $this->t('Coach: @name', ['@name' => $coach_name]),
+            'amount'    => $coach_total,
+            'included'  => FALSE,
+            'source_id' => 'coach_' . $coach_id,
+          ]));
+        }
+        catch (\Throwable $e) {
+          $this->logger->warning('Coach adjustment failed for coach @id: @msg', ['@id' => $coach_id, '@msg' => $e->getMessage()]);
+        }
+      }
+    }
+
+    if ($order_item->hasField('field_selected_coach')) {
+      $order_item->set('field_selected_coach', ['target_id' => $coach_id]);
+    }
+
+    return ['ok' => TRUE, 'status' => 200, 'message' => ''];
   }
 
   /**
@@ -921,6 +1037,72 @@ class CourtBookingApiService {
       }
       else {
         $line['rental'] = NULL;
+      }
+
+      // Coach data: primary source is field_selected_coach; fallback is the
+      // coach adjustment source_id ('coach_<id>') for items created before the
+      // field existed in this environment (e.g. dev missing field config).
+      $line['coach'] = NULL;
+      $coach_entity = NULL;
+      $coach_price_charged = NULL;
+
+      // Scan adjustments once — captures price_charged and fallback coach_id.
+      $fallback_coach_id = 0;
+      foreach ($item->getAdjustments() as $adj) {
+        $source_id = (string) $adj->getSourceId();
+        if (str_starts_with($source_id, 'coach_')) {
+          $amount = $adj->getAmount();
+          $coach_price_charged = [
+            'number'        => $amount->getNumber(),
+            'currency_code' => $amount->getCurrencyCode(),
+            'formatted'     => $amount->__toString(),
+          ];
+          $fallback_coach_id = (int) substr($source_id, strlen('coach_'));
+          break;
+        }
+      }
+
+      // Primary: field_selected_coach (exists after drush updb court_booking_update_9024).
+      if ($item->hasField('field_selected_coach') && !$item->get('field_selected_coach')->isEmpty()) {
+        $coach_target_id = $item->get('field_selected_coach')->target_id;
+        if ($coach_target_id) {
+          $coach_entity = $this->entityTypeManager->getStorage('node')->load($coach_target_id);
+        }
+      }
+
+      // Fallback: derive coach from adjustment source_id when field is missing/empty.
+      if (!$coach_entity && $fallback_coach_id > 0) {
+        $coach_entity = $this->entityTypeManager->getStorage('node')->load($fallback_coach_id);
+      }
+
+      if ($coach_entity) {
+        // Resolve coach photo URL inline (mirrors CoachAvailabilityService::resolvePhotoUrl).
+        $coach_photo_url = '';
+        if (!$coach_entity->get('field_coach_photo')->isEmpty()) {
+          $coach_media = $coach_entity->get('field_coach_photo')->entity;
+          if ($coach_media && $coach_media->hasField('field_media_image') && !$coach_media->get('field_media_image')->isEmpty()) {
+            $coach_file = $coach_media->get('field_media_image')->entity;
+            if ($coach_file) {
+              try {
+                $coach_photo_url = $this->fileUrlGenerator->generateAbsoluteString($coach_file->getFileUri());
+              }
+              catch (\Throwable) {}
+            }
+          }
+        }
+
+        $coach_category = $coach_entity->get('field_coach_category')->isEmpty()
+          ? ''
+          : ($coach_entity->get('field_coach_category')->entity?->label() ?? '');
+
+        $line['coach'] = [
+          'id'            => (int) $coach_entity->id(),
+          'name'          => $coach_entity->get('field_coach_name')->value ?: $coach_entity->label(),
+          'price'         => (int) $coach_entity->get('field_coach_price')->value,
+          'price_charged' => $coach_price_charged,
+          'photo_url'     => $coach_photo_url,
+          'category'      => $coach_category,
+        ];
       }
 
       $line['court'] = NULL;

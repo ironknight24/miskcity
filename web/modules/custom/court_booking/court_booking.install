@@ -541,6 +541,57 @@ function court_booking_update_9022(): void {
 }
 
 /**
+ * Add field_selected_coach (entity_reference → node/coach) on all commerce_order_item bundles.
+ *
+ * This field was created through the UI in local but never exported as config,
+ * so it is missing on dev/staging. Without it, coach data is silently dropped
+ * during add-to-cart and the /commerce/cart endpoint always returns coach: null.
+ */
+function court_booking_update_9024(): void {
+  $entity_type_manager = \Drupal::entityTypeManager();
+
+  // Create the shared field storage if it does not already exist.
+  $storage = \Drupal\field\Entity\FieldStorageConfig::loadByName('commerce_order_item', 'field_selected_coach');
+  if (!$storage) {
+    $storage = \Drupal\field\Entity\FieldStorageConfig::create([
+      'field_name'  => 'field_selected_coach',
+      'entity_type' => 'commerce_order_item',
+      'type'        => 'entity_reference',
+      'settings'    => ['target_type' => 'node'],
+      'cardinality' => 1,
+    ]);
+    $storage->save();
+  }
+
+  // Attach a field instance to every existing order-item bundle that lacks it.
+  $bundles = $entity_type_manager->getStorage('commerce_order_item_type')->loadMultiple();
+  foreach ($bundles as $bundle) {
+    $bundle_id = $bundle->id();
+    if (\Drupal\field\Entity\FieldConfig::loadByName('commerce_order_item', $bundle_id, 'field_selected_coach')) {
+      continue;
+    }
+    \Drupal\field\Entity\FieldConfig::create([
+      'field_storage' => $storage,
+      'bundle'        => $bundle_id,
+      'label'         => 'Selected Coach',
+      'required'      => FALSE,
+      'settings'      => [
+        'handler'          => 'default:node',
+        'handler_settings' => [
+          'target_bundles' => ['coach' => 'coach'],
+          'sort'           => ['field' => '_none'],
+          'auto_create'    => FALSE,
+        ],
+      ],
+    ])->save();
+  }
+
+  \Drupal::logger('court_booking')->notice(
+    'court_booking_update_9024: field_selected_coach created on commerce_order_item (coach booking support).',
+  );
+}
+
+/**
  * Keep only time_band rules; set modifier_kind to surcharge_field; drop legacy types.
  */
 function court_booking_update_9023(): void {

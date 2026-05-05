@@ -35,9 +35,11 @@ class EventBookingUnifiedBookingsService extends EventBookingBaseService {
   private function normalizeUnifiedParams(array $params): array {
     $court_limit = max(1, min(50, (int) ($params['court_limit'] ?? 10)));
     $event_limit = max(1, min(50, (int) ($params['event_limit'] ?? 10)));
+    $bucket_raw = mb_strtolower(trim((string) ($params['bucket'] ?? '')));
+    $kind_raw = mb_strtolower(trim((string) ($params['kind'] ?? '')));
     return [
-      'bucket' => in_array((string) ($params['bucket'] ?? ''), ['upcoming', 'past'], TRUE) ? (string) $params['bucket'] : 'upcoming',
-      'kind' => in_array((string) ($params['kind'] ?? ''), ['all', 'court', 'event'], TRUE) ? (string) $params['kind'] : 'all',
+      'bucket' => in_array($bucket_raw, ['upcoming', 'past'], TRUE) ? $bucket_raw : 'upcoming',
+      'kind' => in_array($kind_raw, ['all', 'court', 'event'], TRUE) ? $kind_raw : 'all',
       'q' => trim((string) ($params['q'] ?? '')),
       'sport_tid' => max(0, (int) ($params['sport_tid'] ?? 0)),
       'court_page' => max(0, (int) ($params['court_page'] ?? 0)),

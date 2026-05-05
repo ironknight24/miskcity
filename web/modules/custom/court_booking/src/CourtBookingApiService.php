@@ -1186,7 +1186,7 @@ final class CourtBookingApiService {
 
     $orders = $order_storage->loadMultiple($order_ids);
     $variation_orders = $this->completedOrderIdsByVariation($orders);
-    $now = \Drupal::time()->getRequestTime();
+    $now = (int) \Drupal::time()->getCurrentTime();
     $tz_id = $this->siteTimezoneId();
     $candidates = [];
 

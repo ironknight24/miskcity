@@ -72,6 +72,36 @@ class EventBookingRestControllerTest extends TestCase {
     $this->assertSame('foo', $params['q']);
   }
 
+  public function testMyUnifiedBookingsUsesPrivateNoStoreHeaders(): void {
+    $api = $this->createMock(EventBookingApiService::class);
+    $checkout = $this->createMock(CommerceCheckoutRestService::class);
+    $controller = new EventBookingRestController($api, $checkout);
+
+    $account = $this->createMock(AccountInterface::class);
+    $this->setControllerCurrentUser($controller, $account);
+
+    $api->expects($this->once())
+      ->method('getUnifiedBookings')
+      ->with($account, [
+        'bucket' => 'upcoming',
+        'kind' => 'all',
+        'q' => '',
+        'sport_tid' => 0,
+        'court_page' => 0,
+        'court_limit' => 10,
+        'event_page' => 0,
+        'event_limit' => 10,
+      ])
+      ->willReturn(['status' => 200, 'data' => ['segments' => []]]);
+
+    $response = $controller->myUnifiedBookings(new Request());
+
+    $this->assertSame('private, no-store, no-cache, must-revalidate', $response->headers->get('Cache-Control'));
+    $this->assertSame('no-cache', $response->headers->get('Pragma'));
+    $this->assertSame('0', $response->headers->get('Expires'));
+    $this->assertSame('Authorization, Cookie', $response->headers->get('Vary'));
+  }
+
   private function setControllerCurrentUser(EventBookingRestController $controller, AccountInterface $account): void {
     $property = new \ReflectionProperty(\Drupal\Core\Controller\ControllerBase::class, 'currentUser');
     $property->setAccessible(TRUE);

@@ -134,7 +134,7 @@ final class EventBookingRestController extends ControllerBase {
    */
   public function myBookedUpcomingEvents(Request $request): JsonResponse {
     $result = $this->api->getMyBookedEvents($this->currentUser(), 'upcoming', $this->extractListParams($request));
-    return new JsonResponse($result['data'], $result['status']);
+    return $this->privateNoStoreJsonResponse($result['data'], (int) $result['status']);
   }
 
   /**
@@ -142,7 +142,7 @@ final class EventBookingRestController extends ControllerBase {
    */
   public function myBookedCompletedEvents(Request $request): JsonResponse {
     $result = $this->api->getMyBookedEvents($this->currentUser(), 'completed', $this->extractListParams($request));
-    return new JsonResponse($result['data'], $result['status']);
+    return $this->privateNoStoreJsonResponse($result['data'], (int) $result['status']);
   }
 
   /**
@@ -150,7 +150,24 @@ final class EventBookingRestController extends ControllerBase {
    */
   public function myUnifiedBookings(Request $request): JsonResponse {
     $result = $this->api->getUnifiedBookings($this->currentUser(), $this->extractUnifiedListParams($request));
-    return new JsonResponse($result['data'], $result['status']);
+    return $this->privateNoStoreJsonResponse($result['data'], (int) $result['status']);
+  }
+
+  /**
+   * Builds a private, non-cacheable JSON response for user-scoped booking data.
+   *
+   * @param mixed $data
+   *   JSON-serializable payload.
+   * @param int $status
+   *   HTTP status code.
+   */
+  private function privateNoStoreJsonResponse(mixed $data, int $status = 200): JsonResponse {
+    $response = new JsonResponse($data, $status);
+    $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    $response->headers->set('Pragma', 'no-cache');
+    $response->headers->set('Expires', '0');
+    $response->headers->set('Vary', 'Authorization, Cookie');
+    return $response;
   }
 
   /**

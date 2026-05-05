@@ -74,7 +74,7 @@ final class CourtBookingRestController extends ControllerBase {
    */
   public function myBookingsUpcoming(Request $request): JsonResponse {
     $result = $this->courtBookingApi->buildMyBookingsResponse($this->currentUser(), 'upcoming', $this->extractListParams($request));
-    return new JsonResponse($result['data'], $result['status']);
+    return $this->privateNoStoreJsonResponse($result['data'], (int) $result['status']);
   }
 
   /**
@@ -82,7 +82,7 @@ final class CourtBookingRestController extends ControllerBase {
    */
   public function myBookingsPast(Request $request): JsonResponse {
     $result = $this->courtBookingApi->buildMyBookingsResponse($this->currentUser(), 'past', $this->extractListParams($request));
-    return new JsonResponse($result['data'], $result['status']);
+    return $this->privateNoStoreJsonResponse($result['data'], (int) $result['status']);
   }
 
   /**
@@ -165,6 +165,23 @@ final class CourtBookingRestController extends ControllerBase {
       'q' => $q,
       'sport_tid' => $sport_tid,
     ];
+  }
+
+  /**
+   * Builds a private, non-cacheable JSON response for user booking listings.
+   *
+   * @param mixed $data
+   *   JSON-serializable payload.
+   * @param int $status
+   *   HTTP status code.
+   */
+  private function privateNoStoreJsonResponse(mixed $data, int $status = 200): JsonResponse {
+    $response = new JsonResponse($data, $status);
+    $response->headers->set('Cache-Control', 'private, no-store, no-cache, must-revalidate');
+    $response->headers->set('Pragma', 'no-cache');
+    $response->headers->set('Expires', '0');
+    $response->headers->set('Vary', 'Authorization, Cookie');
+    return $response;
   }
 
 }
